@@ -27,4 +27,16 @@ public interface IFlightTrackingService {
     List<FlightTracking> getByFlightId(Long flightId);
 
     Page<FlightTracking> getByFlightId(Long flightId, Pageable pageable);
+
+    /**
+     * Process a new flight tracking data point and assign it to the appropriate
+     * flight.
+     * If no active flight exists for the aircraft, a new flight will be created.
+     * 
+     * @param aircraftId   The ID of the aircraft being tracked
+     * @param trackingData The new tracking data (location, altitude, speed, etc.)
+     * @param userId       The user ID for audit purposes (optional)
+     * @return The saved FlightTracking entity
+     */
+    FlightTracking processNewTrackingData(Long aircraftId, FlightTrackingRequest trackingData, Long userId);
 }

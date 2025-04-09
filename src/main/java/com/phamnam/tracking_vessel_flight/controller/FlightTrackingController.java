@@ -184,4 +184,24 @@ public class FlightTrackingController {
                                 PageResponse.fromPage(trackingPage),
                                 "Tracking data for flight retrieved successfully"));
         }
+
+        @Operation(summary = "Process new flight tracking data", description = "Processes new tracking data for an aircraft, creates flight if needed")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Flight tracking processed successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid input data"),
+                        @ApiResponse(responseCode = "404", description = "Aircraft not found")
+        })
+        @PostMapping("/process/{aircraftId}")
+        public ResponseEntity<MyApiResponse<FlightTracking>> processNewTrackingData(
+                        @PathVariable Long aircraftId,
+                        @Valid @RequestBody FlightTrackingRequest request,
+                        @RequestParam(required = false) Long userId) {
+
+                FlightTracking savedTracking = flightTrackingService.processNewTrackingData(
+                                aircraftId, request, userId);
+
+                return new ResponseEntity<>(
+                                MyApiResponse.success(savedTracking, "Flight tracking data processed successfully"),
+                                HttpStatus.CREATED);
+        }
 }

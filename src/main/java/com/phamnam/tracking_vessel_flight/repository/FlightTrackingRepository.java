@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface FlightTrackingRepository extends JpaRepository<FlightTracking, Long> {
     @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
@@ -18,7 +19,14 @@ public interface FlightTrackingRepository extends JpaRepository<FlightTracking, 
     Page<FlightTracking> findWithinRadiusPaginated(@Param("lon") double lon, @Param("lat") double lat,
             @Param("radius") double radius, Pageable pageable);
 
-    List<FlightTracking> findByAircraft_id(Long flightId);
+    List<FlightTracking> findByFlight_id(Long flightId);
 
-    Page<FlightTracking> findByAircraft_id(Long flightId, Pageable pageable);
+    Page<FlightTracking> findByFlight_id(Long flightId, Pageable pageable);
+
+    @Query("""
+                SELECT t FROM FlightTracking t
+                WHERE t.flight.id = :flightId
+                ORDER BY t.updateTime DESC
+            """)
+    Optional<FlightTracking> findLastTrackingByFlightId(@Param("flightId") Long flightId);
 }

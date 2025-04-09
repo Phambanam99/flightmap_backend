@@ -34,6 +34,6 @@ public class Aircraft extends BaseEntity {
     private Integer year;
     private String source;
     private Integer itemType;
-    @OneToMany(mappedBy = "aircraft", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<FlightTracking> flightTrackings;
+    @OneToMany(mappedBy = "aircraft", cascade = CascadeType.ALL)
+    private List<Flight> flights;
 }

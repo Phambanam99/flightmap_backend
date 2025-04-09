@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.service;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightRequest;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Aircraft;
+import com.phamnam.tracking_vessel_flight.models.Flight;
 import com.phamnam.tracking_vessel_flight.models.User;
 import com.phamnam.tracking_vessel_flight.repository.FlightRepository;
 import com.phamnam.tracking_vessel_flight.repository.UserRepository;
@@ -16,57 +17,66 @@ import java.util.List;
 
 @Service
 public class FlightService implements IFlightService {
+
     @Autowired
     private FlightRepository flightRepository;
 
     @Autowired
+    private com.phamnam.tracking_vessel_flight.repository.FlightRepository aircraftRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
-    public List<Aircraft> getAll() {
+    @Override
+    public List<Flight> getAll() {
         return flightRepository.findAll();
     }
 
-    public Page<Aircraft> getAllPaginated(Pageable pageable) {
+    @Override
+    public Page<Flight> getAllPaginated(Pageable pageable) {
         return flightRepository.findAll(pageable);
     }
 
-    public Aircraft getFlightById(Long id) {
+    @Override
+    public Flight getFlightById(Long id) {
         return flightRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", id));
     }
 
-    public Aircraft save(FlightRequest flightRequest, Long userId) {
+    @Override
+    public List<Flight> getFlightsByAircraftId(Long aircraftId) {
+        return flightRepository.findByAircraft_id(aircraftId);
+    }
+
+    @Override
+    public Flight save(FlightRequest flightRequest, Long userId) {
+        Aircraft aircraft = aircraftRepository.findById(flightRequest.getAircraftId())
+                .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId())).getAircraft();
+
         User user = null;
         if (userId != null) {
             user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         }
 
-        Aircraft aircraft = Aircraft.builder()
-                .hexident(flightRequest.getHexident())
-                .register(flightRequest.getRegister())
-                .type(flightRequest.getType())
-                .manufacture(flightRequest.getManufacture())
-                .constructorNumber(flightRequest.getConstructorNumber())
-                .operator(flightRequest.getOperator())
-                .operatorCode(flightRequest.getOperatorCode())
-                .engines(flightRequest.getEngines())
-                .engineType(flightRequest.getEngineType())
-                .isMilitary(flightRequest.getIsMilitary())
-                .country(flightRequest.getCountry())
-                .transponderType(flightRequest.getTransponderType())
-                .year(flightRequest.getYear())
-                .source(flightRequest.getSource())
-                .itemType(flightRequest.getItemType())
+        Flight flight = Flight.builder()
+                .aircraft(aircraft)
+                .callsign(flightRequest.getCallsign())
+                .departureTime(flightRequest.getDepartureTime())
+                .arrivalTime(flightRequest.getArrivalTime())
+                .status(flightRequest.getStatus())
+                .originAirport(flightRequest.getOriginAirport())
+                .destinationAirport(flightRequest.getDestinationAirport())
                 .build();
 
-        aircraft.setUpdatedBy(user);
+        flight.setUpdatedBy(user);
 
-        return flightRepository.save(aircraft);
+        return flightRepository.save(flight);
     }
 
-    public Aircraft updateFlight(Long id, FlightRequest flightRequest, Long userId) {
-        Aircraft aircraft = getFlightById(id);
+    @Override
+    public Flight updateFlight(Long id, FlightRequest flightRequest, Long userId) {
+        Flight flight = getFlightById(id);
 
         User user = null;
         if (userId != null) {
@@ -74,29 +84,44 @@ public class FlightService implements IFlightService {
                     .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         }
 
-        aircraft.setHexident(flightRequest.getHexident());
-        aircraft.setRegister(flightRequest.getRegister());
-        aircraft.setType(flightRequest.getType());
-        aircraft.setManufacture(flightRequest.getManufacture());
-        aircraft.setConstructorNumber(flightRequest.getConstructorNumber());
-        aircraft.setOperator(flightRequest.getOperator());
-        aircraft.setOperatorCode(flightRequest.getOperatorCode());
-        aircraft.setEngines(flightRequest.getEngines());
-        aircraft.setEngineType(flightRequest.getEngineType());
-        aircraft.setIsMilitary(flightRequest.getIsMilitary());
-        aircraft.setCountry(flightRequest.getCountry());
-        aircraft.setTransponderType(flightRequest.getTransponderType());
-        aircraft.setYear(flightRequest.getYear());
-        aircraft.setSource(flightRequest.getSource());
-        aircraft.setItemType(flightRequest.getItemType());
+        if (flightRequest.getAircraftId() != null) {
+            Aircraft aircraft = aircraftRepository.findById(flightRequest.getAircraftId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId())).getAircraft();
+            flight.setAircraft(aircraft);
+        }
 
-        aircraft.setUpdatedBy(user);
+        if (flightRequest.getCallsign() != null) {
+            flight.setCallsign(flightRequest.getCallsign());
+        }
 
-        return flightRepository.save(aircraft);
+        if (flightRequest.getDepartureTime() != null) {
+            flight.setDepartureTime(flightRequest.getDepartureTime());
+        }
+
+        if (flightRequest.getArrivalTime() != null) {
+            flight.setArrivalTime(flightRequest.getArrivalTime());
+        }
+
+        if (flightRequest.getStatus() != null) {
+            flight.setStatus(flightRequest.getStatus());
+        }
+
+        if (flightRequest.getOriginAirport() != null) {
+            flight.setOriginAirport(flightRequest.getOriginAirport());
+        }
+
+        if (flightRequest.getDestinationAirport() != null) {
+            flight.setDestinationAirport(flightRequest.getDestinationAirport());
+        }
+
+        flight.setUpdatedBy(user);
+
+        return flightRepository.save(flight);
     }
 
+    @Override
     public void deleteFlight(Long id) {
-        Aircraft aircraft = getFlightById(id);
-        flightRepository.delete(aircraft);
+        Flight flight = getFlightById(id);
+        flightRepository.delete(flight);
     }
 }

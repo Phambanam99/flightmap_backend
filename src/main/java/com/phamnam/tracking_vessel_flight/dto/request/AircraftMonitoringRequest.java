@@ -7,24 +7,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class FlightRequest {
+public class AircraftMonitoringRequest {
+    @NotNull(message = "User ID is required")
+    private Long userId;
+
     @NotNull(message = "Aircraft ID is required")
     private Long aircraftId;
-
-    private String callsign;
-
-    private LocalDateTime departureTime;
-    private LocalDateTime arrivalTime;
-
-    private String status;
-
-    private String originAirport;
-    private String destinationAirport;
 }

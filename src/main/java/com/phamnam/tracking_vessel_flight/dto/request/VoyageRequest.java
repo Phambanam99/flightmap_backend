@@ -1,6 +1,6 @@
 package com.phamnam.tracking_vessel_flight.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,18 +13,19 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class FlightRequest {
-    @NotNull(message = "Aircraft ID is required")
-    private Long aircraftId;
-
-    private String callsign;
+public class VoyageRequest {
+    private String voyageNumber;
 
     private LocalDateTime departureTime;
+
     private LocalDateTime arrivalTime;
 
-    private String status;
+    @NotBlank(message = "Departure port is required")
+    private String departurePort;
 
-    private String originAirport;
-    private String destinationAirport;
+    @NotBlank(message = "Arrival port is required")
+    private String arrivalPort;
+
+    @NotNull(message = "Ship ID is required")
+    private Long shipId;
 }

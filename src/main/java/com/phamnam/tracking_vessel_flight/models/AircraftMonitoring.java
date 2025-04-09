@@ -6,25 +6,23 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "vessel_journey")
+@Table(name = "aircraft_monitoring")
 @Data
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class VesselJourney extends BaseEntity{
+public class AircraftMonitoring {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long journeyId;
+    private Long id;
+
+    private Long userId;
 
     @ManyToOne
-    @JoinColumn(name = "vessel_id")
+    @JoinColumn(name = "aircraft_id")
     private Aircraft aircraft;
 
-    private String fromPort;
-    private String toPort;
-    private LocalDateTime departureTime;
-    private LocalDateTime arrivalTime;
-    private String status;
+    private LocalDateTime createdAt;
 }

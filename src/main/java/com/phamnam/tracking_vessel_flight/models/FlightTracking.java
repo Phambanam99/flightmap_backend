@@ -27,7 +27,7 @@ public class FlightTracking extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "flight_id")
     @JsonIgnore // Prevents infinite recursion when serializing
-    private Aircraft aircraft;
+    private Flight flight;
 
     private Float altitude;
     private String altitudeType;
@@ -52,6 +52,12 @@ public class FlightTracking extends BaseEntity {
 
     @JsonProperty("flightId")
     public Long getFlightId() {
-        return aircraft != null ? aircraft.getId() : null;
+        return flight != null ? flight.getId() : null;
+    }
+
+    @Transient
+    @JsonProperty("aircraftId")
+    public Long getAircraftId() {
+        return flight != null && flight.getAircraft() != null ? flight.getAircraft().getId() : null;
     }
 }

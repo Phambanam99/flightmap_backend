@@ -1,22 +1,24 @@
 package com.phamnam.tracking_vessel_flight.service.interfaces;
 
 import com.phamnam.tracking_vessel_flight.dto.request.FlightRequest;
-import com.phamnam.tracking_vessel_flight.models.Aircraft;
+import com.phamnam.tracking_vessel_flight.models.Flight;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 public interface IFlightService {
-    List<Aircraft> getAll();
+    List<Flight> getAll();
 
-    Page<Aircraft> getAllPaginated(Pageable pageable);
+    Page<Flight> getAllPaginated(Pageable pageable);
 
-    Aircraft getFlightById(Long id);
+    Flight getFlightById(Long id);
 
-    Aircraft save(FlightRequest flightRequest, Long userId);
+    List<Flight> getFlightsByAircraftId(Long aircraftId);
 
-    Aircraft updateFlight(Long id, FlightRequest flightRequest, Long userId);
+    Flight save(FlightRequest flightRequest, Long userId);
+
+    Flight updateFlight(Long id, FlightRequest flightRequest, Long userId);
 
     void deleteFlight(Long id);
 }
