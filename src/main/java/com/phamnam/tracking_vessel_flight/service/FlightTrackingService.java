@@ -11,6 +11,7 @@ import com.phamnam.tracking_vessel_flight.repository.FlightRepository;
 import com.phamnam.tracking_vessel_flight.repository.FlightTrackingRepository;
 import com.phamnam.tracking_vessel_flight.repository.UserRepository;
 import com.phamnam.tracking_vessel_flight.service.interfaces.IFlightTrackingService;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -18,6 +19,7 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +27,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
+@Slf4j
 @Service
 public class FlightTrackingService implements IFlightTrackingService {
     @Autowired
@@ -282,6 +284,45 @@ public class FlightTrackingService implements IFlightTrackingService {
         return null;
     }
 
+
+    // Thêm vào implementation class của bạn
+    @Scheduled(cron = "0 0 2 * * ?") // Chạy vào 2h sáng mỗi ngày
+    public void archiveOldData() {
+        log.info("Starting archival of old flight tracking data");
+
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(30);
+
+        // 1. Truy vấn dữ liệu cũ
+        List<FlightTracking> oldData = flightTrackingRepository
+                .findByUpdateTimeBefore(cutoffDate);
+
+        if (oldData.isEmpty()) {
+            log.info("No old data to archive");
+            return;
+        }
+
+        log.info("Found {} records to archive", oldData.size());
+
+        // 2. Lưu vào cold storage (có thể là bảng riêng hoặc hệ thống lưu trữ khác)
+        try {
+            archiveToDatabase(oldData);
+            // hoặc
+            // archiveToFileSystem(oldData);
+
+            // 3. Xóa dữ liệu đã được lưu trữ khỏi warm storage
+            flightTrackingRepository.deleteByUpdateTimeBefore(cutoffDate);
+
+            log.info("Successfully archived and cleaned up {} old records", oldData.size());
+        } catch (Exception e) {
+            log.error("Error archiving old data: {}", e.getMessage(), e);
+        }
+    }
+
+
+    private void archiveToDatabase(List<FlightTracking> oldData) {
+        // Triển khai lưu trữ vào cold storage database
+        // Ví dụ: coldStorageRepository.saveAll(oldData);
+    }
     /**
      * Update flight status based on tracking data
      * 
