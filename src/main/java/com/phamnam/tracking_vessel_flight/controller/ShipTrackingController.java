@@ -4,7 +4,7 @@ import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
 import com.phamnam.tracking_vessel_flight.dto.response.PageResponse;
 import com.phamnam.tracking_vessel_flight.models.ShipTracking;
-import com.phamnam.tracking_vessel_flight.service.ShipTrackingService;
+import com.phamnam.tracking_vessel_flight.service.rest.ShipTrackingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Aircraft Tracking WebSocket API Documentation</title>
+    <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@1.0.0-next.47/styles/default.min.css">
+    <script src="https://unpkg.com/@asyncapi/react-component@1.0.0-next.47/browser/standalone.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #header {
+            background-color: #24292e;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #header a {
+            color: white;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        #asyncapi-ui {
+            height: calc(100vh - 50px);
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Aircraft Tracking WebSocket API</h1>
+        <div>
+            <a href="/swagger-ui.html">OpenAPI Documentation</a>
+            <a href="/asyncapi">Raw AsyncAPI Spec</a>
+        </div>
+    </div>
+    <div id="asyncapi-ui"></div>
+
+    <script>
+        window.onload = function() {
+            AsyncApiStandalone.render({
+                schema: {
+                    url: '/asyncapi',
+                    options: {
+                        format: 'yaml'
+                    }
+                },
+                config: {
+                    show: {
+                        sidebar: true
+                    }
+                }
+            }, document.getElementById('asyncapi-ui'));
+        };
+    </script>
+</body>
+</html>

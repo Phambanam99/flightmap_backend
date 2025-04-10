@@ -3,7 +3,7 @@ package com.phamnam.tracking_vessel_flight.controller;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
-import com.phamnam.tracking_vessel_flight.service.KafkaProducerService;
+import com.phamnam.tracking_vessel_flight.service.realtime.KafkaProducerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

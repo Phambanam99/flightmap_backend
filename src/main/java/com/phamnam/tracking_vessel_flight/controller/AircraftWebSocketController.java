@@ -2,7 +2,7 @@ package com.phamnam.tracking_vessel_flight.controller;
 
 import com.phamnam.tracking_vessel_flight.dto.request.AreaSubscriptionRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftSubscriptionRequest;
-import com.phamnam.tracking_vessel_flight.service.WebSocketSubscriptionService;
+import com.phamnam.tracking_vessel_flight.service.realtime.WebSocketSubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

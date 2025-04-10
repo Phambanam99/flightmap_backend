@@ -3,7 +3,7 @@ package com.phamnam.tracking_vessel_flight.service;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
 import com.phamnam.tracking_vessel_flight.models.ShipTracking;
 import com.phamnam.tracking_vessel_flight.repository.FlightTrackingRepository;
-import com.phamnam.tracking_vessel_flight.service.interfaces.ColdStorageService;
+import com.phamnam.tracking_vessel_flight.service.rest.interfaces.ColdStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

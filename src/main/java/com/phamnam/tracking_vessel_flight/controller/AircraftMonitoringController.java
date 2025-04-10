@@ -4,7 +4,7 @@ import com.phamnam.tracking_vessel_flight.dto.request.AircraftMonitoringRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
 import com.phamnam.tracking_vessel_flight.dto.response.PageResponse;
 import com.phamnam.tracking_vessel_flight.models.AircraftMonitoring;
-import com.phamnam.tracking_vessel_flight.service.AircraftMonitoringService;
+import com.phamnam.tracking_vessel_flight.service.rest.AircraftMonitoringService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

@@ -1,6 +1,6 @@
 package com.phamnam.tracking_vessel_flight.config;
 
-import com.phamnam.tracking_vessel_flight.service.WebSocketSubscriptionService;
+import com.phamnam.tracking_vessel_flight.service.realtime.WebSocketSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

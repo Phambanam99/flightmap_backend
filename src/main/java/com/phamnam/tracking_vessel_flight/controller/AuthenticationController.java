@@ -6,7 +6,7 @@ import com.phamnam.tracking_vessel_flight.models.auth.AuthenticationResponse;
 import com.phamnam.tracking_vessel_flight.models.auth.LogoutRequest;
 import com.phamnam.tracking_vessel_flight.models.auth.RefreshTokenRequest;
 import com.phamnam.tracking_vessel_flight.models.auth.RegisterRequest;
-import com.phamnam.tracking_vessel_flight.service.AuthenticationService;
+import com.phamnam.tracking_vessel_flight.service.rest.AuthenticationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

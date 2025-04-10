@@ -2,7 +2,7 @@ package com.phamnam.tracking_vessel_flight.controller;
 
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
-import com.phamnam.tracking_vessel_flight.service.interfaces.ColdStorageService;
+import com.phamnam.tracking_vessel_flight.service.rest.interfaces.ColdStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
