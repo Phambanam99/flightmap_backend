@@ -24,14 +24,11 @@ public class AircraftNotificationService {
     public void sendAircraftUpdate(FlightTrackingRequest tracking) {
         if (tracking.getFlightId() == null)
             return;
-
         // 1. Gửi đến clients đã đăng ký máy bay cụ thể này
         messagingTemplate.convertAndSend("/topic/aircraft/" + tracking.getFlightId(), tracking);
-
         // 2. Xác định khu vực chứa máy bay này
         if (tracking.getLatitude() == null || tracking.getLongitude() == null)
             return;
-
         // Lấy danh sách các khu vực đang được đăng ký
         Set<Object> activeAreas = redisTemplate.opsForSet().members("active:area:subscriptions");
         if (activeAreas == null || activeAreas.isEmpty())

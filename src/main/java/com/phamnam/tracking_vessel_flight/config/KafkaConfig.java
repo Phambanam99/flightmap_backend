@@ -1,9 +1,11 @@
 package com.phamnam.tracking_vessel_flight.config;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +17,9 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Configuration
 public class KafkaConfig {
@@ -87,5 +91,59 @@ public class KafkaConfig {
         factory.setConsumerFactory(ShipTrackingConsumerFactory());
         return factory;
     }
+    // Consumer Factory cho mảng FlightTrackingRequest
+@Bean
+public ConsumerFactory<String, List<FlightTrackingRequest>> batchFlightTrackingConsumerFactory() {
+    Map<String, Object> props = new HashMap<>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "flight-tracking-batch-group");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+    props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Max batch size
+    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.phamnam.tracking_vessel_flight.dto.request");
+    
+    // Sử dụng TypeReference để xác định kiểu dữ liệu là List
+    return new DefaultKafkaConsumerFactory<>(
+            props, 
+            new StringDeserializer(),
+            new JsonDeserializer<>(new TypeReference<List<FlightTrackingRequest>>() {}, false)
+    );
+}
 
+@Bean
+public ConcurrentKafkaListenerContainerFactory<String, List<FlightTrackingRequest>> batchFlightKafkaListenerContainerFactory() {
+    ConcurrentKafkaListenerContainerFactory<String, List<FlightTrackingRequest>> factory =
+            new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(batchFlightTrackingConsumerFactory());
+    factory.setBatchListener(true); // Kích hoạt batch processing
+    return factory;
+}
+// Consumer Factory cho mảng ShipTrackingRequest
+@Bean
+public ConsumerFactory<String, List<ShipTrackingRequest>> batchShipTrackingConsumerFactory() {
+    Map<String, Object> props = new HashMap<>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "ship-tracking-batch-group");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+    props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Max batch size
+    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.phamnam.tracking_vessel_flight.dto.request");
+    
+    return new DefaultKafkaConsumerFactory<>(
+            props, 
+            new StringDeserializer(),
+            new JsonDeserializer<>(new TypeReference<List<ShipTrackingRequest>>() {}, false)
+    );
+}
+
+@Bean
+public ConcurrentKafkaListenerContainerFactory<String, List<ShipTrackingRequest>> batchShipKafkaListenerContainerFactory() {
+    ConcurrentKafkaListenerContainerFactory<String, List<ShipTrackingRequest>> factory =
+            new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(batchShipTrackingConsumerFactory());
+    factory.setBatchListener(true); // Kích hoạt batch processing
+    return factory;
+}
+
+    
 }

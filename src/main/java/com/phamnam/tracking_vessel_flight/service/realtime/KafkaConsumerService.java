@@ -1,12 +1,17 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
+import com.phamnam.tracking_vessel_flight.service.rest.VoyageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -45,6 +50,29 @@ public class KafkaConsumerService {
         // 4. Kiểm tra xem có nên gửi batch update hay không
         checkAndTriggerBatchUpdate();
     }
+    // Thêm phương thức mới để xử lý batch
+    @KafkaListener(topics = "flight-tracking-batch", containerFactory = "batchFlightKafkaListenerContainerFactory")
+    public void consumeFlightTrackingBatch(List<FlightTrackingRequest> trackings) {
+        if (trackings == null || trackings.isEmpty()) {
+            return;
+        }
+        
+        log.info("Received batch of {} flight tracking updates", trackings.size());
+        
+        // Xử lý từng item trong batch
+        for (FlightTrackingRequest tracking : trackings) {
+            // Lưu vào Redis (Hot Storage)
+            trackingCacheService.cacheFlightTracking(tracking);
+            
+            // Lưu vào TimescaleDB (Warm Storage)
+            flightTrackingService.save(tracking, null);
+        }
+        
+        // Kích hoạt sendBatchUpdatesToAllAreas sau khi xử lý xong
+        aircraftNotificationService.sendBatchUpdatesToAllAreas();
+        
+        log.info("Processed batch of {} flight tracking updates", trackings.size());
+    }
     private void checkAndTriggerBatchUpdate() {
         int currentCount = updateCounter.incrementAndGet();
         long currentTime = System.currentTimeMillis();
@@ -59,6 +87,26 @@ public class KafkaConsumerService {
             // Gửi batch update
             aircraftNotificationService.sendBatchUpdatesToAllAreas();
         }
+    }
+     
+    @KafkaListener(topics = "ship-tracking-batch", containerFactory = "batchShipKafkaListenerContainerFactory")
+    public void consumeShipTrackingBatch(List<ShipTrackingRequest> trackings) {
+        if (trackings == null || trackings.isEmpty()) {
+            return;
+        }
+        
+        log.info("Received batch of {} ship tracking updates", trackings.size());
+        
+        // Xử lý từng item trong batch
+        for (ShipTrackingRequest tracking : trackings) {
+            // Cập nhật cache
+//            trackingCacheService.cacheShipTracking(tracking);
+            
+            // Lưu vào database
+//            voyageTrackingService.save(tracking, null);
+        }
+        
+        log.info("Processed batch of {} ship tracking updates", trackings.size());
     }
 
     // Cấu hình tương tự cho Vessel nếu cần
