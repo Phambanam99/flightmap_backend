@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.config;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
@@ -53,7 +54,7 @@ public class KafkaConfig {
 
     // Cấu hình consumer cho FlightTrackingRequest
     @Bean
-    public ConsumerFactory<String, FlightTrackingRequest> flightTrackingConsumerFactory() {
+    public ConsumerFactory<String, FlightTrackingRequestDTO> flightTrackingConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, "flight-tracking-group");
@@ -61,12 +62,12 @@ public class KafkaConfig {
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.phamnam.tracking_vessel_flight.dto.request");
         return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(),
-                new JsonDeserializer<>(FlightTrackingRequest.class, false));
+                new JsonDeserializer<>(FlightTrackingRequestDTO.class, false));
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, FlightTrackingRequest> flightKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, FlightTrackingRequest> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, FlightTrackingRequestDTO> flightKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, FlightTrackingRequestDTO> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(flightTrackingConsumerFactory());
         return factory;

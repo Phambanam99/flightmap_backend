@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 
@@ -15,9 +16,9 @@ public class KafkaProducerService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public void sendFlightTracking(FlightTrackingRequest tracking) {
+    public void sendFlightTracking(FlightTrackingRequestDTO tracking) {
         String topic = "flight-tracking";
-        String key = tracking.getFlightId() != null ? tracking.getFlightId().toString() : "unknown";
+        String key = tracking.getId() != null ? tracking.getId().toString() : "unknown";
         kafkaTemplate.send(topic, key, tracking);
         log.info("Flight tracking data sent to Kafka: {}", tracking);
     }

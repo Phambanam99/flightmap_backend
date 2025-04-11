@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,11 +22,11 @@ public class AircraftNotificationService {
     /**
      * Gửi cập nhật máy bay đến clients đã đăng ký
      */
-    public void sendAircraftUpdate(FlightTrackingRequest tracking) {
-        if (tracking.getFlightId() == null)
+    public void sendAircraftUpdate(FlightTrackingRequestDTO tracking) {
+        if (tracking.getId() == null)
             return;
         // 1. Gửi đến clients đã đăng ký máy bay cụ thể này
-        messagingTemplate.convertAndSend("/topic/aircraft/" + tracking.getFlightId(), tracking);
+        messagingTemplate.convertAndSend("/topic/aircraft/" + tracking.getId(), tracking);
         // 2. Xác định khu vực chứa máy bay này
         if (tracking.getLatitude() == null || tracking.getLongitude() == null)
             return;

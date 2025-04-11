@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
@@ -37,14 +38,14 @@ public class KafkaConsumerService {
             topics = "flight-tracking",
             containerFactory = "flightKafkaListenerContainerFactory"
     )
-    public void consumeFlightTracking(FlightTrackingRequest tracking) {
+    public void consumeFlightTracking(FlightTrackingRequestDTO tracking) {
         log.info("Received flight tracking data: {}", tracking);
 
         // 1. Lưu vào cache (Redis) - Hot Storage
         trackingCacheService.cacheFlightTracking(tracking);
 
         // 2. Lưu vào TimescaleDB - Warm Storage
-//       flightTrackingService.save(tracking, null);
+        flightTrackingService.processNewTrackingData(tracking, null);
        // 3. Gửi cập nhật qua WebSocket 
         aircraftNotificationService.sendAircraftUpdate(tracking);
         // 4. Kiểm tra xem có nên gửi batch update hay không
@@ -52,7 +53,7 @@ public class KafkaConsumerService {
     }
     // Thêm phương thức mới để xử lý batch
     @KafkaListener(topics = "flight-tracking-batch", containerFactory = "batchFlightKafkaListenerContainerFactory")
-    public void consumeFlightTrackingBatch(List<FlightTrackingRequest> trackings) {
+    public void consumeFlightTrackingBatch(List<FlightTrackingRequestDTO> trackings) {
         if (trackings == null || trackings.isEmpty()) {
             return;
         }
@@ -60,12 +61,12 @@ public class KafkaConsumerService {
         log.info("Received batch of {} flight tracking updates", trackings.size());
         
         // Xử lý từng item trong batch
-        for (FlightTrackingRequest tracking : trackings) {
+        for (FlightTrackingRequestDTO tracking : trackings) {
             // Lưu vào Redis (Hot Storage)
             trackingCacheService.cacheFlightTracking(tracking);
             
             // Lưu vào TimescaleDB (Warm Storage)
-            flightTrackingService.save(tracking, null);
+//            flightTrackingService.save(tracking, null);
         }
         
         // Kích hoạt sendBatchUpdatesToAllAreas sau khi xử lý xong

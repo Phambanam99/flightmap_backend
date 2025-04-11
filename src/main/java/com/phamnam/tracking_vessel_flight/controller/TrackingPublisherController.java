@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.controller;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
@@ -30,7 +31,7 @@ public class TrackingPublisherController {
     })
     @PostMapping("/flight")
     public ResponseEntity<MyApiResponse<Void>> publishFlightTracking(
-            @RequestBody FlightTrackingRequest trackingRequest) {
+            @RequestBody FlightTrackingRequestDTO trackingRequest) {
         kafkaProducerService.sendFlightTracking(trackingRequest);
 
         return ResponseEntity.ok(

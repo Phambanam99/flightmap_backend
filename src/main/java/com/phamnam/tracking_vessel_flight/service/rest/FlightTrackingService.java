@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightRequest;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
@@ -40,7 +41,7 @@ public class FlightTrackingService implements IFlightTrackingService {
     private UserRepository userRepository;
 
     @Autowired
-    private com.phamnam.tracking_vessel_flight.repository.FlightRepository aircraftRepository;
+    private FlightRepository aircraftRepository;
 
     @Autowired
     private FlightService flightService;
@@ -73,7 +74,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         return flightTrackingRepository.findWithinRadiusPaginated(longitude, latitude, radiusInMeters, pageable);
     }
 
-    public FlightTracking save(FlightTrackingRequest request, Long userId) {
+    public FlightTracking save(FlightTrackingRequestDTO request, Long userId) {
         Flight flight = flightRepository.findById(request.getFlightId())
                 .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", request.getFlightId()));
 
@@ -206,18 +207,40 @@ public class FlightTrackingService implements IFlightTrackingService {
      * flight.
      * If no active flight exists for the aircraft, a new flight will be created.
      * 
-     * @param aircraftId   The ID of the aircraft being tracked
+
      * @param trackingData The new tracking data (location, altitude, speed, etc.)
      * @param userId       The user ID for audit purposes (optional)
      * @return The saved FlightTracking entity
      */
-    @Override
     @Transactional
-    public FlightTracking processNewTrackingData(Long aircraftId, FlightTrackingRequest trackingData, Long userId) {
+    @Override
+    public FlightTracking processNewTrackingData(FlightTrackingRequestDTO trackingData, Long userId) {
         // Find the aircraft
-        Aircraft aircraft = aircraftRepository.findById(aircraftId)
-                .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", aircraftId))
-                .getAircraft();
+        Long aircraftId = trackingData.getAircraftId();
+        Aircraft aircraft = null;
+        if (aircraftId == null) {
+          aircraft = Aircraft.builder()
+                    .hexident(trackingData.getHexident())
+                    .register(trackingData.getRegister())
+                    .isMilitary(trackingData.getIsMilitary())
+                    .country(trackingData.getCountry())
+                    .type(trackingData.getType())
+                    .manufacture(trackingData.getManufacture())
+                    .operator(trackingData.getOperator())
+                    .operatorCode(trackingData.getOperatorCode())
+                    .engines(trackingData.getEngines())
+                    .engineType(trackingData.getEngineType())
+                    .transponderType(trackingData.getTransponderType())
+                    .year(trackingData.getYear())
+                    .source(trackingData.getSource())
+                    .itemType(trackingData.getItemType())
+                    .build();
+        } else {
+            aircraft = aircraftRepository.findById(aircraftId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", aircraftId))
+                    .getAircraft();
+        }
+
 
         // Get user for audit if needed
         User user = null;
@@ -238,7 +261,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         }
 
         // Update the tracking data to use the flight ID
-        trackingData.setFlightId(flight.getId());
+        trackingData.setFlight(flight.getId().toString());
 
         // Create and save the tracking data
         FlightTracking tracking = save(trackingData, userId);
@@ -331,7 +354,7 @@ public class FlightTrackingService implements IFlightTrackingService {
      * @param userId       the user ID for audit
      * @return the updated Flight
      */
-    private Flight updateFlightStatus(Flight flight, FlightTrackingRequest trackingData, Long userId) {
+    private Flight updateFlightStatus(Flight flight, FlightTrackingRequestDTO trackingData, Long userId) {
         boolean updated = false;
 
         // Get the latest tracking for this flight to compare with new data
@@ -382,7 +405,7 @@ public class FlightTrackingService implements IFlightTrackingService {
      * @param userId       the user ID for audit
      * @return the newly created Flight
      */
-    private Flight createNewFlight(Aircraft aircraft, FlightTrackingRequest trackingData, Long userId) {
+    private Flight createNewFlight(Aircraft aircraft, FlightTrackingRequestDTO trackingData, Long userId) {
         // Generate a callsign if not provided in tracking data
         String callsign = trackingData.getCallsign();
         if (callsign == null || callsign.isEmpty()) {

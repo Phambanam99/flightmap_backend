@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,11 +26,11 @@ public class TrackingCacheService {
     /**
      * Caches flight tracking data in Redis and adds to active flights
      */
-    public void cacheFlightTracking(FlightTrackingRequest tracking) {
-        String key = FLIGHT_TRACKING_PREFIX + tracking.getFlightId();
+    public void cacheFlightTracking(FlightTrackingRequestDTO tracking) {
+        String key = FLIGHT_TRACKING_PREFIX + tracking.getId();
         redisTemplate.opsForValue().set(key, tracking);
-        redisTemplate.opsForSet().add(ACTIVE_FLIGHTS_KEY, tracking.getFlightId().toString());
-        log.debug("Cached flight tracking for flight ID: {} and added to active flights", tracking.getFlightId());
+        redisTemplate.opsForSet().add(ACTIVE_FLIGHTS_KEY, tracking.getId().toString());
+        log.debug("Cached flight tracking for flight ID: {} and added to active flights", tracking.getId());
     }
 
     /**
