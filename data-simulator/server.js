@@ -2,9 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const SimulationService = require('./services/simulationService');
 const config = require('./config');
+const MockApiService = require('./services/mockApiService');
 
 const app = express();
 const simulationService = new SimulationService();
+const mockApiService = new MockApiService();
 
 // Middleware
 app.use(cors());
@@ -334,6 +336,36 @@ app.get('/api/docs', (req, res) => {
         method: 'POST',
         path: '/api/manual/ship',
         description: 'Manually generate and publish ship data'
+      },
+      mockApis: {
+        flightRadar24Mock: {
+          method: 'GET',
+          path: '/mock/flightradar24/zones/fcgi/feed.js',
+          description: 'Mock FlightRadar24 API endpoint',
+          params: {
+            bounds: 'maxLat,minLat,minLon,maxLon'
+          }
+        },
+        marineTrafficMock: {
+          method: 'GET', 
+          path: '/mock/marinetraffic/api/exportvessels/{apikey}/v:2/MINLAT:{lat}/MAXLAT:{lat}/MINLON:{lon}/MAXLON:{lon}/protocol:jsono',
+          description: 'Mock MarineTraffic API endpoint'
+        },
+        mockStats: {
+          method: 'GET',
+          path: '/api/mock/stats',
+          description: 'Get mock API statistics'
+        },
+        addMockFlight: {
+          method: 'POST',
+          path: '/api/mock/flights',
+          description: 'Add flight to mock data'
+        },
+        addMockShip: {
+          method: 'POST',
+          path: '/api/mock/ships', 
+          description: 'Add ship to mock data'
+        }
       }
     }
   };
@@ -344,6 +376,159 @@ app.get('/api/docs', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// =============================================================================
+// MOCK EXTERNAL APIs - FlightRadar24 & MarineTraffic
+// =============================================================================
+
+// Mock FlightRadar24 API
+app.get('/mock/flightradar24/zones/fcgi/feed.js', (req, res) => {
+  try {
+    console.log('🎭 FlightRadar24 Mock API called');
+    
+    const bounds = parseBoundsFromQuery(req.query.bounds);
+    const flightData = mockApiService.getFlightRadar24Data(bounds);
+    
+    // FlightRadar24 returns JSONP by default, but we'll return JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.json(flightData);
+    
+  } catch (error) {
+    console.error('❌ Mock FlightRadar24 API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mock MarineTraffic API - flexible route to handle various formats
+app.get('/mock/marinetraffic/api/exportvessels/*', (req, res) => {
+  try {
+    console.log('🎭 MarineTraffic Mock API called');
+    console.log('URL params:', req.params[0]);
+    
+    const bounds = parseMarineTrafficBounds(req.params[0]);
+    const marineData = mockApiService.getMarineTrafficData(bounds);
+    
+    res.json(marineData);
+    
+  } catch (error) {
+    console.error('❌ Mock MarineTraffic API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mock API Statistics
+app.get('/api/mock/stats', (req, res) => {
+  try {
+    const stats = mockApiService.getStats();
+    res.json({
+      success: true,
+      data: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Add flight to mock data
+app.post('/api/mock/flights', (req, res) => {
+  try {
+    const flightData = req.body;
+    const hexident = mockApiService.addFlight(flightData);
+    
+    res.json({
+      success: true,
+      message: 'Flight added to mock data',
+      data: { hexident, flightData },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Add ship to mock data
+app.post('/api/mock/ships', (req, res) => {
+  try {
+    const shipData = req.body;
+    const mmsi = mockApiService.addShip(shipData);
+    
+    res.json({
+      success: true,
+      message: 'Ship added to mock data',
+      data: { mmsi, shipData },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Helper functions
+function parseBoundsFromQuery(boundsParam) {
+  if (!boundsParam) {
+    return {
+      maxLat: config.bounds.maxLatitude,
+      minLat: config.bounds.minLatitude,
+      minLon: config.bounds.minLongitude,
+      maxLon: config.bounds.maxLongitude
+    };
+  }
+  
+  // FlightRadar24 format: "maxLat,minLat,minLon,maxLon"
+  const parts = boundsParam.split(',').map(parseFloat);
+  if (parts.length !== 4) {
+    throw new Error('Invalid bounds format');
+  }
+  
+  return {
+    maxLat: parts[0],
+    minLat: parts[1],
+    minLon: parts[2],
+    maxLon: parts[3]
+  };
+}
+
+function parseMarineTrafficBounds(urlParts) {
+  // Extract from URL parameters like MINLAT:8.5/MAXLAT:23.5/MINLON:102.0/MAXLON:109.5
+  const bounds = {
+    minLat: config.bounds.minLatitude,
+    maxLat: config.bounds.maxLatitude,
+    minLon: config.bounds.minLongitude,
+    maxLon: config.bounds.maxLongitude
+  };
+  
+  if (!urlParts) return bounds;
+  
+  const patterns = {
+    MINLAT: /MINLAT:([\d.-]+)/,
+    MAXLAT: /MAXLAT:([\d.-]+)/,
+    MINLON: /MINLON:([\d.-]+)/,
+    MAXLON: /MAXLON:([\d.-]+)/
+  };
+  
+  Object.keys(patterns).forEach(key => {
+    const match = urlParts.match(patterns[key]);
+    if (match) {
+      const boundKey = key.toLowerCase().replace('lat', 'Lat').replace('lon', 'Lon');
+      bounds[boundKey] = parseFloat(match[1]);
+    }
+  });
+  
+  return bounds;
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

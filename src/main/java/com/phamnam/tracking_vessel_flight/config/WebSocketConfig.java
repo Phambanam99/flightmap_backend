@@ -15,6 +15,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Slf4j
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketSessionChannelInterceptor sessionChannelInterceptor;
+    private final WebSocketErrorHandler errorHandler;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -26,9 +27,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         log.info("Registering STOMP endpoints");
+        
+        // Register endpoint with SockJS fallback and error handler
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
-                .withSockJS();
+                .withSockJS()
+                .setHeartbeatTime(25000)
+                .setDisconnectDelay(5000)
+                .setStreamBytesLimit(128 * 1024)
+                .setHttpMessageCacheSize(1000);
+                
+        // Set error handler
+        registry.setErrorHandler(errorHandler);
+                
         log.info("STOMP endpoints registered successfully");
     }
     @Override

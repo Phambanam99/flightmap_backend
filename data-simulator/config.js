@@ -63,7 +63,20 @@ const config = {
     speedRange: { min: 0, max: 25 }, // knots
     headingRange: { min: 0, max: 360 },
     shipTypes: ['Container', 'Bulk Carrier', 'Tanker', 'Fishing', 'Cargo', 'Passenger']
+  },
+  // Mock External APIs Configuration
+  mockApis: {
+    flightRadar24: {
+      enabled: true,
+      baseUrl: '/mock/flightradar24',
+      updateInterval: 30000 // 30 seconds
+    },
+    marineTraffic: {
+      enabled: true,
+      baseUrl: '/mock/marinetraffic',
+      updateInterval: 60000 // 60 seconds
+    }
   }
 };
 
-module.exports = config; 
+module.exports = config;
