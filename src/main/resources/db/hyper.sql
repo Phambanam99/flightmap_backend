@@ -1,6 +1,4 @@
--- Tạo extension nếu chưa có
-CREATE EXTENSION postgis;
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+-- Extensions đã được tạo trong file 01-init-extensions.sql
 
 -- Tạo bảng cold storage cho flight tracking
 DROP TABLE IF EXISTS flight_tracking_archive;

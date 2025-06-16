@@ -11,7 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data_:/var/lib/postgresql/data
-      - ./src/main/resources/db/hyper.sql:/docker-entrypoint-initdb.d/hyper.sql
+      - ./src/main/resources/db:/docker-entrypoint-initdb.d
 
   redis:
     image: redis:6.2-alpine
