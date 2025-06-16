@@ -15,7 +15,6 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Slf4j
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketSessionChannelInterceptor sessionChannelInterceptor;
-    private final WebSocketErrorHandler errorHandler;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -37,8 +36,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setStreamBytesLimit(128 * 1024)
                 .setHttpMessageCacheSize(1000);
                 
-        // Set error handler
-        registry.setErrorHandler(errorHandler);
+        // Error handler removed for now
                 
         log.info("STOMP endpoints registered successfully");
     }

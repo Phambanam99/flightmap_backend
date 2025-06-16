@@ -1,0 +1,49 @@
+
+> tracking-data-simulator@1.0.0 start
+> node server.js
+
+{"level":"WARN","timestamp":"2025-06-16T09:50:26.530Z","logger":"kafkajs","message":"KafkaJS v2.0.0 switched default partitioner. To retain the same partitioning behavior as in previous versions, create the producer with the option \"createPartitioner: Partitioners.LegacyPartitioner\". See the migration guide at https://kafka.js.org/docs/migration-guide-v2.0.0#producer-new-default-partitioner for details. Silence this warning by setting the environment variable \"KAFKAJS_NO_PARTITIONER_WARNING=1\""}
+🎭 Generating initial mock data...
+✅ Generated 50000 flights and 30000 ships
+🚀 Starting Tracking Data Simulator...
+📍 Configuration: {
+  "brokers": [
+    "localhost:29092"
+  ],
+  "clientId": "tracking-data-simulator",
+  "topics": {
+    "flight": "flight-tracking",
+    "ship": "ship-tracking"
+  }
+}
+🚀 Initializing Simulation Service...
+🔌 Connecting to Kafka...
+✅ Kafka Producer connected
+✅ Kafka Admin connected
+📋 Creating Kafka topics if needed...
+{"level":"ERROR","timestamp":"2025-06-16T09:50:26.965Z","logger":"kafkajs","message":"[Connection] Response CreateTopics(key: 19, version: 3)","broker":"localhost:29092","clientId":"tracking-data-simulator","error":"Topic creation errors","correlationId":2,"size":128}
+✅ Topics created/verified successfully
+🚀 Kafka service initialized successfully
+✅ Simulation Service initialized successfully
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1897:16)
+    at listenInCluster (node:net:1945:12)
+    at Server.listen (node:net:2037:7)
+    at Function.listen (/home/admin_c75/Documents/workspaces/cuba/tracking-vessel-flight/data-simulator/node_modules/express/lib/application.js:635:24)
+    at startServer (/home/admin_c75/Documents/workspaces/cuba/tracking-vessel-flight/data-simulator/server.js:562:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1924:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v21.7.3

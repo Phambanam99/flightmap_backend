@@ -82,7 +82,7 @@ class MockApiService {
     });
     
     // Add new flights to replace removed ones
-    while (this.flightData.size < 50) {
+    while (this.flightData.size < 50000) {
       const newFlight = this.movementSimulator.createNewFlight();
       const hexident = this.generateHexIdent();
       this.flightIdMap.set(hexident, newFlight.Id);
@@ -116,7 +116,7 @@ class MockApiService {
     });
     
     // Add new ships to replace removed ones
-    while (this.shipData.size < 30) {
+    while (this.shipData.size < 30000) {
       const newShip = this.movementSimulator.createNewShip();
       const mmsi = this.generateMMSI();
       this.shipIdMap.set(mmsi, newShip.voyageId);
