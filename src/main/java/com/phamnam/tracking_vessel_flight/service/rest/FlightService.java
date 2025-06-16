@@ -5,6 +5,7 @@ import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Aircraft;
 import com.phamnam.tracking_vessel_flight.models.Flight;
 import com.phamnam.tracking_vessel_flight.models.User;
+import com.phamnam.tracking_vessel_flight.repository.AircraftRepository;
 import com.phamnam.tracking_vessel_flight.repository.FlightRepository;
 import com.phamnam.tracking_vessel_flight.repository.UserRepository;
 import com.phamnam.tracking_vessel_flight.service.rest.interfaces.IFlightService;
@@ -22,7 +23,7 @@ public class FlightService implements IFlightService {
     private FlightRepository flightRepository;
 
     @Autowired
-    private com.phamnam.tracking_vessel_flight.repository.FlightRepository aircraftRepository;
+    private AircraftRepository aircraftRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -51,7 +52,7 @@ public class FlightService implements IFlightService {
     @Override
     public Flight save(FlightRequest flightRequest, Long userId) {
         Aircraft aircraft = aircraftRepository.findById(flightRequest.getAircraftId())
-                .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId())).getAircraft();
+                .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId()));
 
         User user = null;
         if (userId != null) {
@@ -86,7 +87,7 @@ public class FlightService implements IFlightService {
 
         if (flightRequest.getAircraftId() != null) {
             Aircraft aircraft = aircraftRepository.findById(flightRequest.getAircraftId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId())).getAircraft();
+                    .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId()));
             flight.setAircraft(aircraft);
         }
 

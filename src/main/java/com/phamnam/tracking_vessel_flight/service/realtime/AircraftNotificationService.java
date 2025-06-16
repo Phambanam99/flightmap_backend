@@ -92,43 +92,47 @@ public class AircraftNotificationService {
         }
 
         try {
-            double minLat = Double.parseDouble(parts[0]);
-            double maxLat = Double.parseDouble(parts[1]);
-            double minLon = Double.parseDouble(parts[2]);
-            double maxLon = Double.parseDouble(parts[3]);
-
-            // Lấy tất cả các chuyến bay đang hoạt động (đã là FlightTrackingRequest
-            // objects)
-            Set<Object> activeFlights = trackingCacheService.getActiveFlights();
-            log.info("active flights {}", activeFlights);
-            List<FlightTrackingRequest> updates = new ArrayList<>();
-
-            // Lọc các chuyến bay trong khu vực
-            for (Object flightObj : activeFlights) {
-                FlightTrackingRequest flightData = (FlightTrackingRequest) flightObj;
-
-                // Kiểm tra máy bay có nằm trong khu vực không
-                if (flightData != null && flightData.getLatitude() != null && flightData.getLongitude() != null) {
-                    if (flightData.getLatitude() >= minLat && flightData.getLatitude() <= maxLat &&
-                            flightData.getLongitude() >= minLon && flightData.getLongitude() <= maxLon) {
-                        updates.add(flightData);
-                    }
-                }
-            }
-
+            List<FlightTrackingRequestDTO> updates = getFlightTrackingRequestDTOS(parts);
+            log.info("updates {}", updates.size());
             // Nếu có dữ liệu, gửi cập nhật hàng loạt
             if (!updates.isEmpty()) {
                 Map<String, Object> batchData = new HashMap<>();
                 batchData.put("timestamp", new Date());
                 batchData.put("updates", updates);
                 batchData.put("count", updates.size());
-
                 messagingTemplate.convertAndSend("/topic/area/" + areaKey + "/batch", batchData);
                 log.debug("Sent batch update with {} aircraft to area {}", updates.size(), areaKey);
             }
         } catch (NumberFormatException e) {
             log.error("Error parsing area bounds: {}", areaKey, e);
         }
+    }
+
+    private List<FlightTrackingRequestDTO> getFlightTrackingRequestDTOS(String[] parts) {
+        double minLat = Double.parseDouble(parts[0]);
+        double maxLat = Double.parseDouble(parts[1]);
+        double minLon = Double.parseDouble(parts[2]);
+        double maxLon = Double.parseDouble(parts[3]);
+
+        // Lấy tất cả các chuyến bay đang hoạt động (đã là FlightTrackingRequest
+        // objects)
+        Set<Object> activeFlights = trackingCacheService.getActiveFlights();
+        // log.info("active flights {}", activeFlights);
+        List<FlightTrackingRequestDTO> updates = new ArrayList<>();
+
+        // Lọc các chuyến bay trong khu vực
+        for (Object flightObj : activeFlights) {
+            FlightTrackingRequestDTO flightData = (FlightTrackingRequestDTO) flightObj;
+
+            // Kiểm tra máy bay có nằm trong khu vực không
+            if (flightData != null && flightData.getLatitude() != null && flightData.getLongitude() != null) {
+                if (flightData.getLatitude() >= minLat && flightData.getLatitude() <= maxLat &&
+                        flightData.getLongitude() >= minLon && flightData.getLongitude() <= maxLon) {
+                    updates.add(flightData);
+                }
+            }
+        }
+        return updates;
     }
 
     public void sendBatchUpdatesToAllAreas() {
@@ -143,10 +147,8 @@ public class AircraftNotificationService {
         }
     }
 
-    public void processNewAreaRequest(double minLat, double maxLat, double minLon, double maxLon) {
-        String areaKey = String.format("area_%f_%f_%f_%f", minLat, maxLat, minLon, maxLon);
+    public void processNewAreaRequest(float minLat, float maxLat, float minLon, float maxLon, String areaKey) {
 
-        // Gửi ngay một lần cập nhật hàng loạt cho area này
         sendBatchUpdate(areaKey);
     }
 

@@ -36,13 +36,13 @@ public class FlightTrackingRequestDTO {
     private String register;
     
     @JsonProperty("Altitude")
-    private Double altitude;
+    private Float altitude;
     
     @JsonProperty("AltitudeType")
     private String altitudeType;
     
     @JsonProperty("TargetAlt")
-    private Double targetAlt;
+    private Float targetAlt;
     
     @JsonProperty("Callsign")
     private String callsign;
@@ -51,13 +51,13 @@ public class FlightTrackingRequestDTO {
     private Boolean isTisb;
     
     @JsonProperty("Speed")
-    private Double speed;
+    private Float speed;
     
     @JsonProperty("SpeedType")
     private String speedType;
     
     @JsonProperty("VerticalSpeed")
-    private Double verticalSpeed;
+    private Float verticalSpeed;
     
     @JsonProperty("Type")
     private String type;
@@ -84,10 +84,10 @@ public class FlightTrackingRequestDTO {
     private Integer squawk;
     
     @JsonProperty("Distance")
-    private Double distance;
+    private Float distance;
     
     @JsonProperty("Bearing")
-    private Double bearing;
+    private Float bearing;
     
     @JsonProperty("Engines")
     private String engines;
@@ -115,10 +115,10 @@ public class FlightTrackingRequestDTO {
     private LocalDateTime updateTime;
     
     @JsonProperty("Longitude")
-    private Double longitude;
+    private Float longitude;
     
     @JsonProperty("Latitude")
-    private Double latitude;
+    private Float latitude;
     
     @JsonProperty("Source")
     private String source;

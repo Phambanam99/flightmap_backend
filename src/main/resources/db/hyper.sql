@@ -1,4 +1,5 @@
 -- Tạo extension nếu chưa có
+CREATE EXTENSION postgis;
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 -- Tạo bảng cold storage cho flight tracking

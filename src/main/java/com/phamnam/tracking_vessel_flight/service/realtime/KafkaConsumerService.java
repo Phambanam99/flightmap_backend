@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -39,40 +40,37 @@ public class KafkaConsumerService {
             containerFactory = "flightKafkaListenerContainerFactory"
     )
     public void consumeFlightTracking(FlightTrackingRequestDTO tracking) {
-        log.info("Received flight tracking data: {}", tracking);
-
-        // 1. Lưu vào cache (Redis) - Hot Storage
-        trackingCacheService.cacheFlightTracking(tracking);
-
-        // 2. Lưu vào TimescaleDB - Warm Storage
-        flightTrackingService.processNewTrackingData(tracking, null);
-       // 3. Gửi cập nhật qua WebSocket 
-        aircraftNotificationService.sendAircraftUpdate(tracking);
-        // 4. Kiểm tra xem có nên gửi batch update hay không
-        checkAndTriggerBatchUpdate();
+        try {
+            log.info("Received flight tracking data: {}", tracking);
+            trackingCacheService.cacheFlightTracking(tracking);
+            flightTrackingService.processNewTrackingData(tracking, null);
+            aircraftNotificationService.sendAircraftUpdate(tracking);
+            checkAndTriggerBatchUpdate();
+        } catch (Exception e) {
+            log.error("Error processing message", e);
+            // Xử lý lỗi tại đây
+        }
     }
     // Thêm phương thức mới để xử lý batch
-    @KafkaListener(topics = "flight-tracking-batch", containerFactory = "batchFlightKafkaListenerContainerFactory")
-    public void consumeFlightTrackingBatch(List<FlightTrackingRequestDTO> trackings) {
-        if (trackings == null || trackings.isEmpty()) {
-            return;
+    @KafkaListener(
+            topics = "flight-tracking-batch",
+            containerFactory = "batchFlightKafkaListenerContainerFactory"
+    )
+    public void consumeFlightTrackingBatch(List<ConsumerRecord<String, List<FlightTrackingRequestDTO>>> records) {
+        for (ConsumerRecord<String, List<FlightTrackingRequestDTO>> record : records) {
+            List<FlightTrackingRequestDTO> batch = record.value();
+            for (FlightTrackingRequestDTO dto : batch) {
+                try {
+//                    log.info("Processing record: [{}]", dto);
+                    trackingCacheService.cacheFlightTracking(dto);
+                    flightTrackingService.processNewTrackingData(dto, null);
+                    aircraftNotificationService.sendAircraftUpdate(dto);
+                } catch (Exception e) {
+                    log.error("Error processing record", e);
+                }
+            }
         }
-        
-        log.info("Received batch of {} flight tracking updates", trackings.size());
-        
-        // Xử lý từng item trong batch
-        for (FlightTrackingRequestDTO tracking : trackings) {
-            // Lưu vào Redis (Hot Storage)
-            trackingCacheService.cacheFlightTracking(tracking);
-            
-            // Lưu vào TimescaleDB (Warm Storage)
-//            flightTrackingService.save(tracking, null);
-        }
-        
-        // Kích hoạt sendBatchUpdatesToAllAreas sau khi xử lý xong
         aircraftNotificationService.sendBatchUpdatesToAllAreas();
-        
-        log.info("Processed batch of {} flight tracking updates", trackings.size());
     }
     private void checkAndTriggerBatchUpdate() {
         int currentCount = updateCounter.incrementAndGet();

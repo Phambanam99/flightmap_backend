@@ -26,7 +26,7 @@ public class FlightTracking extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "flight_id")
-    @JsonIgnore // Prevents infinite recursion when serializing
+    @JsonBackReference // Prevents infinite recursion when serializing
     private Flight flight;
 
     private Float altitude;

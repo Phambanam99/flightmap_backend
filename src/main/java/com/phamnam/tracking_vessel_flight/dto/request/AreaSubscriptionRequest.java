@@ -9,8 +9,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AreaSubscriptionRequest {
-    private double minLat;
-    private double maxLat;
-    private double minLon;
-    private double maxLon;
+    private float minLat;
+    private float maxLat;
+    private float minLon;
+    private float maxLon;
+
 }

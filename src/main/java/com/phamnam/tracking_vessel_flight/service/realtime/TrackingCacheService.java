@@ -36,9 +36,9 @@ public class TrackingCacheService {
     /**
      * Retrieves flight tracking data from Redis
      */
-    public FlightTrackingRequest getFlightTracking(Long flightId) {
+    public FlightTrackingRequestDTO getFlightTracking(Long flightId) {
         String key = FLIGHT_TRACKING_PREFIX + flightId;
-        FlightTrackingRequest tracking = (FlightTrackingRequest) redisTemplate.opsForValue().get(key);
+        FlightTrackingRequestDTO tracking = (FlightTrackingRequestDTO) redisTemplate.opsForValue().get(key);
         if (tracking == null) {
             log.debug("No cached tracking found for flight ID: {}", flightId);
         }

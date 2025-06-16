@@ -8,6 +8,7 @@ import com.phamnam.tracking_vessel_flight.models.Flight;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
 import com.phamnam.tracking_vessel_flight.models.Aircraft;
 import com.phamnam.tracking_vessel_flight.models.User;
+import com.phamnam.tracking_vessel_flight.repository.AircraftRepository;
 import com.phamnam.tracking_vessel_flight.repository.FlightRepository;
 import com.phamnam.tracking_vessel_flight.repository.FlightTrackingRepository;
 import com.phamnam.tracking_vessel_flight.repository.UserRepository;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 @Slf4j
@@ -41,7 +43,7 @@ public class FlightTrackingService implements IFlightTrackingService {
     private UserRepository userRepository;
 
     @Autowired
-    private FlightRepository aircraftRepository;
+    private AircraftRepository aircraftRepository;
 
     @Autowired
     private FlightService flightService;
@@ -74,50 +76,55 @@ public class FlightTrackingService implements IFlightTrackingService {
         return flightTrackingRepository.findWithinRadiusPaginated(longitude, latitude, radiusInMeters, pageable);
     }
 
-    public FlightTracking save(FlightTrackingRequestDTO request, Long userId) {
-        Flight flight = flightRepository.findById(request.getFlightId())
-                .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", request.getFlightId()));
-
-        User user = null;
-        if (userId != null) {
-            user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        }
-
-        // Create point with correct SRID
-        Point location = null;
-        if (request.getLongitude() != null && request.getLatitude() != null) {
-            // Make sure we're creating the coordinate in the right order (longitude first,
-            // then latitude)
-            Coordinate coordinate = new Coordinate(request.getLongitude(), request.getLatitude());
-            location = geometryFactory.createPoint(coordinate);
-            // Explicitly set SRID
-            location.setSRID(4326);
-        }
-
-        FlightTracking tracking = FlightTracking.builder()
-                .flight(flight)
-                .altitude(request.getAltitude())
-                .altitudeType(request.getAltitudeType())
-                .targetAlt(request.getTargetAlt())
-                .callsign(request.getCallsign())
-                .speed(request.getSpeed())
-                .speedType(request.getSpeedType())
-                .verticalSpeed(request.getVerticalSpeed())
-                .squawk(request.getSquawk())
-                .distance(request.getDistance())
-                .bearing(request.getBearing())
-                .unixTime(request.getUnixTime())
-                .updateTime(request.getUpdateTime() != null ? request.getUpdateTime() : LocalDateTime.now())
-                .location(location)
-                .landingUnixTimes(request.getLandingUnixTimes())
-                .landingTimes(request.getLandingTimes())
-                .build();
-
-        tracking.setUpdatedBy(user);
-
-        return flightTrackingRepository.save(tracking);
-    }
+//    public FlightTracking save(FlightTrackingRequestDTO request, Long userId) {
+//        Aircraft aircraft = aircraftRepository.findByHexident(request.getHexident())
+//                .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "hexident", request.getHexident()));
+//
+//        List<Flight> flights = aircraft.getFlights();
+//
+//        Flight flight = flightRepository.findById(request.getHexident())
+//                .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", request.getFlightId()));
+//
+//        User user = null;
+//        if (userId != null) {
+//            user = userRepository.findById(userId)
+//                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+//        }
+//
+//        // Create point with correct SRID
+//        Point location = null;
+//        if (request.getLongitude() != null && request.getLatitude() != null) {
+//            // Make sure we're creating the coordinate in the right order (longitude first,
+//            // then latitude)
+//            Coordinate coordinate = new Coordinate(request.getLongitude(), request.getLatitude());
+//            location = geometryFactory.createPoint(coordinate);
+//            // Explicitly set SRID
+//            location.setSRID(4326);
+//        }
+//
+//        FlightTracking tracking = FlightTracking.builder()
+//                .flight(flight)
+//                .altitude(request.getAltitude())
+//                .altitudeType(request.getAltitudeType())
+//                .targetAlt(request.getTargetAlt())
+//                .callsign(request.getCallsign())
+//                .speed(request.getSpeed())
+//                .speedType(request.getSpeedType())
+//                .verticalSpeed(request.getVerticalSpeed())
+//                .squawk(request.getSquawk())
+//                .distance(request.getDistance())
+//                .bearing(request.getBearing())
+//                .unixTime(request.getUnixTime())
+//                .updateTime(request.getUpdateTime() != null ? request.getUpdateTime() : LocalDateTime.now())
+//                .location(location)
+//                .landingUnixTimes(request.getLandingUnixTimes())
+//                .landingTimes(request.getLandingTimes())
+//                .build();
+//
+//        tracking.setUpdatedBy(user);
+//
+//        return flightTrackingRepository.save(tracking);
+//    }
 
     public FlightTracking update(Long id, FlightTrackingRequest request, Long userId) {
         FlightTracking tracking = getById(id);
@@ -218,8 +225,10 @@ public class FlightTrackingService implements IFlightTrackingService {
         // Find the aircraft
         Long aircraftId = trackingData.getAircraftId();
         Aircraft aircraft = null;
-        if (aircraftId == null) {
-          aircraft = Aircraft.builder()
+        if (aircraftId != null) {
+            aircraft = aircraftRepository.findById(aircraftId).get();
+        } else {
+            aircraft = Aircraft.builder()
                     .hexident(trackingData.getHexident())
                     .register(trackingData.getRegister())
                     .isMilitary(trackingData.getIsMilitary())
@@ -235,12 +244,11 @@ public class FlightTrackingService implements IFlightTrackingService {
                     .source(trackingData.getSource())
                     .itemType(trackingData.getItemType())
                     .build();
-        } else {
-            aircraft = aircraftRepository.findById(aircraftId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", aircraftId))
-                    .getAircraft();
-        }
+            aircraft = aircraftRepository.save(aircraft);
 
+            aircraftId = aircraft.getId();
+        }
+        System.out.println("aricraftId " + aircraftId);
 
         // Get user for audit if needed
         User user = null;
@@ -255,6 +263,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         // If no active flight exists, create a new one
         if (flight == null) {
             flight = createNewFlight(aircraft, trackingData, userId);
+            flightRepository.save(flight);
         } else {
             // Update flight status if needed based on tracking data
             updateFlightStatus(flight, trackingData, userId);
@@ -264,7 +273,26 @@ public class FlightTrackingService implements IFlightTrackingService {
         trackingData.setFlight(flight.getId().toString());
 
         // Create and save the tracking data
-        FlightTracking tracking = save(trackingData, userId);
+        FlightTracking tracking =  FlightTracking.builder()
+                .flight(flight)
+                .altitude(trackingData.getAltitude())
+                .altitudeType(trackingData.getAltitudeType())
+                .targetAlt(trackingData.getTargetAlt())
+                .callsign(trackingData.getCallsign())
+                .speed(trackingData.getSpeed())
+                .speedType(trackingData.getSpeedType())
+                .verticalSpeed(trackingData.getVerticalSpeed())
+                .squawk(trackingData.getSquawk())
+                .distance(trackingData.getDistance())
+                .bearing(trackingData.getBearing())
+                .unixTime(trackingData.getUnixTime())
+                .updateTime(trackingData.getUpdateTime() != null ? trackingData.getUpdateTime() : LocalDateTime.now())
+                .location(geometryFactory.createPoint(new Coordinate(trackingData.getLongitude(), trackingData.getLatitude())))
+                .landingUnixTimes(trackingData.getLandingUnixTimes())
+                .landingTimes(trackingData.getLandingTimes())
+
+                .build();
+        flightTrackingRepository.save(tracking);
 
         return tracking;
     }

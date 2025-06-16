@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.controller;
 
+import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
 import com.phamnam.tracking_vessel_flight.dto.response.PageResponse;
@@ -115,9 +116,9 @@ public class FlightTrackingController {
         })
         @PostMapping
         public ResponseEntity<MyApiResponse<FlightTracking>> createFlightTracking(
-                        @Valid @RequestBody FlightTrackingRequest request,
+                        @Valid @RequestBody FlightTrackingRequestDTO request,
                         @RequestParam(required = false) Long userId) {
-                FlightTracking savedTracking = flightTrackingService.save(request, userId);
+                FlightTracking savedTracking = flightTrackingService.processNewTrackingData(request, userId);
                 return new ResponseEntity<>(
                                 MyApiResponse.success(savedTracking, "Flight tracking created successfully"),
                                 HttpStatus.CREATED);
@@ -191,14 +192,13 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "400", description = "Invalid input data"),
                         @ApiResponse(responseCode = "404", description = "Aircraft not found")
         })
-        @PostMapping("/process/{aircraftId}")
+        @PostMapping("/process/")
         public ResponseEntity<MyApiResponse<FlightTracking>> processNewTrackingData(
-                        @PathVariable Long aircraftId,
-                        @Valid @RequestBody FlightTrackingRequest request,
+                        @Valid @RequestBody FlightTrackingRequestDTO request,
                         @RequestParam(required = false) Long userId) {
 
                 FlightTracking savedTracking = flightTrackingService.processNewTrackingData(
-                                aircraftId, request, userId);
+                                 request, userId);
 
                 return new ResponseEntity<>(
                                 MyApiResponse.success(savedTracking, "Flight tracking data processed successfully"),

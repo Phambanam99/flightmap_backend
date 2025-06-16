@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,24 +18,51 @@ public class WebSocketSubscriptionService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AircraftNotificationService aircraftNotificationService; // Thêm dependency này
 
     /**
      * Đăng ký client vào khu vực
      */
-    public void subscribeToArea(String sessionId, double minLat, double maxLat, double minLon, double maxLon) {
-        String areaKey = String.format("area_%f_%f_%f_%f", minLat, maxLat, minLon, maxLon);
 
-        // Lưu subscriptions vào Redis
-        redisTemplate.opsForSet().add("active:area:subscriptions", areaKey);
-        redisTemplate.opsForSet().add("area:" + areaKey + ":clients", sessionId);
-        redisTemplate.opsForSet().add("client:" + sessionId + ":subscriptions", areaKey);
+// Phương thức subscribeToArea cần được cập nhật để đảm bảo gửi response đúng
 
-        // Gửi xác nhận đăng ký thành công
-        Map<String, Object> response = new HashMap<>();
-        response.put("type", "area");
-        response.put("status", "subscribed");
-        response.put("key", areaKey);
-        messagingTemplate.convertAndSendToUser(sessionId, "/queue/subscriptions", response);
+    public void subscribeToArea(String sessionId, float minLat, float maxLat, float minLon, float maxLon) {
+        log.info("Processing area subscription for session {}: lat({} to {}), lon({} to {})",
+                sessionId, minLat, maxLat, minLon, maxLon);
+
+        try {
+            String areaKey = String.format("area_%f_%f_%f_%f", minLat, maxLat, minLon, maxLon);
+            log.debug("Generated areaKey: {}", areaKey);
+
+            // Lưu subscriptions vào Redis
+            redisTemplate.opsForSet().add("active:area:subscriptions", areaKey);
+            redisTemplate.opsForSet().add("area:" + areaKey + ":clients", sessionId);
+            redisTemplate.opsForSet().add("client:" + sessionId + ":subscriptions", areaKey);
+            log.debug("Saved subscription info to Redis");
+
+            // Tạo response message
+            Map<String, Object> response = new HashMap<>();
+            response.put("type", "area");
+            response.put("status", "subscribed");
+            response.put("areaKey", areaKey);
+            response.put("key", areaKey);
+
+            // Gửi message đến client
+            log.info("Sending subscription confirmation to {}: {}", sessionId, response);
+            messagingTemplate.convertAndSendToUser(
+                    sessionId,              // username (sessionId)
+                    "/queue/subscriptions", // destination
+                    response                // payload
+            );
+            log.info("Confirmation sent to client");
+
+            // Gửi dữ liệu ban đầu
+            aircraftNotificationService.processNewAreaRequest(minLat, maxLat, minLon, maxLon, areaKey);
+            log.info("Initial data sent for area {}", areaKey);
+        } catch (Exception e) {
+            log.error("Error in subscribeToArea: {}", e.getMessage(), e);
+            throw e; // Rethrow to propagate to controller
+        }
     }
 
     /**
@@ -57,7 +85,7 @@ public class WebSocketSubscriptionService {
         Map<String, Object> response = new HashMap<>();
         response.put("type", "area");
         response.put("status", "unsubscribed");
-        response.put("key", areaKey);
+        response.put("areaKey", areaKey);
         messagingTemplate.convertAndSendToUser(sessionId, "/queue/subscriptions", response);
     }
 
@@ -117,7 +145,8 @@ public class WebSocketSubscriptionService {
         }
 
         // Xóa tất cả aircraft subscriptions
-        Set<Object> aircraftSubscriptions = redisTemplate.opsForSet().members("client:" + sessionId + ":aircraft:subscriptions");
+        Set<Object> aircraftSubscriptions = redisTemplate.opsForSet()
+                .members("client:" + sessionId + ":aircraft:subscriptions");
         if (aircraftSubscriptions != null) {
             for (Object sub : aircraftSubscriptions) {
                 String hexIdent = (String) sub;

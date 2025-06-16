@@ -19,7 +19,7 @@ public class OpenAPIConfig {
     public OpenAPI trackingAPI() {
         final String securitySchemeName = "bearerAuth";
         Server devServer = new Server();
-        devServer.setUrl("http://localhost:8080");
+        devServer.setUrl("http://localhost:9090");
         devServer.setDescription("Development server");
 
         Contact contact = new Contact();
