@@ -28,15 +28,24 @@ public class AsyncApiController {
 
     @GetMapping("/asyncapi-ui")
     @Operation(summary = "AsyncAPI UI", description = "Displays the AsyncAPI documentation UI")
-    public String asyncApiUi() {
-        return "redirect:/asyncapi-ui.html";
+    @ResponseBody
+    public void asyncApiUi(jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        response.sendRedirect("/asyncapi-ui.html");
     }
 
     @GetMapping("/asyncapi")
     @ResponseBody
     @Operation(summary = "AsyncAPI Specification", description = "Returns the AsyncAPI specification file")
     public String getAsyncApiSpec() throws IOException {
-        Resource resource = resourceLoader.getResource("classpath:asyncapi.yaml");
-        return Files.readString(resource.getFile().toPath(), StandardCharsets.UTF_8);
+        try {
+            Resource resource = resourceLoader.getResource("classpath:asyncapi.yaml");
+            if (resource.exists()) {
+                return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            } else {
+                throw new IOException("AsyncAPI specification file not found");
+            }
+        } catch (Exception e) {
+            throw new IOException("Error reading AsyncAPI specification: " + e.getMessage());
+        }
     }
 }
