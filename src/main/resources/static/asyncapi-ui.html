@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Flight & Vessel Tracking - AsyncAPI Documentation</title>
+    <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@1.0.0-next.47/styles/default.min.css">
+    <script src="https://unpkg.com/@asyncapi/react-component@1.0.0-next.47/browser/standalone.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f5f5f5;
+        }
+        #header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        #header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        #header .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+        #header a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background-color 0.3s ease;
+            font-weight: 500;
+        }
+        #header a:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+        #asyncapi-ui {
+            height: calc(100vh - 80px);
+            background-color: white;
+            margin: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .info-banner {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 4px;
+            margin-bottom: 0;
+        }
+        .info-banner h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        .info-banner p {
+            margin: 0;
+            color: #424242;
+        }
+        @media (max-width: 768px) {
+            #header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            #header .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            #asyncapi-ui {
+                margin: 10px;
+                height: calc(100vh - 120px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <div>
+            <h1>Flight & Vessel Tracking</h1>
+            <div class="subtitle">WebSocket & Kafka AsyncAPI Documentation</div>
+        </div>
+        <div class="nav-links">
+            <a href="/swagger-ui.html" target="_blank">🔗 REST API Docs</a>
+            <a href="/asyncapi" target="_blank">📄 Raw AsyncAPI Spec</a>
+            <a href="https://github.com/Phambanam99/flightmap_backend" target="_blank">📚 GitHub</a>
+        </div>
+    </div>
+    
+    <div class="info-banner">
+        <h3>📡 Real-time API Documentation</h3>
+        <p>This documentation covers WebSocket subscriptions for real-time updates and Kafka topics for data streaming. 
+           WebSocket endpoint: <strong>ws://localhost:9090/ws</strong> | Kafka broker: <strong>localhost:29092</strong></p>
+    </div>
+    
+    <div id="asyncapi-ui"></div>
+
+    <script>
+        window.onload = function() {
+            try {
+                AsyncApiStandalone.render({
+                    schema: {
+                        url: '/asyncapi',
+                        options: {
+                            format: 'yaml'
+                        }
+                    },
+                    config: {
+                        show: {
+                            sidebar: true,
+                            info: true,
+                            servers: true,
+                            operations: true,
+                            messages: true,
+                            schemas: true,
+                            bindings: true,
+                            tags: true
+                        },
+                        sidebar: {
+                            showOperations: 'byDefault'
+                        }
+                    }
+                }, document.getElementById('asyncapi-ui'));
+            } catch (error) {
+                console.error('Error rendering AsyncAPI UI:', error);
+                document.getElementById('asyncapi-ui').innerHTML = 
+                    '<div style="padding: 40px; text-align: center; color: #666;">' +
+                    '<h2>🚧 AsyncAPI UI Loading Error</h2>' +
+                    '<p>There was an error loading the AsyncAPI documentation. Please check the console for details.</p>' +
+                    '<p><a href="/asyncapi" target="_blank">View Raw AsyncAPI Specification</a></p>' +
+                    '</div>';
+            }
+        };
+    </script>
+</body>
+</html>

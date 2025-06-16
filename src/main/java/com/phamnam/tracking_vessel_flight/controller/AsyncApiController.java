@@ -28,9 +28,8 @@ public class AsyncApiController {
 
     @GetMapping("/asyncapi-ui")
     @Operation(summary = "AsyncAPI UI", description = "Displays the AsyncAPI documentation UI")
-    public String asyncApiUi(Model model) {
-        model.addAttribute("serverUrl", serverUrl);
-        return "asyncapi-ui";
+    public String asyncApiUi() {
+        return "redirect:/asyncapi-ui.html";
     }
 
     @GetMapping("/asyncapi")
