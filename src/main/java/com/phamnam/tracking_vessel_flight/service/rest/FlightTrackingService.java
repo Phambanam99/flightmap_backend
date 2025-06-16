@@ -222,12 +222,22 @@ public class FlightTrackingService implements IFlightTrackingService {
     @Transactional
     @Override
     public FlightTracking processNewTrackingData(FlightTrackingRequestDTO trackingData, Long userId) {
-        // Find the aircraft
+        // Find or create the aircraft
         Long aircraftId = trackingData.getAircraftId();
         Aircraft aircraft = null;
+        
+        // First try to find by aircraftId, then by hexident, or create new
         if (aircraftId != null) {
-            aircraft = aircraftRepository.findById(aircraftId).get();
-        } else {
+            aircraft = aircraftRepository.findById(aircraftId).orElse(null);
+        }
+        
+        // If not found by ID, try to find by hexident
+        if (aircraft == null && trackingData.getHexident() != null) {
+            aircraft = aircraftRepository.findByHexident(trackingData.getHexident()).orElse(null);
+        }
+        
+        // If still not found, create new aircraft
+        if (aircraft == null) {
             aircraft = Aircraft.builder()
                     .hexident(trackingData.getHexident())
                     .register(trackingData.getRegister())
@@ -245,9 +255,9 @@ public class FlightTrackingService implements IFlightTrackingService {
                     .itemType(trackingData.getItemType())
                     .build();
             aircraft = aircraftRepository.save(aircraft);
-
-            aircraftId = aircraft.getId();
         }
+        
+        aircraftId = aircraft.getId();
         System.out.println("aricraftId " + aircraftId);
 
         // Get user for audit if needed
