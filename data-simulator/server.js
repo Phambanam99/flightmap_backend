@@ -1,599 +1,430 @@
 const express = require('express');
 const cors = require('cors');
-const SimulationService = require('./services/simulationService');
 const config = require('./config');
-const MockApiService = require('./services/mockApiService');
+const FlightSimulator = require('./services/flightSimulator');
+const VesselSimulator = require('./services/vesselSimulator');
+const apiClient = require('./utils/apiClient');
+const { systemLogger } = require('./utils/logger');
 
+// Initialize Express app
 const app = express();
-const simulationService = new SimulationService();
-const mockApiService = new MockApiService();
-
-// Middleware
 app.use(cors());
 app.use(express.json());
+
+// Initialize simulators
+const flightSimulator = new FlightSimulator();
+const vesselSimulator = new VesselSimulator();
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
-    timestamp: new Date().toISOString(),
     service: 'tracking-data-simulator',
-    version: '1.0.0'
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
   });
 });
 
-// Get simulation status
-app.get('/api/status', async (req, res) => {
+// Get simulator status
+app.get('/status', async (req, res) => {
   try {
-    const status = simulationService.getStatus();
-    res.json({
-      success: true,
-      data: status,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Get detailed simulation status
-app.get('/api/status/detailed', async (req, res) => {
-  try {
-    const status = await simulationService.getDetailedStatus();
-    res.json({
-      success: true,
-      data: status,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Start simulation
-app.post('/api/simulation/start', async (req, res) => {
-  try {
-    const options = req.body || {};
-    const status = await simulationService.startSimulation(options);
+    const consumerStatus = await apiClient.getConsumerStatus();
     
     res.json({
-      success: true,
-      message: 'Simulation started successfully',
-      data: status,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Stop simulation
-app.post('/api/simulation/stop', (req, res) => {
-  try {
-    const status = simulationService.stopSimulation();
-    
-    res.json({
-      success: true,
-      message: 'Simulation stopped successfully',
-      data: status,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Start airport scenario
-app.post('/api/simulation/scenarios/airport', async (req, res) => {
-  try {
-    const { airportLocation = 'tanSonNhat' } = req.body;
-    const flights = await simulationService.startAirportScenario(airportLocation);
-    
-    res.json({
-      success: true,
-      message: `Airport scenario started at ${airportLocation}`,
-      data: {
-        flightsCreated: flights.length,
-        flights: flights
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Start port scenario
-app.post('/api/simulation/scenarios/port', async (req, res) => {
-  try {
-    const ships = await simulationService.startPortScenario();
-    
-    res.json({
-      success: true,
-      message: 'Port scenario started',
-      data: {
-        shipsCreated: ships.length,
-        ships: ships
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Get configuration
-app.get('/api/config', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      simulation: config.simulation,
-      bounds: config.bounds,
-      locations: config.locations,
-      kafka: config.kafka
-    },
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Update configuration (runtime)
-app.put('/api/config', (req, res) => {
-  try {
-    const updates = req.body;
-    
-    // Only allow updating simulation parameters
-    if (updates.simulation) {
-      Object.assign(config.simulation, updates.simulation);
-    }
-    
-    res.json({
-      success: true,
-      message: 'Configuration updated successfully',
-      data: {
-        simulation: config.simulation
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Get available locations/airports
-app.get('/api/locations', (req, res) => {
-  res.json({
-    success: true,
-    data: config.locations,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Manual flight generation
-app.post('/api/manual/flight', async (req, res) => {
-  try {
-    const customData = req.body;
-    let flight;
-    
-    if (Object.keys(customData).length > 0) {
-      // Create flight with custom data
-      flight = simulationService.movementSimulator.createNewFlight();
-      Object.assign(flight, customData);
-    } else {
-      // Create random flight
-      flight = simulationService.movementSimulator.createNewFlight();
-    }
-    
-    await simulationService.kafkaService.publishFlightData(flight);
-    
-    res.json({
-      success: true,
-      message: 'Flight data published successfully',
-      data: flight,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Manual ship generation
-app.post('/api/manual/ship', async (req, res) => {
-  try {
-    const customData = req.body;
-    let ship;
-    
-    if (Object.keys(customData).length > 0) {
-      // Create ship with custom data
-      ship = simulationService.movementSimulator.createNewShip();
-      Object.assign(ship, customData);
-    } else {
-      // Create random ship
-      ship = simulationService.movementSimulator.createNewShip();
-    }
-    
-    await simulationService.kafkaService.publishShipData(ship);
-    
-    res.json({
-      success: true,
-      message: 'Ship data published successfully',
-      data: ship,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// API documentation endpoint
-app.get('/api/docs', (req, res) => {
-  const apiDocs = {
-    title: 'Tracking Data Simulator API',
-    version: '1.0.0',
-    description: 'Real-time data simulator for flight and vessel tracking',
-    endpoints: {
-      health: {
-        method: 'GET',
-        path: '/health',
-        description: 'Health check endpoint'
-      },
-      status: {
-        method: 'GET',
-        path: '/api/status',
-        description: 'Get current simulation status'
-      },
-      detailedStatus: {
-        method: 'GET',
-        path: '/api/status/detailed',
-        description: 'Get detailed simulation status including Kafka metadata'
-      },
-      startSimulation: {
-        method: 'POST',
-        path: '/api/simulation/start',
-        description: 'Start real-time simulation',
-        body: {
-          flightInterval: 'number (ms)',
-          shipInterval: 'number (ms)',
-          maxFlights: 'number',
-          maxShips: 'number',
-          batchMode: 'boolean'
+      simulators: {
+        flight: {
+          enabled: config.simulation.enableFlights,
+          statistics: flightSimulator.getStatistics()
+        },
+        vessel: {
+          enabled: config.simulation.enableVessels,
+          statistics: vesselSimulator.getStatistics()
         }
       },
-      stopSimulation: {
-        method: 'POST',
-        path: '/api/simulation/stop',
-        description: 'Stop simulation'
-      },
-      airportScenario: {
-        method: 'POST',
-        path: '/api/simulation/scenarios/airport',
-        description: 'Start airport scenario',
-        body: {
-          airportLocation: 'string (tanSonNhat, noiBai, hcmc, hanoi)'
-        }
-      },
-      portScenario: {
-        method: 'POST',
-        path: '/api/simulation/scenarios/port',
-        description: 'Start port scenario'
-      },
+      consumer: consumerStatus?.data || { status: 'Unable to fetch consumer status' },
       config: {
-        method: 'GET',
-        path: '/api/config',
-        description: 'Get current configuration'
-      },
-      updateConfig: {
-        method: 'PUT',
-        path: '/api/config',
-        description: 'Update simulation configuration'
-      },
-      locations: {
-        method: 'GET',
-        path: '/api/locations',
-        description: 'Get available locations/airports'
-      },
-      manualFlight: {
-        method: 'POST',
-        path: '/api/manual/flight',
-        description: 'Manually generate and publish flight data'
-      },
-      manualShip: {
-        method: 'POST',
-        path: '/api/manual/ship',
-        description: 'Manually generate and publish ship data'
-      },
-      mockApis: {
-        flightRadar24Mock: {
-          method: 'GET',
-          path: '/mock/flightradar24/zones/fcgi/feed.js',
-          description: 'Mock FlightRadar24 API endpoint',
-          params: {
-            bounds: 'maxLat,minLat,minLon,maxLon'
-          }
-        },
-        marineTrafficMock: {
-          method: 'GET', 
-          path: '/mock/marinetraffic/api/exportvessels/{apikey}/v:2/MINLAT:{lat}/MAXLAT:{lat}/MINLON:{lon}/MAXLON:{lon}/protocol:jsono',
-          description: 'Mock MarineTraffic API endpoint'
-        },
-        mockStats: {
-          method: 'GET',
-          path: '/api/mock/stats',
-          description: 'Get mock API statistics'
-        },
-        addMockFlight: {
-          method: 'POST',
-          path: '/api/mock/flights',
-          description: 'Add flight to mock data'
-        },
-        addMockShip: {
-          method: 'POST',
-          path: '/api/mock/ships', 
-          description: 'Add ship to mock data'
-        }
+        apiBaseUrl: config.api.baseUrl,
+        flightInterval: config.simulation.flightInterval,
+        vesselInterval: config.simulation.vesselInterval,
+        maxFlights: config.simulation.maxFlights,
+        maxVessels: config.simulation.maxVessels
       }
+    });
+  } catch (error) {
+    systemLogger.error('Error getting status', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Control endpoints
+app.post('/control/start', async (req, res) => {
+  try {
+    const { simulators = ['flight', 'vessel'] } = req.body;
+    const started = [];
+
+    if (simulators.includes('flight') && config.simulation.enableFlights) {
+      await flightSimulator.start();
+      started.push('flight');
     }
-  };
-  
-  res.json({
-    success: true,
-    data: apiDocs,
-    timestamp: new Date().toISOString()
-  });
-});
 
-// =============================================================================
-// MOCK EXTERNAL APIs - FlightRadar24 & MarineTraffic
-// =============================================================================
-
-// Mock FlightRadar24 API
-app.get('/mock/flightradar24/zones/fcgi/feed.js', (req, res) => {
-  try {
-    console.log('🎭 FlightRadar24 Mock API called');
-    
-    const bounds = parseBoundsFromQuery(req.query.bounds);
-    const flightData = mockApiService.getFlightRadar24Data(bounds);
-    
-    // FlightRadar24 returns JSONP by default, but we'll return JSON
-    res.setHeader('Content-Type', 'application/json');
-    res.json(flightData);
-    
-  } catch (error) {
-    console.error('❌ Mock FlightRadar24 API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Mock MarineTraffic API - flexible route to handle various formats
-app.get('/mock/marinetraffic/api/exportvessels/*', (req, res) => {
-  try {
-    console.log('🎭 MarineTraffic Mock API called');
-    console.log('URL params:', req.params[0]);
-    
-    const bounds = parseMarineTrafficBounds(req.params[0]);
-    const marineData = mockApiService.getMarineTrafficData(bounds);
-    
-    res.json(marineData);
-    
-  } catch (error) {
-    console.error('❌ Mock MarineTraffic API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Mock API Statistics
-app.get('/api/mock/stats', (req, res) => {
-  try {
-    const stats = mockApiService.getStats();
-    res.json({
-      success: true,
-      data: stats,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Add flight to mock data
-app.post('/api/mock/flights', (req, res) => {
-  try {
-    const flightData = req.body;
-    const hexident = mockApiService.addFlight(flightData);
-    
-    res.json({
-      success: true,
-      message: 'Flight added to mock data',
-      data: { hexident, flightData },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Add ship to mock data
-app.post('/api/mock/ships', (req, res) => {
-  try {
-    const shipData = req.body;
-    const mmsi = mockApiService.addShip(shipData);
-    
-    res.json({
-      success: true,
-      message: 'Ship added to mock data',
-      data: { mmsi, shipData },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Helper functions
-function parseBoundsFromQuery(boundsParam) {
-  if (!boundsParam) {
-    return {
-      maxLat: config.bounds.maxLatitude,
-      minLat: config.bounds.minLatitude,
-      minLon: config.bounds.minLongitude,
-      maxLon: config.bounds.maxLongitude
-    };
-  }
-  
-  // FlightRadar24 format: "maxLat,minLat,minLon,maxLon"
-  const parts = boundsParam.split(',').map(parseFloat);
-  if (parts.length !== 4) {
-    throw new Error('Invalid bounds format');
-  }
-  
-  return {
-    maxLat: parts[0],
-    minLat: parts[1],
-    minLon: parts[2],
-    maxLon: parts[3]
-  };
-}
-
-function parseMarineTrafficBounds(urlParts) {
-  // Extract from URL parameters like MINLAT:8.5/MAXLAT:23.5/MINLON:102.0/MAXLON:109.5
-  const bounds = {
-    minLat: config.bounds.minLatitude,
-    maxLat: config.bounds.maxLatitude,
-    minLon: config.bounds.minLongitude,
-    maxLon: config.bounds.maxLongitude
-  };
-  
-  if (!urlParts) return bounds;
-  
-  const patterns = {
-    MINLAT: /MINLAT:([\d.-]+)/,
-    MAXLAT: /MAXLAT:([\d.-]+)/,
-    MINLON: /MINLON:([\d.-]+)/,
-    MAXLON: /MAXLON:([\d.-]+)/
-  };
-  
-  Object.keys(patterns).forEach(key => {
-    const match = urlParts.match(patterns[key]);
-    if (match) {
-      const boundKey = key.toLowerCase().replace('lat', 'Lat').replace('lon', 'Lon');
-      bounds[boundKey] = parseFloat(match[1]);
+    if (simulators.includes('vessel') && config.simulation.enableVessels) {
+      await vesselSimulator.start();
+      started.push('vessel');
     }
-  });
-  
-  return bounds;
-}
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Initialize and start server
-async function startServer() {
-  try {
-    console.log('🚀 Starting Tracking Data Simulator...');
-    console.log(`📍 Configuration: ${JSON.stringify(config.kafka, null, 2)}`);
-    
-    // Initialize simulation service
-    await simulationService.initialize();
-    
-    // Start Express server
-    const server = app.listen(config.port, () => {
-      console.log(`✅ Server running on port ${config.port}`);
-      console.log(`📊 Health check: http://localhost:${config.port}/health`);
-      console.log(`📚 API documentation: http://localhost:${config.port}/api/docs`);
-      console.log(`📈 Status endpoint: http://localhost:${config.port}/api/status`);
+    systemLogger.info('Simulators started', { started });
+    res.json({ 
+      message: 'Simulators started successfully', 
+      started 
     });
-
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-      console.log('\n🔄 Received SIGINT, shutting down gracefully...');
-      
-      server.close(() => {
-        console.log('🔌 HTTP server closed');
-      });
-      
-      await simulationService.shutdown();
-      process.exit(0);
-    });
-
-    process.on('SIGTERM', async () => {
-      console.log('\n🔄 Received SIGTERM, shutting down gracefully...');
-      
-      server.close(() => {
-        console.log('🔌 HTTP server closed');
-      });
-      
-      await simulationService.shutdown();
-      process.exit(0);
-    });
-
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    systemLogger.error('Error starting simulators', error);
+    res.status(500).json({ error: error.message });
   }
-}
+});
+
+app.post('/control/stop', async (req, res) => {
+  try {
+    const { simulators = ['flight', 'vessel'] } = req.body;
+    const stopped = [];
+
+    if (simulators.includes('flight')) {
+      await flightSimulator.stop();
+      stopped.push('flight');
+    }
+
+    if (simulators.includes('vessel')) {
+      await vesselSimulator.stop();
+      stopped.push('vessel');
+    }
+
+    systemLogger.info('Simulators stopped', { stopped });
+    res.json({ 
+      message: 'Simulators stopped successfully', 
+      stopped 
+    });
+  } catch (error) {
+    systemLogger.error('Error stopping simulators', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Force update all data
+app.post('/control/force-update', async (req, res) => {
+  try {
+    const updates = [];
+    
+    if (req.body.flight !== false) {
+      await flightSimulator.forceUpdateAll();
+      updates.push('flight');
+    }
+    
+    if (req.body.vessel !== false) {
+      await vesselSimulator.forceUpdateAll();
+      updates.push('vessel');
+    }
+
+    res.json({ 
+      message: 'Force update completed', 
+      updated: updates 
+    });
+  } catch (error) {
+    systemLogger.error('Error forcing update', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get specific flight details
+app.get('/flights/:id', (req, res) => {
+  const flight = flightSimulator.getFlightDetails(parseInt(req.params.id));
+  if (flight) {
+    res.json(flight);
+  } else {
+    res.status(404).json({ error: 'Flight not found' });
+  }
+});
+
+// Get specific vessel details
+app.get('/vessels/:id', (req, res) => {
+  const vessel = vesselSimulator.getVesselDetails(parseInt(req.params.id));
+  if (vessel) {
+    res.json(vessel);
+  } else {
+    res.status(404).json({ error: 'Vessel not found' });
+  }
+});
+
+// Get vessels in area
+app.post('/vessels/in-area', (req, res) => {
+  const { minLat, maxLat, minLon, maxLon } = req.body;
+  
+  if (!minLat || !maxLat || !minLon || !maxLon) {
+    return res.status(400).json({ error: 'Missing required bounds parameters' });
+  }
+
+  const vessels = vesselSimulator.getVesselsInArea({
+    minLat: parseFloat(minLat),
+    maxLat: parseFloat(maxLat),
+    minLon: parseFloat(minLon),
+    maxLon: parseFloat(maxLon)
+  });
+
+  res.json({ vessels, count: vessels.length });
+});
+
+// Serve monitoring dashboard
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Tracking Data Simulator</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          background-color: #f5f5f5;
+        }
+        .container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .status-card {
+          background: white;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 10px 0;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metric {
+          display: inline-block;
+          margin: 10px 20px 10px 0;
+        }
+        .metric-value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #333;
+        }
+        .metric-label {
+          color: #666;
+          font-size: 14px;
+        }
+        button {
+          background-color: #4CAF50;
+          color: white;
+          padding: 10px 20px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          margin: 5px;
+        }
+        button:hover {
+          background-color: #45a049;
+        }
+        button.stop {
+          background-color: #f44336;
+        }
+        button.stop:hover {
+          background-color: #da190b;
+        }
+        .running {
+          color: #4CAF50;
+        }
+        .stopped {
+          color: #f44336;
+        }
+        h1, h2 {
+          color: #333;
+        }
+        .controls {
+          margin: 20px 0;
+        }
+        .log-area {
+          background: #f0f0f0;
+          padding: 10px;
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 12px;
+          max-height: 200px;
+          overflow-y: auto;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>Tracking Data Simulator</h1>
+        
+        <div class="controls">
+          <button onclick="startSimulators()">Start All</button>
+          <button onclick="stopSimulators()" class="stop">Stop All</button>
+          <button onclick="forceUpdate()">Force Update</button>
+          <button onclick="refreshStatus()">Refresh Status</button>
+        </div>
+
+        <div id="status-container">
+          <p>Loading status...</p>
+        </div>
+      </div>
+
+      <script>
+        async function fetchStatus() {
+          try {
+            const response = await fetch('/status');
+            const data = await response.json();
+            updateStatusDisplay(data);
+          } catch (error) {
+            console.error('Error fetching status:', error);
+            document.getElementById('status-container').innerHTML = 
+              '<p style="color: red;">Error fetching status: ' + error.message + '</p>';
+          }
+        }
+
+        function updateStatusDisplay(data) {
+          const container = document.getElementById('status-container');
+          
+          let html = '';
+          
+          // Flight Simulator Status
+          if (data.simulators.flight.enabled) {
+            const flight = data.simulators.flight.statistics;
+            const isRunning = flight.startTime !== null;
+            
+            html += '<div class="status-card">';
+            html += '<h2>Flight Simulator <span class="' + (isRunning ? 'running' : 'stopped') + '">(' + (isRunning ? 'Running' : 'Stopped') + ')</span></h2>';
+            
+            if (isRunning) {
+              html += '<div class="metric"><div class="metric-value">' + flight.activeFlights + '</div><div class="metric-label">Active Flights</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + flight.totalPublished + '</div><div class="metric-label">Total Published</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + flight.publishRate + '</div><div class="metric-label">Publish Rate</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + flight.successRate + '</div><div class="metric-label">Success Rate</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + flight.runtime + '</div><div class="metric-label">Runtime</div></div>';
+            }
+            
+            html += '</div>';
+          }
+          
+          // Vessel Simulator Status
+          if (data.simulators.vessel.enabled) {
+            const vessel = data.simulators.vessel.statistics;
+            const isRunning = vessel.startTime !== null;
+            
+            html += '<div class="status-card">';
+            html += '<h2>Vessel Simulator <span class="' + (isRunning ? 'running' : 'stopped') + '">(' + (isRunning ? 'Running' : 'Stopped') + ')</span></h2>';
+            
+            if (isRunning) {
+              html += '<div class="metric"><div class="metric-value">' + vessel.activeVessels + '</div><div class="metric-label">Active Vessels</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + vessel.totalPublished + '</div><div class="metric-label">Total Published</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + vessel.publishRate + '</div><div class="metric-label">Publish Rate</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + vessel.successRate + '</div><div class="metric-label">Success Rate</div></div>';
+              html += '<div class="metric"><div class="metric-value">' + vessel.runtime + '</div><div class="metric-label">Runtime</div></div>';
+            }
+            
+            html += '</div>';
+          }
+          
+          // Consumer Status
+          if (data.consumer) {
+            html += '<div class="status-card">';
+            html += '<h2>Kafka Consumer Status</h2>';
+            
+            if (data.consumer.consumerHealth) {
+              html += '<div class="metric"><div class="metric-value ' + (data.consumer.consumerHealth === 'HEALTHY' ? 'running' : 'stopped') + '">' + data.consumer.consumerHealth + '</div><div class="metric-label">Health Status</div></div>';
+            }
+            
+            if (data.consumer.consumerStatistics) {
+              const stats = data.consumer.consumerStatistics;
+              Object.keys(stats).forEach(key => {
+                if (typeof stats[key] !== 'object') {
+                  html += '<div class="metric"><div class="metric-value">' + stats[key] + '</div><div class="metric-label">' + key + '</div></div>';
+                }
+              });
+            }
+            
+            html += '</div>';
+          }
+          
+          // Configuration
+          html += '<div class="status-card">';
+          html += '<h2>Configuration</h2>';
+          html += '<div class="metric"><div class="metric-value">' + data.config.apiBaseUrl + '</div><div class="metric-label">API Base URL</div></div>';
+          html += '<div class="metric"><div class="metric-value">' + data.config.flightInterval + 'ms</div><div class="metric-label">Flight Update Interval</div></div>';
+          html += '<div class="metric"><div class="metric-value">' + data.config.vesselInterval + 'ms</div><div class="metric-label">Vessel Update Interval</div></div>';
+          html += '<div class="metric"><div class="metric-value">' + data.config.maxFlights + '</div><div class="metric-label">Max Flights</div></div>';
+          html += '<div class="metric"><div class="metric-value">' + data.config.maxVessels + '</div><div class="metric-label">Max Vessels</div></div>';
+          html += '</div>';
+          
+          container.innerHTML = html;
+        }
+
+        async function startSimulators() {
+          try {
+            const response = await fetch('/control/start', { method: 'POST' });
+            const data = await response.json();
+            alert(data.message);
+            fetchStatus();
+          } catch (error) {
+            alert('Error starting simulators: ' + error.message);
+          }
+        }
+
+        async function stopSimulators() {
+          try {
+            const response = await fetch('/control/stop', { method: 'POST' });
+            const data = await response.json();
+            alert(data.message);
+            fetchStatus();
+          } catch (error) {
+            alert('Error stopping simulators: ' + error.message);
+          }
+        }
+
+        async function forceUpdate() {
+          try {
+            const response = await fetch('/control/force-update', { method: 'POST' });
+            const data = await response.json();
+            alert(data.message);
+          } catch (error) {
+            alert('Error forcing update: ' + error.message);
+          }
+        }
+
+        function refreshStatus() {
+          fetchStatus();
+        }
+
+        // Initial load
+        fetchStatus();
+
+        // Auto-refresh every 5 seconds
+        setInterval(fetchStatus, 5000);
+      </script>
+    </body>
+    </html>
+  `);
+});
 
 // Start the server
-startServer();
+const server = app.listen(config.port, () => {
+  systemLogger.info(`Tracking Data Simulator server running on port ${config.port}`);
+  console.log(`\n🚀 Tracking Data Simulator is running!`);
+  console.log(`\n📊 Dashboard: http://localhost:${config.port}`);
+  console.log(`📡 API Base URL: ${config.api.baseUrl}`);
+  console.log(`✈️  Flight Simulator: ${config.simulation.enableFlights ? 'Enabled' : 'Disabled'}`);
+  console.log(`🚢 Vessel Simulator: ${config.simulation.enableVessels ? 'Enabled' : 'Disabled'}`);
+  console.log(`\nPress Ctrl+C to stop\n`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  systemLogger.info('Shutting down simulators...');
+  console.log('\n\nShutting down simulators...');
+  
+  await flightSimulator.stop();
+  await vesselSimulator.stop();
+  
+  server.close(() => {
+    systemLogger.info('Server closed');
+    console.log('Server closed. Goodbye!');
+    process.exit(0);
+  });
+});

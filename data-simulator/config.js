@@ -4,78 +4,106 @@ const config = {
   // Server Configuration
   port: process.env.PORT || 3001,
   
-  // Kafka Configuration
-  kafka: {
-    brokers: (process.env.KAFKA_BROKERS || 'localhost:29092').split(','),
-    clientId: process.env.KAFKA_CLIENT_ID || 'tracking-data-simulator',
-    topics: {
-      flight: process.env.KAFKA_FLIGHT_TOPIC || 'flight-tracking',
-      ship: process.env.KAFKA_SHIP_TOPIC || 'ship-tracking'
-    }
+  // Backend API Configuration
+  api: {
+    baseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
+    endpoints: {
+      publishFlight: '/api/tracking/publish/flight',
+      publishVessel: '/api/tracking/publish/vessel',
+      consumerStatus: '/api/tracking/consumer/status'
+    },
+    timeout: parseInt(process.env.API_TIMEOUT) || 30000,
+    retryAttempts: parseInt(process.env.API_RETRY_ATTEMPTS) || 3,
+    retryDelay: parseInt(process.env.API_RETRY_DELAY) || 1000
   },
   
   // Simulation Configuration
   simulation: {
-    interval: parseInt(process.env.SIMULATION_INTERVAL) || 2000, // 2 seconds
-    maxFlights: parseInt(process.env.MAX_FLIGHTS) || 50000,
-    maxShips: parseInt(process.env.MAX_SHIPS) || 50000
+    flightInterval: parseInt(process.env.FLIGHT_SIMULATION_INTERVAL) || 1000, // 1 second
+    vesselInterval: parseInt(process.env.VESSEL_SIMULATION_INTERVAL) || 2000, // 2 seconds
+    maxFlights: parseInt(process.env.MAX_FLIGHTS) || 100,
+    maxVessels: parseInt(process.env.MAX_VESSELS) || 50,
+    batchSize: parseInt(process.env.BATCH_SIZE) || 10,
+    enableFlights: process.env.ENABLE_FLIGHTS !== 'false',
+    enableVessels: process.env.ENABLE_VESSELS !== 'false'
   },
   
   // Geographic Bounds (Vietnam Area)
   bounds: {
-    minLatitude: parseFloat(process.env.MIN_LATITUDE) || 8.5,
-    maxLatitude: parseFloat(process.env.MAX_LATITUDE) || 23.5,
-    minLongitude: parseFloat(process.env.MIN_LONGITUDE) || 102.0,
-    maxLongitude: parseFloat(process.env.MAX_LONGITUDE) || 109.5
+    vietnam: {
+      minLatitude: 8.5,
+      maxLatitude: 23.5,
+      minLongitude: 102.0,
+      maxLongitude: 109.5
+    },
+    // Major shipping routes
+    shippingLanes: [
+      { name: 'North-South Route', startLat: 20.5, startLon: 107.5, endLat: 10.5, endLon: 107.0 },
+      { name: 'East-West Route', startLat: 16.0, startLon: 108.5, endLat: 16.5, endLon: 103.5 }
+    ]
   },
   
-  // Major Cities and Airports
-  locations: {
-    hcmc: {
-      lat: parseFloat(process.env.HCMC_LAT) || 10.823,
-      lon: parseFloat(process.env.HCMC_LON) || 106.629
-    },
-    hanoi: {
-      lat: parseFloat(process.env.HANOI_LAT) || 21.0285,
-      lon: parseFloat(process.env.HANOI_LON) || 105.8542
-    },
-    tanSonNhat: {
-      lat: parseFloat(process.env.TAN_SON_NHAT_LAT) || 10.8187,
-      lon: parseFloat(process.env.TAN_SON_NHAT_LON) || 106.6524
-    },
-    noiBai: {
-      lat: parseFloat(process.env.NOI_BAI_LAT) || 21.2214,
-      lon: parseFloat(process.env.NOI_BAI_LON) || 105.8077
-    }
-  },
+  // Major Airports
+  airports: [
+    { code: 'SGN', name: 'Tan Son Nhat', lat: 10.8187, lon: 106.6524 },
+    { code: 'HAN', name: 'Noi Bai', lat: 21.2214, lon: 105.8077 },
+    { code: 'DAD', name: 'Da Nang', lat: 16.0439, lon: 108.1993 },
+    { code: 'CXR', name: 'Cam Ranh', lat: 11.9982, lon: 109.2194 },
+    { code: 'PQC', name: 'Phu Quoc', lat: 10.1625, lon: 103.9931 }
+  ],
+  
+  // Major Ports
+  ports: [
+    { code: 'VNSGN', name: 'Ho Chi Minh Port', lat: 10.7500, lon: 106.7500 },
+    { code: 'VNHPH', name: 'Hai Phong Port', lat: 20.8650, lon: 106.6838 },
+    { code: 'VNDNG', name: 'Da Nang Port', lat: 16.0833, lon: 108.2167 },
+    { code: 'VNVUT', name: 'Vung Tau Port', lat: 10.3500, lon: 107.0667 },
+    { code: 'VNQNI', name: 'Quy Nhon Port', lat: 13.7667, lon: 109.2333 }
+  ],
   
   // Flight simulation parameters
   flight: {
     altitudeRange: { min: 1000, max: 42000 },
     speedRange: { min: 150, max: 900 }, // knots
-    headingRange: { min: 0, max: 360 },
-    callsignPrefixes: ['VN', 'VJ', 'BL', 'QH', 'SQ', 'TG', 'CX', 'NH'],
-    aircraftTypes: ['B737', 'A320', 'A321', 'B777', 'A350', 'B787', 'ATR72']
+    verticalSpeedRange: { min: -2000, max: 2000 }, // feet per minute
+    callsignPrefixes: ['VN', 'VJ', 'BL', 'QH', 'SQ', 'TG', 'CX', 'NH', 'KE', 'OZ'],
+    aircraftTypes: [
+      { type: 'B737', manufacturer: 'Boeing', engines: '2' },
+      { type: 'A320', manufacturer: 'Airbus', engines: '2' },
+      { type: 'A321', manufacturer: 'Airbus', engines: '2' },
+      { type: 'B777', manufacturer: 'Boeing', engines: '2' },
+      { type: 'A350', manufacturer: 'Airbus', engines: '2' },
+      { type: 'B787', manufacturer: 'Boeing', engines: '2' },
+      { type: 'ATR72', manufacturer: 'ATR', engines: '2' }
+    ],
+    airlines: [
+      { code: 'VN', name: 'Vietnam Airlines', country: 'Vietnam' },
+      { code: 'VJ', name: 'VietJet Air', country: 'Vietnam' },
+      { code: 'BL', name: 'Bamboo Airways', country: 'Vietnam' },
+      { code: 'QH', name: 'Qantas', country: 'Australia' }
+    ]
   },
   
-  // Ship simulation parameters  
-  ship: {
+  // Vessel simulation parameters  
+  vessel: {
     speedRange: { min: 0, max: 25 }, // knots
-    headingRange: { min: 0, max: 360 },
-    shipTypes: ['Container', 'Bulk Carrier', 'Tanker', 'Fishing', 'Cargo', 'Passenger']
+    draughtRange: { min: 5, max: 20 }, // meters
+    vesselTypes: [
+      { type: 'Container', sizeRange: { min: 100, max: 400 } },
+      { type: 'Bulk Carrier', sizeRange: { min: 150, max: 350 } },
+      { type: 'Tanker', sizeRange: { min: 200, max: 400 } },
+      { type: 'Fishing', sizeRange: { min: 20, max: 100 } },
+      { type: 'Cargo', sizeRange: { min: 100, max: 300 } },
+      { type: 'Passenger', sizeRange: { min: 50, max: 350 } }
+    ],
+    flags: ['Vietnam', 'Singapore', 'Panama', 'Liberia', 'Marshall Islands', 'Hong Kong']
   },
-  // Mock External APIs Configuration
-  mockApis: {
-    flightRadar24: {
-      enabled: true,
-      baseUrl: '/mock/flightradar24',
-      updateInterval: 30000 // 30 seconds
-    },
-    marineTraffic: {
-      enabled: true,
-      baseUrl: '/mock/marinetraffic',
-      updateInterval: 60000 // 60 seconds
-    }
+  
+  // Logging Configuration
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    file: process.env.LOG_FILE || './simulator.log',
+    console: process.env.LOG_CONSOLE !== 'false'
   }
 };
 

@@ -6,7 +6,7 @@ const config = require('../config');
 class MovementSimulator {
   constructor() {
     this.activeFlights = new Map();
-    this.activeShips = new Map();
+    this.activeVessels = new Map();
   }
 
   // Generate random number within range
@@ -55,11 +55,9 @@ class MovementSimulator {
 
   // Generate realistic callsign
   generateCallsign() {
-    const prefix = config.flight.callsignPrefixes[
-      this.randomInt(0, config.flight.callsignPrefixes.length - 1)
-    ];
+    const airline = config.flight.airlines[this.randomInt(0, config.flight.airlines.length - 1)];
     const number = this.randomInt(100, 9999);
-    return `${prefix}${number}`;
+    return `${airline.code}${number}`;
   }
 
   // Generate realistic hex identifier
@@ -67,66 +65,94 @@ class MovementSimulator {
     return Math.random().toString(16).substr(2, 6).toUpperCase();
   }
 
-  // Create new flight with realistic initial parameters
+  // Generate aircraft registration
+  generateRegistration() {
+    const prefix = 'VN-A';
+    const suffix = Math.random().toString(36).substr(2, 3).toUpperCase();
+    return `${prefix}${suffix}`;
+  }
+
+  // Create new flight with realistic initial parameters matching FlightTrackingRequestDTO
   createNewFlight() {
     const id = this.randomInt(10000, 99999);
     const aircraftId = this.randomInt(1, 1000);
     
-    // Choose random start position (often near airports)
-    const startPositions = [
-      config.locations.tanSonNhat,
-      config.locations.noiBai,
-      config.locations.hcmc,
-      config.locations.hanoi
-    ];
+    // Choose random airports for origin and destination
+    const departureAirport = config.airports[this.randomInt(0, config.airports.length - 1)];
+    const arrivalAirport = config.airports[this.randomInt(0, config.airports.length - 1)];
     
-    const startPos = startPositions[this.randomInt(0, startPositions.length - 1)];
+    // Start near departure airport
+    const latitude = departureAirport.lat + this.random(-0.1, 0.1);
+    const longitude = departureAirport.lon + this.random(-0.1, 0.1);
     
-    // Add some randomness to airport positions
-    const latitude = startPos.lat + this.random(-0.1, 0.1);
-    const longitude = startPos.lon + this.random(-0.1, 0.1);
+    // Select aircraft type
+    const aircraftType = config.flight.aircraftTypes[this.randomInt(0, config.flight.aircraftTypes.length - 1)];
+    const airline = config.flight.airlines[this.randomInt(0, config.flight.airlines.length - 1)];
     
+    const currentTime = new Date();
+    const unixTime = Math.floor(currentTime.getTime() / 1000);
+    
+    // Format data matching FlightTrackingRequestDTO exactly
     const flight = {
       Id: id,
       AircraftId: aircraftId,
+      SecsOfTrack: this.randomInt(1, 3600), // Seconds since track started
+      ReceverSourceId: this.randomInt(1, 10),
       Hexident: this.generateHexIdent(),
-      Callsign: this.generateCallsign(),
-      Latitude: latitude,
-      Longitude: longitude,
-      Altitude: this.random(config.flight.altitudeRange.min, config.flight.altitudeRange.max),
-      Speed: this.random(config.flight.speedRange.min, config.flight.speedRange.max),
-      Heading: this.random(0, 360),
-      VerticalSpeed: this.random(-2000, 2000),
-      Type: config.flight.aircraftTypes[this.randomInt(0, config.flight.aircraftTypes.length - 1)],
-      UpdateTime: moment().format('YYYY-MM-DDTHH:mm:ss'),
-      UnixTime: moment().unix(),
-      Distance: this.random(0, 500),
-      Bearing: this.random(0, 360),
-      Squawk: this.randomInt(1000, 7777),
+      Register: this.generateRegistration(),
+      Altitude: parseFloat(this.random(config.flight.altitudeRange.min, config.flight.altitudeRange.max).toFixed(0)),
       AltitudeType: 'barometric',
-      SpeedType: 'ground',
-      TargetAlt: null,
+      TargetAlt: parseFloat(this.random(25000, 40000).toFixed(0)),
+      Callsign: this.generateCallsign(),
       IsTisb: false,
+      Speed: parseFloat(this.random(config.flight.speedRange.min, config.flight.speedRange.max).toFixed(1)),
+      SpeedType: 'ground',
+      VerticalSpeed: parseFloat(this.random(config.flight.verticalSpeedRange.min, config.flight.verticalSpeedRange.max).toFixed(0)),
+      Type: aircraftType.type,
+      Manufacture: aircraftType.manufacturer,
+      ContructorNumber: `CN${this.randomInt(10000, 99999)}`,
+      FromPort: departureAirport.code,
+      ToPort: arrivalAirport.code,
+      Operator: airline.name,
+      OperatorCode: airline.code,
+      Squawk: this.randomInt(1000, 7777),
+      Distance: parseFloat(this.random(0, 500).toFixed(2)),
+      Bearing: parseFloat(this.random(0, 360).toFixed(1)),
+      Engines: aircraftType.engines,
+      EngineType: 'Jet',
       IsMilitary: false,
-      Country: 'VN',
+      Country: airline.country,
       TransponderType: 'Mode S',
+      Year: this.randomInt(2010, 2023),
+      UnixTime: unixTime,
+      UpdateTime: currentTime.toISOString().split('.')[0], // Format: yyyy-MM-dd'T'HH:mm:ss
+      Longitude: parseFloat(longitude.toFixed(6)),
+      Latitude: parseFloat(latitude.toFixed(6)),
       Source: 'ADSB',
+      Flight: this.generateCallsign(),
+      FlightType: 'Commercial',
+      LandingUnixTimes: unixTime + this.randomInt(3600, 14400), // 1-4 hours from now
+      LandingTimes: new Date((unixTime + this.randomInt(3600, 14400)) * 1000).toISOString().split('.')[0],
       ItemType: 1
     };
 
+    // Store internal state
     this.activeFlights.set(id, {
       ...flight,
       lastUpdate: Date.now(),
-      targetHeading: flight.Heading,
+      targetHeading: this.random(0, 360),
+      currentHeading: this.random(0, 360),
       targetSpeed: flight.Speed,
-      targetAltitude: flight.Altitude
+      targetAltitude: flight.TargetAlt,
+      destinationLat: arrivalAirport.lat,
+      destinationLon: arrivalAirport.lon
     });
 
     return flight;
   }
 
   // Update existing flight with realistic movement
-  updateFlight(flightId, timeInterval = 2) {
+  updateFlight(flightId, timeInterval = 1) {
     const flight = this.activeFlights.get(flightId);
     if (!flight) return null;
 
@@ -135,138 +161,166 @@ class MovementSimulator {
       flight.Latitude,
       flight.Longitude,
       flight.Speed,
-      flight.Heading,
+      flight.currentHeading,
       timeInterval
     );
 
-    // Randomly adjust parameters for realism
-    if (Math.random() < 0.1) { // 10% chance to change heading
-      flight.targetHeading = this.random(0, 360);
-    }
-    
-    if (Math.random() < 0.05) { // 5% chance to change speed
-      flight.targetSpeed = this.random(config.flight.speedRange.min, config.flight.speedRange.max);
-    }
-    
-    if (Math.random() < 0.03) { // 3% chance to change altitude
-      flight.targetAltitude = this.random(config.flight.altitudeRange.min, config.flight.altitudeRange.max);
+    // Calculate heading toward destination
+    const deltaLon = flight.destinationLon - flight.Longitude;
+    const deltaLat = flight.destinationLat - flight.Latitude;
+    const desiredHeading = (Math.atan2(deltaLon, deltaLat) * 180 / Math.PI + 360) % 360;
+
+    // Gradually adjust heading toward destination
+    flight.currentHeading += (desiredHeading - flight.currentHeading) * 0.05;
+    flight.currentHeading = (flight.currentHeading + 360) % 360;
+
+    // Update altitude based on phase of flight
+    const distanceToDestination = Math.sqrt(
+      Math.pow(flight.destinationLat - flight.Latitude, 2) + 
+      Math.pow(flight.destinationLon - flight.Longitude, 2)
+    );
+
+    if (distanceToDestination < 0.5) {
+      // Descending phase
+      flight.Altitude = Math.max(1000, flight.Altitude - this.random(100, 300));
+      flight.VerticalSpeed = -this.random(500, 1500);
+    } else if (flight.Altitude < flight.TargetAlt) {
+      // Climbing phase
+      flight.Altitude = Math.min(flight.TargetAlt, flight.Altitude + this.random(100, 300));
+      flight.VerticalSpeed = this.random(500, 1500);
+    } else {
+      // Cruise phase
+      flight.VerticalSpeed = this.random(-100, 100);
     }
 
-    // Gradually adjust to targets (realistic aircraft behavior)
-    flight.Heading += (flight.targetHeading - flight.Heading) * 0.1;
-    flight.Speed += (flight.targetSpeed - flight.Speed) * 0.05;
-    flight.Altitude += (flight.targetAltitude - flight.Altitude) * 0.02;
-    
     // Update position
-    flight.Latitude = newPos.latitude;
-    flight.Longitude = newPos.longitude;
+    flight.Latitude = parseFloat(newPos.latitude.toFixed(6));
+    flight.Longitude = parseFloat(newPos.longitude.toFixed(6));
+    flight.Altitude = parseFloat(flight.Altitude.toFixed(0));
+    flight.Bearing = parseFloat(flight.currentHeading.toFixed(1));
     
-    // Update time
-    flight.UpdateTime = moment().format('YYYY-MM-DDTHH:mm:ss');
-    flight.UnixTime = moment().unix();
+    // Update timestamps
+    const currentTime = new Date();
+    flight.UpdateTime = currentTime.toISOString().split('.')[0];
+    flight.UnixTime = Math.floor(currentTime.getTime() / 1000);
+    flight.SecsOfTrack += timeInterval;
     flight.lastUpdate = Date.now();
 
     // Check bounds - remove if out of Vietnam area
-    if (flight.Latitude < config.bounds.minLatitude || 
-        flight.Latitude > config.bounds.maxLatitude ||
-        flight.Longitude < config.bounds.minLongitude || 
-        flight.Longitude > config.bounds.maxLongitude) {
+    if (flight.Latitude < config.bounds.vietnam.minLatitude || 
+        flight.Latitude > config.bounds.vietnam.maxLatitude ||
+        flight.Longitude < config.bounds.vietnam.minLongitude || 
+        flight.Longitude > config.bounds.vietnam.maxLongitude) {
       this.activeFlights.delete(flightId);
       return null;
     }
 
     this.activeFlights.set(flightId, flight);
     
-    // Return clean copy for Kafka
-    const { lastUpdate, targetHeading, targetSpeed, targetAltitude, ...cleanFlight } = flight;
+    // Return clean copy for publishing (remove internal state fields)
+    const { lastUpdate, targetHeading, currentHeading, targetSpeed, targetAltitude, destinationLat, destinationLon, ...cleanFlight } = flight;
     return cleanFlight;
   }
 
-  // Create new ship with realistic parameters
-  createNewShip() {
+  // Create new vessel with realistic parameters matching ShipTrackingRequest
+  createNewVessel() {
     const voyageId = this.randomInt(10000, 99999);
     
-    // Ships often near coastlines or ports
-    const coastalPositions = [
-      { lat: 10.8, lon: 107.1 }, // Ho Chi Minh City port
-      { lat: 20.9, lon: 106.9 }, // Hai Phong port
-      { lat: 12.2, lon: 109.2 }, // Quy Nhon port
-      { lat: 16.1, lon: 108.2 }  // Da Nang port
-    ];
+    // Choose random port
+    const port = config.ports[this.randomInt(0, config.ports.length - 1)];
+    const latitude = port.lat + this.random(-0.2, 0.2);
+    const longitude = port.lon + this.random(-0.2, 0.2);
     
-    const startPos = coastalPositions[this.randomInt(0, coastalPositions.length - 1)];
-    const latitude = startPos.lat + this.random(-0.2, 0.2);
-    const longitude = startPos.lon + this.random(-0.2, 0.2);
+    const currentTime = new Date();
     
-    const ship = {
-      voyageId: voyageId,
-      timestamp: moment().format('YYYY-MM-DDTHH:mm:ss'),
-      latitude: latitude,
-      longitude: longitude,
-      speed: this.random(config.ship.speedRange.min, config.ship.speedRange.max),
-      course: this.random(0, 360),
-      draught: this.random(5, 15) // meters
+    // Format data matching ShipTrackingRequest exactly
+    const vessel = {
+      timestamp: currentTime.toISOString().split('.')[0], // LocalDateTime format
+      latitude: parseFloat(latitude.toFixed(6)),
+      longitude: parseFloat(longitude.toFixed(6)),
+      speed: parseFloat(this.random(config.vessel.speedRange.min, config.vessel.speedRange.max).toFixed(1)),
+      course: parseFloat(this.random(0, 360).toFixed(1)),
+      draught: parseFloat(this.random(config.vessel.draughtRange.min, config.vessel.draughtRange.max).toFixed(1)),
+      voyageId: voyageId
     };
 
-    this.activeShips.set(voyageId, {
-      ...ship,
+    // Store internal state for realistic movement
+    this.activeVessels.set(voyageId, {
+      ...vessel,
       lastUpdate: Date.now(),
-      targetCourse: ship.course,
-      targetSpeed: ship.speed
+      targetHeading: vessel.course,
+      targetSpeed: vessel.speed,
+      vesselType: config.vessel.vesselTypes[this.randomInt(0, config.vessel.vesselTypes.length - 1)],
+      destinationPort: config.ports[this.randomInt(0, config.ports.length - 1)]
     });
 
-    return ship;
+    return vessel;
   }
 
-  // Update existing ship with realistic movement
-  updateShip(voyageId, timeInterval = 2) {
-    const ship = this.activeShips.get(voyageId);
-    if (!ship) return null;
+  // Update existing vessel with realistic movement
+  updateVessel(voyageId, timeInterval = 2) {
+    const vessel = this.activeVessels.get(voyageId);
+    if (!vessel) return null;
 
     // Calculate new position
     const newPos = this.calculateNewPosition(
-      ship.latitude,
-      ship.longitude,
-      ship.speed,
-      ship.course,
+      vessel.latitude,
+      vessel.longitude,
+      vessel.speed,
+      vessel.course,
       timeInterval
     );
 
-    // Ships change direction less frequently than aircraft
-    if (Math.random() < 0.05) { // 5% chance to change course
-      ship.targetCourse = this.random(0, 360);
+    // Vessels change direction less frequently than aircraft
+    if (Math.random() < 0.02) { // 2% chance to adjust course
+      vessel.targetHeading = this.random(0, 360);
     }
     
-    if (Math.random() < 0.03) { // 3% chance to change speed
-      ship.targetSpeed = this.random(config.ship.speedRange.min, config.ship.speedRange.max);
+    if (Math.random() < 0.01) { // 1% chance to change speed
+      vessel.targetSpeed = this.random(config.vessel.speedRange.min, config.vessel.speedRange.max);
     }
 
-    // Gradually adjust to targets
-    ship.course += (ship.targetCourse - ship.course) * 0.05;
-    ship.speed += (ship.targetSpeed - ship.speed) * 0.03;
+    // Gradually adjust to targets (vessels change course very slowly)
+    vessel.course += (vessel.targetHeading - vessel.course) * 0.02;
+    vessel.course = (vessel.course + 360) % 360;
+    vessel.speed += (vessel.targetSpeed - vessel.speed) * 0.01;
     
     // Update position
-    ship.latitude = newPos.latitude;
-    ship.longitude = newPos.longitude;
+    vessel.latitude = parseFloat(newPos.latitude.toFixed(6));
+    vessel.longitude = parseFloat(newPos.longitude.toFixed(6));
+    vessel.speed = parseFloat(vessel.speed.toFixed(1));
+    vessel.course = parseFloat(vessel.course.toFixed(1));
     
-    // Update time
-    ship.timestamp = moment().format('YYYY-MM-DDTHH:mm:ss');
-    ship.lastUpdate = Date.now();
+    // Update timestamp
+    vessel.timestamp = new Date().toISOString().split('.')[0];
+    vessel.lastUpdate = Date.now();
 
-    // Check bounds
-    if (ship.latitude < config.bounds.minLatitude || 
-        ship.latitude > config.bounds.maxLatitude ||
-        ship.longitude < config.bounds.minLongitude || 
-        ship.longitude > config.bounds.maxLongitude) {
-      this.activeShips.delete(voyageId);
+    // Slight draught variations
+    vessel.draught += this.random(-0.1, 0.1);
+    vessel.draught = parseFloat(Math.max(config.vessel.draughtRange.min, 
+                                        Math.min(config.vessel.draughtRange.max, vessel.draught)).toFixed(1));
+
+    // Check bounds - remove if out of Vietnam coastal area
+    if (vessel.latitude < config.bounds.vietnam.minLatitude || 
+        vessel.latitude > config.bounds.vietnam.maxLatitude ||
+        vessel.longitude < config.bounds.vietnam.minLongitude || 
+        vessel.longitude > config.bounds.vietnam.maxLongitude) {
+      this.activeVessels.delete(voyageId);
       return null;
     }
 
-    this.activeShips.set(voyageId, ship);
+    this.activeVessels.set(voyageId, vessel);
     
-    // Return clean copy for Kafka
-    const { lastUpdate, targetCourse, targetSpeed, ...cleanShip } = ship;
-    return cleanShip;
+    // Return clean copy for publishing (only ShipTrackingRequest fields)
+    return {
+      timestamp: vessel.timestamp,
+      latitude: vessel.latitude,
+      longitude: vessel.longitude,
+      speed: vessel.speed,
+      course: vessel.course,
+      draught: vessel.draught,
+      voyageId: vessel.voyageId
+    };
   }
 
   // Get all active flights
@@ -274,9 +328,9 @@ class MovementSimulator {
     return Array.from(this.activeFlights.keys());
   }
 
-  // Get all active ships
-  getAllActiveShips() {
-    return Array.from(this.activeShips.keys());
+  // Get all active vessels
+  getAllActiveVessels() {
+    return Array.from(this.activeVessels.keys());
   }
 
   // Remove old inactive vehicles
@@ -289,11 +343,21 @@ class MovementSimulator {
       }
     }
     
-    for (const [id, ship] of this.activeShips.entries()) {
-      if (now - ship.lastUpdate > maxAge) {
-        this.activeShips.delete(id);
+    for (const [id, vessel] of this.activeVessels.entries()) {
+      if (now - vessel.lastUpdate > maxAge) {
+        this.activeVessels.delete(id);
       }
     }
+  }
+
+  // Get statistics
+  getStatistics() {
+    return {
+      activeFlights: this.activeFlights.size,
+      activeVessels: this.activeVessels.size,
+      flightIds: Array.from(this.activeFlights.keys()),
+      vesselIds: Array.from(this.activeVessels.keys())
+    };
   }
 }
 
