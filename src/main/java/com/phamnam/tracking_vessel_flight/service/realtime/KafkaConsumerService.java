@@ -37,7 +37,7 @@ public class KafkaConsumerService {
     // Thời gian tối thiểu giữa các batch updates (ms)
     private static final long MIN_BATCH_INTERVAL = 5000;
 
-    @KafkaListener(topics = "flight-tracking", containerFactory = "flightKafkaListenerContainerFactory")
+    @KafkaListener(topics = "flight-tracking", groupId = "flight-tracking-consumer-group", containerFactory = "flightKafkaListenerContainerFactory")
     public void consumeFlightTracking(FlightTrackingRequestDTO tracking) {
         try {
             log.info("Received flight tracking data: {}", tracking);
@@ -52,7 +52,7 @@ public class KafkaConsumerService {
     }
 
     // Thêm phương thức mới để xử lý batch
-    @KafkaListener(topics = "flight-tracking-batch", containerFactory = "batchFlightKafkaListenerContainerFactory")
+    @KafkaListener(topics = "flight-tracking-batch", groupId = "flight-tracking-batch-consumer-group", containerFactory = "batchFlightKafkaListenerContainerFactory")
     public void consumeFlightTrackingBatch(List<ConsumerRecord<String, List<FlightTrackingRequestDTO>>> records) {
         for (ConsumerRecord<String, List<FlightTrackingRequestDTO>> record : records) {
             List<FlightTrackingRequestDTO> batch = record.value();
@@ -86,7 +86,7 @@ public class KafkaConsumerService {
         }
     }
 
-    @KafkaListener(topics = "ship-tracking-batch", containerFactory = "batchShipKafkaListenerContainerFactory")
+    @KafkaListener(topics = "ship-tracking-batch", groupId = "ship-tracking-batch-consumer-group", containerFactory = "batchShipKafkaListenerContainerFactory")
     public void consumeShipTrackingBatch(List<ShipTrackingRequest> trackings) {
         if (trackings == null || trackings.isEmpty()) {
             return;
