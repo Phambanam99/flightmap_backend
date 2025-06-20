@@ -1,5 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
+import com.phamnam.tracking_vessel_flight.models.*;
 import com.phamnam.tracking_vessel_flight.models.enums.AlertPriority;
 import com.phamnam.tracking_vessel_flight.models.enums.AlertStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.EntityType;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -322,26 +324,30 @@ public class AnalyticsDashboardService {
     // ============================================================================
 
     private Map<String, Object> getDataSourceHealth() {
-        List<Map<String, Object>> sourceHealth = dataSourceRepository.findAll().stream()
-                .map(ds -> Map.of(
-                        "name", ds.getName(),
-                        "type", ds.getSourceType().getDisplayName(),
-                        "isActive", ds.getIsActive(),
-                        "isEnabled", ds.getIsEnabled(),
-                        "consecutiveFailures", ds.getConsecutiveFailures(),
-                        "successRate", ds.getSuccessRate(),
-                        "lastSuccess", ds.getLastSuccessTime()))
-                .collect(Collectors.toList());
+        try {
+            List<DataSource> dataSources = dataSourceRepository.findAll();
 
-        long healthySources = sourceHealth.stream()
-                .mapToLong(ds -> (Boolean) ds.get("isActive") ? 1 : 0)
-                .sum();
+            java.util.List<Map<String, Object>> sourceStats = new java.util.ArrayList<>();
 
-        return Map.of(
-                "sources", sourceHealth,
-                "totalSources", sourceHealth.size(),
-                "healthySources", healthySources,
-                "healthPercentage", sourceHealth.isEmpty() ? 0 : (healthySources * 100.0 / sourceHealth.size()));
+            for (DataSource ds : dataSources) {
+                Map<String, Object> sourceMap = new java.util.HashMap<>();
+                sourceMap.put("name", ds.getName());
+                sourceMap.put("type", ds.getSourceType().name()); // TODO: Add getDisplayName method
+                sourceMap.put("isEnabled", ds.getIsEnabled());
+                sourceMap.put("isActive", ds.getIsActive());
+                sourceMap.put("lastSuccess", ds.getLastSuccessTime());
+                sourceMap.put("consecutiveFailures", ds.getConsecutiveFailures());
+                sourceStats.add(sourceMap);
+            }
+
+            return Map.of(
+                    "totalSources", dataSources.size(),
+                    "activeSources", dataSources.stream().mapToInt(ds -> ds.getIsActive() ? 1 : 0).sum(),
+                    "sources", sourceStats);
+        } catch (Exception e) {
+            log.error("Failed to get data source performance metrics", e);
+            return Map.of("error", "Failed to retrieve data source metrics");
+        }
     }
 
     private Map<String, Object> getSystemPerformance() {
