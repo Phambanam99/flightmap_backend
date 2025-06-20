@@ -298,7 +298,6 @@ public class ExternalApiService {
                             .isActive(true)
                             .priority(1)
                             .consecutiveFailures(0)
-                            .successRate(100.0)
                             .build();
                     return dataSourceRepository.save(dataSource);
                 });
@@ -324,8 +323,6 @@ public class ExternalApiService {
                     .dataSource(dataSource)
                     .checkTime(LocalDateTime.now())
                     .responseTime(1000L) // TODO: Calculate actual response time
-                    .dataCount(0)
-                    .errorCount(status == SourceStatus.ERROR ? 1 : 0)
                     .build();
             dataSourceStatusRepository.save(statusRecord);
 
@@ -391,12 +388,8 @@ public class ExternalApiService {
             long responseTime, String message) {
         DataSourceStatus statusRecord = DataSourceStatus.builder()
                 .dataSource(dataSource)
-                .status(status)
-                .message(message)
                 .checkTime(LocalDateTime.now())
                 .responseTime(responseTime)
-                .dataCount(0)
-                .errorCount(status == SourceStatus.ERROR ? 1 : 0)
                 .build();
 
         dataSourceStatusRepository.save(statusRecord);
