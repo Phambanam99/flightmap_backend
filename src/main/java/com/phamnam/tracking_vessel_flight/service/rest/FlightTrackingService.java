@@ -156,27 +156,27 @@ public class FlightTrackingService implements IFlightTrackingService {
             tracking.setLocation(location);
         }
 
-        // Update other fields if provided
+        // Update other fields if provided - with type conversions
         if (request.getAltitude() != null)
-            tracking.setAltitude(request.getAltitude());
+            tracking.setAltitude(request.getAltitude().floatValue());
         if (request.getAltitudeType() != null)
             tracking.setAltitudeType(request.getAltitudeType());
         if (request.getTargetAlt() != null)
-            tracking.setTargetAlt(request.getTargetAlt());
+            tracking.setTargetAlt(request.getTargetAlt().floatValue());
         if (request.getCallsign() != null)
             tracking.setCallsign(request.getCallsign());
         if (request.getSpeed() != null)
-            tracking.setSpeed(request.getSpeed());
+            tracking.setSpeed(request.getSpeed().floatValue());
         if (request.getSpeedType() != null)
             tracking.setSpeedType(request.getSpeedType());
         if (request.getVerticalSpeed() != null)
-            tracking.setVerticalSpeed(request.getVerticalSpeed());
+            tracking.setVerticalSpeed(request.getVerticalSpeed().floatValue());
         if (request.getSquawk() != null)
-            tracking.setSquawk(request.getSquawk());
+            tracking.setSquawk(Integer.parseInt(request.getSquawk()));
         if (request.getDistance() != null)
-            tracking.setDistance(request.getDistance());
+            tracking.setDistance(request.getDistance().floatValue());
         if (request.getBearing() != null)
-            tracking.setBearing(request.getBearing());
+            tracking.setBearing(request.getBearing().floatValue());
         if (request.getUnixTime() != null)
             tracking.setUnixTime(request.getUnixTime());
         if (request.getUpdateTime() != null)

@@ -29,22 +29,21 @@ public class AircraftWebSocketController {
                         SimpMessageHeaderAccessor headerAccessor) {
                 String sessionId = headerAccessor.getSessionId();
                 log.info("Client {} đăng ký khu vực: {},{} đến {},{}",
-                        sessionId, request.getMinLat(), request.getMinLon(),
-                        request.getMaxLat(), request.getMaxLon());
+                                sessionId, request.getMinLat(), request.getMinLon(),
+                                request.getMaxLat(), request.getMaxLon());
 
                 // Thêm log chi tiết
                 log.debug("STOMP headers: {}", headerAccessor.getMessageHeaders());
                 log.debug("Processing area subscription with sessionId: {}", sessionId);
 
                 try {
-                        // Gọi service với đầy đủ log
+                        // Gọi service với đầy đủ log - convert Double to float
                         subscriptionService.subscribeToArea(
-                                sessionId,
-                                request.getMinLat(),
-                                request.getMaxLat(),
-                                request.getMinLon(),
-                                request.getMaxLon()
-                        );
+                                        sessionId,
+                                        request.getMinLat().floatValue(),
+                                        request.getMaxLat().floatValue(),
+                                        request.getMinLon().floatValue(),
+                                        request.getMaxLon().floatValue());
                         log.info("Area subscription processed successfully for {}", sessionId);
                 } catch (Exception e) {
                         log.error("Error processing area subscription: {}", e.getMessage(), e);
@@ -64,8 +63,8 @@ public class AircraftWebSocketController {
                                 request.getMaxLat(), request.getMaxLon());
 
                 subscriptionService.unsubscribeFromArea(sessionId,
-                                request.getMinLat(), request.getMaxLat(),
-                                request.getMinLon(), request.getMaxLon());
+                                request.getMinLat().doubleValue(), request.getMaxLat().doubleValue(),
+                                request.getMinLon().doubleValue(), request.getMaxLon().doubleValue());
         }
 
         /**

@@ -42,6 +42,9 @@ public class FlightTracking extends BaseEntity {
     @Column(name = "hexident", nullable = false)
     private String hexident; // ICAO24 for easier querying
 
+    @Column(name = "last_seen")
+    private LocalDateTime lastSeen; // For IntelligentStorageService compatibility
+
     private String callsign;
 
     // Position data
