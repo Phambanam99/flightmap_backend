@@ -1,9 +1,56 @@
-HELP.md
-.gradle
+# Build outputs
 build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+target/
+out/
+*.jar
+*.war
+*.ear
+*.class
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Gradle
+.gradle/
+
+# Log files
+*.log
+logs/
+log/
+data-simulator/*.log
+backend-start.log
+simulator.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.bak
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node modules (for data-simulator)
+node_modules/
 
 ### STS ###
 .apt_generated
@@ -17,15 +64,6 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
@@ -33,11 +71,7 @@ out/
 /nbdist/
 /.nb-gradle/
 
-### VS Code ###
-.vscode/
-
 ### Node.js ###
-node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
