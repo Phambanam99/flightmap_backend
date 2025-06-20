@@ -4,7 +4,7 @@ import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
-import com.phamnam.tracking_vessel_flight.service.rest.VoyageService;
+import com.phamnam.tracking_vessel_flight.service.rest.ShipTrackingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,6 +27,7 @@ public class KafkaConsumerService {
     private final TrackingCacheService trackingCacheService;
     // private final TrackingPushService trackingPushService;
     private final AircraftNotificationService aircraftNotificationService;
+    private final ShipTrackingService shipTrackingService;
 
     // Theo dõi số cập nhật mới từ lần gửi batch update cuối
     private final AtomicInteger updateCounter = new AtomicInteger(0);
@@ -86,6 +87,17 @@ public class KafkaConsumerService {
         }
     }
 
+    @KafkaListener(topics = "ship-tracking", groupId = "ship-tracking-consumer-group")
+    public void consumeShipTracking(ShipTrackingRequest tracking) {
+        try {
+            log.info("Received ship tracking data: {}", tracking);
+            // Process single ship tracking request
+            processShipTrackingData(tracking);
+        } catch (Exception e) {
+            log.error("Error processing ship tracking message", e);
+        }
+    }
+
     @KafkaListener(topics = "ship-tracking-batch", groupId = "ship-tracking-batch-consumer-group", containerFactory = "batchShipKafkaListenerContainerFactory")
     public void consumeShipTrackingBatch(List<ShipTrackingRequest> trackings) {
         if (trackings == null || trackings.isEmpty()) {
@@ -96,14 +108,31 @@ public class KafkaConsumerService {
 
         // Xử lý từng item trong batch
         for (ShipTrackingRequest tracking : trackings) {
-            // Cập nhật cache
-            // trackingCacheService.cacheShipTracking(tracking);
-
-            // Lưu vào database
-            // voyageTrackingService.save(tracking, null);
+            try {
+                processShipTrackingData(tracking);
+            } catch (Exception e) {
+                log.error("Error processing ship tracking in batch", e);
+            }
         }
 
         log.info("Processed batch of {} ship tracking updates", trackings.size());
+    }
+
+    private void processShipTrackingData(ShipTrackingRequest tracking) {
+        try {
+            // Cập nhật cache
+            // trackingCacheService.cacheShipTracking(tracking);
+
+            // Lưu vào database thông qua ShipTrackingService
+            // Note: ShipTrackingService expects shipId, but we have voyageId and mmsi
+            // We need to use the save method that takes ShipTrackingRequest with voyageId
+            shipTrackingService.save(tracking, null);
+
+            log.debug("Successfully processed ship tracking for voyage ID: {}", tracking.getVoyageId());
+        } catch (Exception e) {
+            log.error("Error processing ship tracking data for voyage ID: {}", tracking.getVoyageId(), e);
+            throw e;
+        }
     }
 
     // Cấu hình tương tự cho Vessel nếu cần
