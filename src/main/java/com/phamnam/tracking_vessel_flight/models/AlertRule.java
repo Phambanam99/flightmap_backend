@@ -39,9 +39,11 @@ public class AlertRule extends BaseEntity {
 
     @Column(name = "priority")
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private Priority priority = Priority.MEDIUM;
 
     @Column(name = "is_enabled")
+    @Builder.Default
     private Boolean isEnabled = true;
 
     // Geographic constraints
@@ -100,6 +102,7 @@ public class AlertRule extends BaseEntity {
     private Integer durationSeconds; // How long condition must persist
 
     @Column(name = "cooldown_seconds")
+    @Builder.Default
     private Integer cooldownSeconds = 300; // Cooldown between alerts
 
     // Action configuration
@@ -129,22 +132,27 @@ public class AlertRule extends BaseEntity {
     private String flags; // JSON array of flag states
 
     @Column(name = "exclude_military")
+    @Builder.Default
     private Boolean excludeMilitary = false;
 
     @Column(name = "exclude_government")
+    @Builder.Default
     private Boolean excludeGovernment = false;
 
     // Statistics
     @Column(name = "triggered_count")
+    @Builder.Default
     private Long triggeredCount = 0L;
 
     @Column(name = "last_triggered")
     private LocalDateTime lastTriggered;
 
     @Column(name = "false_positive_count")
+    @Builder.Default
     private Long falsePositiveCount = 0L;
 
     @Column(name = "acknowledged_count")
+    @Builder.Default
     private Long acknowledgedCount = 0L;
 
     @OneToMany(mappedBy = "alertRule", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

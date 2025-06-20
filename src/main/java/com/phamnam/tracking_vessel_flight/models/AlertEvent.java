@@ -50,10 +50,12 @@ public class AlertEvent extends BaseEntity {
 
     @Column(name = "priority")
     @Enumerated(EnumType.STRING)
+ 
     private AlertRule.Priority priority;
 
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
+    @Builder.Default    
     private AlertStatus status = AlertStatus.ACTIVE;
 
     // Location where alert was triggered
@@ -124,9 +126,11 @@ public class AlertEvent extends BaseEntity {
     private String resolutionNotes;
 
     @Column(name = "false_positive")
+    @Builder.Default
     private Boolean falsePositive = false;
 
     @Column(name = "escalated")
+    @Builder.Default
     private Boolean escalated = false;
 
     @Column(name = "escalated_at")
@@ -146,6 +150,7 @@ public class AlertEvent extends BaseEntity {
     private LocalDateTime lastNotificationSent;
 
     @Column(name = "notification_count")
+    @Builder.Default
     private Integer notificationCount = 0;
 
     // Related alerts

@@ -61,6 +61,7 @@ public class Ship extends BaseEntity {
     private LocalDateTime lastSeen;
 
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
 
     // Data source information
@@ -68,6 +69,7 @@ public class Ship extends BaseEntity {
     private String dataSource; // MarineTraffic, VesselFinder, AIS, etc.
 
     @Column(name = "tracking_confidence")
+    @Builder.Default
     private Double trackingConfidence = 1.0; // 0.0 to 1.0
 
     // Navigation status
@@ -76,12 +78,15 @@ public class Ship extends BaseEntity {
 
     // Special vessel categories
     @Column(name = "is_dangerous_cargo")
+    @Builder.Default
     private Boolean isDangerousCargo = false;
 
     @Column(name = "is_high_priority")
+    @Builder.Default
     private Boolean isHighPriority = false;
 
     @Column(name = "is_government")
+    @Builder.Default
     private Boolean isGovernment = false;
 
     // Port information

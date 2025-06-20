@@ -3,45 +3,112 @@ package com.phamnam.tracking_vessel_flight.config;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.StreamsConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.KafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.Properties;
 
 @Configuration
+@EnableKafka
+@EnableKafkaStreams
 public class KafkaConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:localhost:29092}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Bean
-    public NewTopic flightTrackingTopic() {
-        return new NewTopic("flight-tracking", 1, (short) 1);
-    }
+    @Value("${app.kafka.topic-config.partitions:12}")
+    private int defaultPartitions;
 
-    @Bean
-    public NewTopic shipTrackingTopic() {
-        return new NewTopic("ship-tracking", 1, (short) 1);
-    }
+    @Value("${app.kafka.topic-config.replication-factor:1}")
+    private short defaultReplicationFactor;
 
+    @Value("${app.kafka.topic-config.retention-ms:604800000}")
+    private String retentionMs;
+
+    @Value("${app.kafka.topic-config.segment-ms:86400000}")
+    private String segmentMs;
+
+    @Value("${app.kafka.topic-config.cleanup-policy:delete}")
+    private String cleanupPolicy;
+
+    @Value("${app.kafka.topic-config.compression-type:snappy}")
+    private String compressionType;
+
+    // Topic names
+    @Value("${app.kafka.topics.raw-aircraft-data}")
+    private String rawAircraftDataTopic;
+
+    @Value("${app.kafka.topics.raw-vessel-data}")
+    private String rawVesselDataTopic;
+
+    @Value("${app.kafka.topics.processed-aircraft-data}")
+    private String processedAircraftDataTopic;
+
+    @Value("${app.kafka.topics.processed-vessel-data}")
+    private String processedVesselDataTopic;
+
+    @Value("${app.kafka.topics.aggregated-tracking-data}")
+    private String aggregatedTrackingDataTopic;
+
+    @Value("${app.kafka.topics.alerts}")
+    private String alertsTopic;
+
+    @Value("${app.kafka.topics.dead-letter}")
+    private String deadLetterTopic;
+
+    @Value("${app.kafka.topics.data-quality-issues}")
+    private String dataQualityIssuesTopic;
+
+    @Value("${app.kafka.topics.realtime-positions}")
+    private String realtimePositionsTopic;
+
+    @Value("${app.kafka.topics.historical-data}")
+    private String historicalDataTopic;
+
+    @Value("${app.kafka.topics.notifications}")
+    private String notificationsTopic;
+
+    @Value("${app.kafka.topics.websocket-updates}")
+    private String websocketUpdatesTopic;
+
+    // Producer Configuration
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
-        configProps.put(org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        configProps.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
+        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
+        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 5);
+        configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
+        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
+
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
@@ -50,107 +117,209 @@ public class KafkaConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
-    // Cấu hình consumer cho FlightTrackingRequest
+    // Consumer Configuration
     @Bean
-    public ConsumerFactory<String, FlightTrackingRequestDTO> flightTrackingConsumerFactory() {
+    public ConsumerFactory<String, Object> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, "flight-tracking-group");
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Có thể thiếu cấu hình này
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.phamnam.tracking_vessel_flight.dto.request");
-        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(),
-                new JsonDeserializer<>(FlightTrackingRequestDTO.class, false));
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
+
+        return new DefaultKafkaConsumerFactory<>(props);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, FlightTrackingRequestDTO> flightKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, FlightTrackingRequestDTO> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(flightTrackingConsumerFactory());
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, Object>> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(4); // Number of consumer threads
+        factory.getContainerProperties().setPollTimeout(3000);
         return factory;
     }
-    // Cấu hình consumer cho FlightTrackingRequest
+
+    // Kafka Streams Configuration
     @Bean
-    public ConsumerFactory<String, ShipTrackingRequest> ShipTrackingConsumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, "ship-tracking-group");
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.phamnam.tracking_vessel_flight.dto.request");
-        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(),
-                new JsonDeserializer<>(ShipTrackingRequest.class, false));
+    public Properties kafkaStreamsProperties() {
+        Properties props = new Properties();
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "tracking-stream-processor");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.Serdes.String().getClass());
+        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG,
+                org.springframework.kafka.support.serializer.JsonSerde.class);
+        props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 1000);
+        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
+        props.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kafka-streams");
+        props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 1);
+        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
+
+        return props;
+    }
+
+    // Admin Client for Topic Management
+    @Bean
+    public AdminClient kafkaAdminClient() {
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        return AdminClient.create(configs);
+    }
+
+    // Topic Definitions
+    @Bean
+    public NewTopic rawAircraftDataTopic() {
+        return createTopic(rawAircraftDataTopic, "Raw aircraft tracking data from external APIs");
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, ShipTrackingRequest> shipKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String,ShipTrackingRequest> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(ShipTrackingConsumerFactory());
-        return factory;
+    public NewTopic rawVesselDataTopic() {
+        return createTopic(rawVesselDataTopic, "Raw vessel tracking data from external APIs");
     }
-    // Consumer Factory cho mảng FlightTrackingRequest
-@Bean
-public ConsumerFactory<String, List<FlightTrackingRequestDTO>> batchFlightTrackingConsumerFactory() {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, "flight-tracking-batch-group");
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-    props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Max batch size
-    // Tạo deserializer với TypeReference để xử lý đúng generic type
-    JsonDeserializer<List<FlightTrackingRequestDTO>> deserializer =
-            new JsonDeserializer<>(new TypeReference<List<FlightTrackingRequestDTO>>() {});
-    deserializer.addTrustedPackages("com.phamnam.tracking_vessel_flight.dto");
 
-    // Cấu hình thêm nếu cần
-    deserializer.setRemoveTypeHeaders(false);
-    deserializer.setUseTypeMapperForKey(false);
+    @Bean
+    public NewTopic processedAircraftDataTopic() {
+        return createTopic(processedAircraftDataTopic, "Processed and validated aircraft tracking data");
+    }
 
-    return new DefaultKafkaConsumerFactory<>(
-            props,
-            new StringDeserializer(),
-            deserializer
-    );
+    @Bean
+    public NewTopic processedVesselDataTopic() {
+        return createTopic(processedVesselDataTopic, "Processed and validated vessel tracking data");
+    }
 
-}
+    @Bean
+    public NewTopic aggregatedTrackingDataTopic() {
+        return createTopic(aggregatedTrackingDataTopic, "Aggregated tracking data for analytics");
+    }
 
-@Bean
-public ConcurrentKafkaListenerContainerFactory<String, List<FlightTrackingRequestDTO>> batchFlightKafkaListenerContainerFactory() {
-    ConcurrentKafkaListenerContainerFactory<String, List<FlightTrackingRequestDTO>> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-    factory.setConsumerFactory(batchFlightTrackingConsumerFactory());
-    factory.setBatchListener(true); // Kích hoạt batch processing
-    return factory;
-}
-// Consumer Factory cho mảng ShipTrackingRequest
-@Bean
-public ConsumerFactory<String, List<ShipTrackingRequest>> batchShipTrackingConsumerFactory() {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, "ship-tracking-batch-group");
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-    props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Max batch size
-    props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.phamnam.tracking_vessel_flight.dto.request");
-    
-    return new DefaultKafkaConsumerFactory<>(
-            props, 
-            new StringDeserializer(),
-            new JsonDeserializer<>(new TypeReference<List<ShipTrackingRequest>>() {}, false)
-    );
-}
+    @Bean
+    public NewTopic alertsTopic() {
+        return createTopic(alertsTopic, "Alert events and notifications");
+    }
 
-@Bean
-public ConcurrentKafkaListenerContainerFactory<String, List<ShipTrackingRequest>> batchShipKafkaListenerContainerFactory() {
-    ConcurrentKafkaListenerContainerFactory<String, List<ShipTrackingRequest>> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-    factory.setConsumerFactory(batchShipTrackingConsumerFactory());
-    factory.setBatchListener(true); // Kích hoạt batch processing
-    return factory;
-}
+    @Bean
+    public NewTopic deadLetterTopic() {
+        return createTopic(deadLetterTopic, "Failed messages for debugging");
+    }
 
-    
+    @Bean
+    public NewTopic dataQualityIssuesTopic() {
+        return createTopic(dataQualityIssuesTopic, "Data quality issues and anomalies");
+    }
+
+    @Bean
+    public NewTopic realtimePositionsTopic() {
+        return createTopic(realtimePositionsTopic, "Current positions for real-time display", 24);
+    }
+
+    @Bean
+    public NewTopic historicalDataTopic() {
+        return createHighRetentionTopic(historicalDataTopic, "Historical tracking data for analysis");
+    }
+
+    @Bean
+    public NewTopic notificationsTopic() {
+        return createTopic(notificationsTopic, "User notifications and alerts");
+    }
+
+    @Bean
+    public NewTopic websocketUpdatesTopic() {
+        return createTopic(websocketUpdatesTopic, "Real-time updates for WebSocket clients", 24);
+    }
+
+    // Helper methods for topic creation
+    private NewTopic createTopic(String name, String description) {
+        return createTopic(name, description, defaultPartitions);
+    }
+
+    private NewTopic createTopic(String name, String description, int partitions) {
+        return TopicBuilder.name(name)
+                .partitions(partitions)
+                .replicas(defaultReplicationFactor)
+                .config(TopicConfig.RETENTION_MS_CONFIG, retentionMs)
+                .config(TopicConfig.SEGMENT_MS_CONFIG, segmentMs)
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, cleanupPolicy)
+                .config(TopicConfig.COMPRESSION_TYPE_CONFIG, compressionType)
+                .config(TopicConfig.UNCLEAN_LEADER_ELECTION_ENABLE_CONFIG, "false")
+                .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "1")
+                .build();
+    }
+
+    private NewTopic createHighRetentionTopic(String name, String description) {
+        return TopicBuilder.name(name)
+                .partitions(defaultPartitions)
+                .replicas(defaultReplicationFactor)
+                .config(TopicConfig.RETENTION_MS_CONFIG, "2592000000") // 30 days
+                .config(TopicConfig.SEGMENT_MS_CONFIG, segmentMs)
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, cleanupPolicy)
+                .config(TopicConfig.COMPRESSION_TYPE_CONFIG, compressionType)
+                .config(TopicConfig.UNCLEAN_LEADER_ELECTION_ENABLE_CONFIG, "false")
+                .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "1")
+                .build();
+    }
+
+    // Topic name beans for easy injection
+    @Bean("rawAircraftDataTopicName")
+    public String rawAircraftDataTopicName() {
+        return rawAircraftDataTopic;
+    }
+
+    @Bean("rawVesselDataTopicName")
+    public String rawVesselDataTopicName() {
+        return rawVesselDataTopic;
+    }
+
+    @Bean("processedAircraftDataTopicName")
+    public String processedAircraftDataTopicName() {
+        return processedAircraftDataTopic;
+    }
+
+    @Bean("processedVesselDataTopicName")
+    public String processedVesselDataTopicName() {
+        return processedVesselDataTopic;
+    }
+
+    @Bean("aggregatedTrackingDataTopicName")
+    public String aggregatedTrackingDataTopicName() {
+        return aggregatedTrackingDataTopic;
+    }
+
+    @Bean("alertsTopicName")
+    public String alertsTopicName() {
+        return alertsTopic;
+    }
+
+    @Bean("deadLetterTopicName")
+    public String deadLetterTopicName() {
+        return deadLetterTopic;
+    }
+
+    @Bean("dataQualityIssuesTopicName")
+    public String dataQualityIssuesTopicName() {
+        return dataQualityIssuesTopic;
+    }
+
+    @Bean("realtimePositionsTopicName")
+    public String realtimePositionsTopicName() {
+        return realtimePositionsTopic;
+    }
+
+    @Bean("historicalDataTopicName")
+    public String historicalDataTopicName() {
+        return historicalDataTopic;
+    }
+
+    @Bean("notificationsTopicName")
+    public String notificationsTopicName() {
+        return notificationsTopic;
+    }
+
+    @Bean("websocketUpdatesTopicName")
+    public String websocketUpdatesTopicName() {
+        return websocketUpdatesTopic;
+    }
 }

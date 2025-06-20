@@ -17,6 +17,7 @@ import java.util.List;
         @Index(name = "idx_flight_aircraft_id", columnList = "aircraft_id")
 })
 @Data
+@EqualsAndHashCode(callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor
@@ -53,10 +54,12 @@ public class Flight extends BaseEntity {
     // Flight status
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private FlightStatus status = FlightStatus.SCHEDULED;
 
     @Column(name = "flight_phase")
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private FlightPhase flightPhase = FlightPhase.UNKNOWN;
 
     // Airport information
@@ -124,9 +127,11 @@ public class Flight extends BaseEntity {
     private String squawkCode;
 
     @Column(name = "emergency_status")
+    @Builder.Default
     private Boolean emergencyStatus = false;
 
     @Column(name = "on_ground")
+    @Builder.Default
     private Boolean onGround = false;
 
     // Distance and duration
@@ -161,6 +166,7 @@ public class Flight extends BaseEntity {
 
     // Data quality and source
     @Column(name = "tracking_confidence")
+    @Builder.Default
     private Double trackingConfidence = 1.0;
 
     @Column(name = "data_sources")
@@ -181,18 +187,23 @@ public class Flight extends BaseEntity {
 
     // Special categories
     @Column(name = "is_cargo_flight")
+    @Builder.Default
     private Boolean isCargoFlight = false;
 
     @Column(name = "is_charter_flight")
+    @Builder.Default
     private Boolean isCharterFlight = false;
 
     @Column(name = "is_medical_flight")
+    @Builder.Default
     private Boolean isMedicalFlight = false;
 
     @Column(name = "is_military_flight")
+    @Builder.Default
     private Boolean isMilitaryFlight = false;
 
     @Column(name = "is_training_flight")
+    @Builder.Default
     private Boolean isTrainingFlight = false;
 
     @ManyToOne(fetch = FetchType.LAZY)

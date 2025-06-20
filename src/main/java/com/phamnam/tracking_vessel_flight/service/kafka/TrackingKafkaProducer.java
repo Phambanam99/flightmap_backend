@@ -1,0 +1,129 @@
+package com.phamnam.tracking_vessel_flight.service.kafka;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.stereotype.Service;
+
+import java.util.concurrent.CompletableFuture;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class TrackingKafkaProducer {
+
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
+
+    @Qualifier("rawAircraftDataTopicName")
+    private final String rawAircraftDataTopic;
+
+    @Qualifier("rawVesselDataTopicName")
+    private final String rawVesselDataTopic;
+
+    @Qualifier("processedAircraftDataTopicName")
+    private final String processedAircraftDataTopic;
+
+    @Qualifier("processedVesselDataTopicName")
+    private final String processedVesselDataTopic;
+
+    @Qualifier("realtimePositionsTopicName")
+    private final String realtimePositionsTopic;
+
+    @Qualifier("alertsTopicName")
+    private final String alertsTopic;
+
+    @Qualifier("notificationsTopicName")
+    private final String notificationsTopic;
+
+    @Qualifier("websocketUpdatesTopicName")
+    private final String websocketUpdatesTopic;
+
+    // Raw data publishing
+    public CompletableFuture<SendResult<String, Object>> publishRawAircraftData(String key, Object data) {
+        return sendMessage(rawAircraftDataTopic, key, data, "raw aircraft data");
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishRawVesselData(String key, Object data) {
+        return sendMessage(rawVesselDataTopic, key, data, "raw vessel data");
+    }
+
+    // Processed data publishing
+    public CompletableFuture<SendResult<String, Object>> publishProcessedAircraftData(String key, Object data) {
+        return sendMessage(processedAircraftDataTopic, key, data, "processed aircraft data");
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishProcessedVesselData(String key, Object data) {
+        return sendMessage(processedVesselDataTopic, key, data, "processed vessel data");
+    }
+
+    // Real-time position updates
+    public CompletableFuture<SendResult<String, Object>> publishRealtimePosition(String entityId, Object positionData) {
+        return sendMessage(realtimePositionsTopic, entityId, positionData, "realtime position");
+    }
+
+    // Alert publishing
+    public CompletableFuture<SendResult<String, Object>> publishAlert(String alertId, Object alertData) {
+        return sendMessage(alertsTopic, alertId, alertData, "alert");
+    }
+
+    // Notification publishing
+    public CompletableFuture<SendResult<String, Object>> publishNotification(String userId, Object notification) {
+        return sendMessage(notificationsTopic, userId, notification, "notification");
+    }
+
+    // WebSocket update publishing
+    public CompletableFuture<SendResult<String, Object>> publishWebSocketUpdate(String sessionId, Object update) {
+        return sendMessage(websocketUpdatesTopic, sessionId, update, "websocket update");
+    }
+
+    // Generic method for sending messages
+    private CompletableFuture<SendResult<String, Object>> sendMessage(String topic, String key, Object data,
+            String dataType) {
+        try {
+            log.debug("Publishing {} to topic: {} with key: {}", dataType, topic, key);
+
+            CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(topic, key, data);
+
+            future.whenComplete((result, exception) -> {
+                if (exception == null) {
+                    log.debug("Successfully published {} to topic: {} with key: {}, offset: {}",
+                            dataType, topic, key, result.getRecordMetadata().offset());
+                } else {
+                    log.error("Failed to publish {} to topic: {} with key: {}", dataType, topic, key, exception);
+                }
+            });
+
+            return future;
+        } catch (Exception e) {
+            log.error("Error publishing {} to topic: {} with key: {}", dataType, topic, key, e);
+            CompletableFuture<SendResult<String, Object>> failedFuture = new CompletableFuture<>();
+            failedFuture.completeExceptionally(e);
+            return failedFuture;
+        }
+    }
+
+    // Batch publishing methods
+    public void publishBatchAircraftData(java.util.List<java.util.Map.Entry<String, Object>> batchData) {
+        batchData.forEach(entry -> publishRawAircraftData(entry.getKey(), entry.getValue()));
+    }
+
+    public void publishBatchVesselData(java.util.List<java.util.Map.Entry<String, Object>> batchData) {
+        batchData.forEach(entry -> publishRawVesselData(entry.getKey(), entry.getValue()));
+    }
+
+    // Health check method
+    public boolean isHealthy() {
+        try {
+            // Simple health check - try to get metadata
+            kafkaTemplate.getProducerFactory().createProducer().partitionsFor(rawAircraftDataTopic);
+            return true;
+        } catch (Exception e) {
+            log.error("Kafka producer health check failed", e);
+            return false;
+        }
+    }
+}

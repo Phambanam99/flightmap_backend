@@ -61,6 +61,7 @@ public class Aircraft extends BaseEntity {
     private LocalDateTime lastSeen;
 
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
 
     // Data source information

@@ -102,9 +102,11 @@ public class FlightTracking extends BaseEntity {
     private Integer squawk; // Transponder code
 
     @Column(name = "emergency")
+    @Builder.Default
     private Boolean emergency = false; // Emergency status
 
     @Column(name = "spi")
+    @Builder.Default
     private Boolean spi = false; // Special Position Identification
 
     // Data quality and source
@@ -131,12 +133,15 @@ public class FlightTracking extends BaseEntity {
     private String flightPhase; // Takeoff, Climb, Cruise, Descent, Landing
 
     @Column(name = "on_ground")
+    @Builder.Default
     private Boolean onGround = false;
 
     @Column(name = "gear_down")
+    @Builder.Default
     private Boolean gearDown = false;
 
     @Column(name = "flaps_down")
+    @Builder.Default
     private Boolean flapsDown = false;
 
     // Airport information

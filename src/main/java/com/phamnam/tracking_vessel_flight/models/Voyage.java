@@ -100,6 +100,7 @@ public class Voyage extends BaseEntity {
     private Double cargoValue; // Monetary value
 
     @Column(name = "dangerous_cargo")
+    @Builder.Default
     private Boolean dangerousCargo = false;
 
     @Column(name = "container_count")
@@ -175,6 +176,7 @@ public class Voyage extends BaseEntity {
     private String seaConditions;
 
     @Column(name = "emergency_status")
+    @Builder.Default
     private Boolean emergencyStatus = false;
 
     @Column(name = "security_level")
@@ -216,10 +218,12 @@ public class Voyage extends BaseEntity {
     private String captainName;
 
     @Column(name = "pilot_required")
+    @Builder.Default
     private Boolean pilotRequired = false;
 
     // Data quality and tracking
     @Column(name = "tracking_confidence")
+    @Builder.Default
     private Double trackingConfidence = 1.0;
 
     @Column(name = "data_sources")
@@ -230,18 +234,23 @@ public class Voyage extends BaseEntity {
 
     // Special voyage types
     @Column(name = "is_maiden_voyage")
+    @Builder.Default
     private Boolean isMaidenVoyage = false;
 
     @Column(name = "is_ballast_voyage")
+    @Builder.Default
     private Boolean isBallastVoyage = false;
 
     @Column(name = "is_emergency_voyage")
+    @Builder.Default
     private Boolean isEmergencyVoyage = false;
 
     @Column(name = "is_research_voyage")
+    @Builder.Default
     private Boolean isResearchVoyage = false;
 
     @Column(name = "is_military_voyage")
+    @Builder.Default
     private Boolean isMilitaryVoyage = false;
 
     @ManyToOne(fetch = FetchType.LAZY)

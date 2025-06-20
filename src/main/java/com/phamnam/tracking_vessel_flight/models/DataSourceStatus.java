@@ -37,6 +37,7 @@ public class DataSourceStatus extends BaseEntity {
     private Long responseTime; // in milliseconds
 
     @Column(name = "data_points_count")
+    @Builder.Default
     private Integer dataPointsCount = 0;
 
     @Column(name = "error_message")
@@ -47,12 +48,15 @@ public class DataSourceStatus extends BaseEntity {
     private Integer httpStatusCode;
 
     @Column(name = "bytes_received")
+    @Builder.Default
     private Long bytesReceived = 0L;
 
     @Column(name = "duplicate_count")
+    @Builder.Default
     private Integer duplicateCount = 0;
 
     @Column(name = "invalid_count")
+    @Builder.Default
     private Integer invalidCount = 0;
 
     @Column(name = "processing_time")
