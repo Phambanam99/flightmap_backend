@@ -262,17 +262,29 @@ public class RealTimeDataProcessor {
             // TODO: Add setVesselName method to Ship model
             // ship.setVesselName(request.getVesselName());
         }
-
         if (request.getVesselType() != null) {
             // TODO: Add setVesselType method to Ship model
             // ship.setVesselType(request.getVesselType());
         }
+        if (request.getImo() != null) {
+            // TODO: Add setImo method or check field name
+            // ship.setImo(request.getImo());
+        }
+        if (request.getCallsign() != null) {
+            // TODO: Add setCallsign method or check field name
+            // ship.setCallsign(request.getCallsign());
+        }
+        // TODO: Add setLastSeen method or check field name
+        // ship.setLastSeen(request.getTimestamp());
 
-        return shipRepository.save(ship);
+        if (enablePersistence) {
+            return shipRepository.save(ship);
+        }
+        return ship;
     }
 
     private ShipTracking createShipTracking(VesselTrackingRequest request, Ship ship) {
-        return ShipTracking.builder()
+        ShipTracking tracking = ShipTracking.builder()
                 // TODO: Fix relationship - ShipTracking has voyage field, not ship
                 // .ship(ship)
                 .mmsi(request.getMmsi())
@@ -285,7 +297,14 @@ public class RealTimeDataProcessor {
                 .timestamp(request.getTimestamp())
                 .updateTime(LocalDateTime.now())
                 .dataSource("External API")
+                // TODO: Add dataQuality field or check field name
+                // .dataQuality(request.getDataQuality())
                 .build();
+
+        if (enablePersistence) {
+            return shipTrackingRepository.save(tracking);
+        }
+        return tracking;
     }
 
     // ============================================================================
