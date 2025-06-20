@@ -403,27 +403,33 @@ public class FlightTrackingService implements IFlightTrackingService {
     private Flight updateFlightStatus(Flight flight, FlightTrackingRequestDTO trackingData, Long userId) {
         boolean updated = false;
 
-        // Get the latest tracking for this flight to compare with new data
-        Optional<FlightTracking> latestTracking = flightTrackingRepository.findLastTrackingByFlightId(flight.getId());
+        try {
+            // Get the latest tracking for this flight to compare with new data
+            Optional<FlightTracking> latestTracking = flightTrackingRepository
+                    .findLastTrackingByFlightId(flight.getId());
 
-        // If there's previous tracking data, we can make some decisions based on
-        // changes
-        if (latestTracking.isPresent()) {
-            FlightTracking prevTracking = latestTracking.get();
+            // If there's previous tracking data, we can make some decisions based on
+            // changes
+            if (latestTracking.isPresent()) {
+                FlightTracking prevTracking = latestTracking.get();
 
-            // Example: If altitude has significantly decreased and is below threshold,
-            // we might assume the flight is landing
-            if (trackingData.getAltitude() != null && prevTracking.getAltitude() != null &&
-                    prevTracking.getAltitude() - trackingData.getAltitude() > 5000 &&
-                    trackingData.getAltitude() < 1000) {
+                // Example: If altitude has significantly decreased and is below threshold,
+                // we might assume the flight is landing
+                if (trackingData.getAltitude() != null && prevTracking.getAltitude() != null &&
+                        prevTracking.getAltitude() - trackingData.getAltitude() > 5000 &&
+                        trackingData.getAltitude() < 1000) {
 
-                // Update flight status to landing or landed
-                // TODO: Convert String to FlightStatus enum
-                // flight.setStatus("Landing");
-                updated = true;
+                    // Update flight status to landing or landed
+                    // TODO: Convert String to FlightStatus enum
+                    // flight.setStatus("Landing");
+                    updated = true;
+                }
+
+                // More conditions can be added based on business logic
             }
-
-            // More conditions can be added based on business logic
+        } catch (Exception e) {
+            log.warn("Error getting latest tracking for flight {}: {}", flight.getId(), e.getMessage());
+            // Continue without comparing with previous tracking data
         }
 
         // If callsign is provided in tracking data but flight has no callsign, update

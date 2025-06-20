@@ -1,12 +1,12 @@
 package com.phamnam.tracking_vessel_flight.repository;
 
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
-import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -26,11 +26,12 @@ public interface FlightTrackingRepository extends JpaRepository<FlightTracking, 
 
         Page<FlightTracking> findByFlight_id(Long flightId, Pageable pageable);
 
-        @Query("""
-                            SELECT t FROM FlightTracking t
-                            WHERE t.flight.id = :flightId
-                            ORDER BY t.updateTime DESC
-                        """)
+        @Query(value = """
+                            SELECT * FROM tracking t
+                            WHERE t.flight_id = :flightId
+                            ORDER BY t.update_time DESC, t.id DESC
+                            LIMIT 1
+                        """, nativeQuery = true)
         Optional<FlightTracking> findLastTrackingByFlightId(@Param("flightId") Long flightId);
 
         @Query("SELECT ft FROM FlightTracking ft WHERE ft.updateTime < :date")
