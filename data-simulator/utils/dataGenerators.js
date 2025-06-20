@@ -72,6 +72,12 @@ class MovementSimulator {
     return `${prefix}${suffix}`;
   }
 
+  // Generate MMSI (Maritime Mobile Service Identity)
+  generateMMSI() {
+    // MMSI typically starts with country code (574 for Vietnam)
+    return 574000000 + Math.floor(Math.random() * 999999);
+  }
+
   // Create new flight with realistic initial parameters matching FlightTrackingRequestDTO
   createNewFlight() {
     const id = this.randomInt(10000, 99999);
@@ -238,6 +244,7 @@ class MovementSimulator {
       timestamp: currentTime.toISOString().split('.')[0], // LocalDateTime format
       latitude: parseFloat(latitude.toFixed(6)),
       longitude: parseFloat(longitude.toFixed(6)),
+      mmsi: this.generateMMSI().toString(), // Add MMSI field
       speed: parseFloat(this.random(config.vessel.speedRange.min, config.vessel.speedRange.max).toFixed(1)),
       course: parseFloat(this.random(0, 360).toFixed(1)),
       draught: parseFloat(this.random(config.vessel.draughtRange.min, config.vessel.draughtRange.max).toFixed(1)),
@@ -316,6 +323,7 @@ class MovementSimulator {
       timestamp: vessel.timestamp,
       latitude: vessel.latitude,
       longitude: vessel.longitude,
+      mmsi: vessel.mmsi, // Include MMSI in update
       speed: vessel.speed,
       course: vessel.course,
       draught: vessel.draught,
