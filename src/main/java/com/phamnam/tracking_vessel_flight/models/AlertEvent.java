@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.phamnam.tracking_vessel_flight.config.serializer.PointSerializer;
+import com.phamnam.tracking_vessel_flight.models.enums.AlertStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.locationtech.jts.geom.Point;
@@ -50,12 +51,12 @@ public class AlertEvent extends BaseEntity {
 
     @Column(name = "priority")
     @Enumerated(EnumType.STRING)
- 
+
     private AlertRule.Priority priority;
 
     @Column(name = "status")
     @Enumerated(EnumType.STRING)
-    @Builder.Default    
+    @Builder.Default
     private AlertStatus status = AlertStatus.ACTIVE;
 
     // Location where alert was triggered
@@ -185,15 +186,6 @@ public class AlertEvent extends BaseEntity {
 
     @Column(name = "data_source")
     private String dataSource;
-
-    public enum AlertStatus {
-        ACTIVE,
-        ACKNOWLEDGED,
-        RESOLVED,
-        ESCALATED,
-        SUPPRESSED,
-        EXPIRED
-    }
 
     @JsonProperty("alertRuleId")
     public Long getAlertRuleId() {
