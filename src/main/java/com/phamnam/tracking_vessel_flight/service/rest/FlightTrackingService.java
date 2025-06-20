@@ -291,6 +291,8 @@ public class FlightTrackingService implements IFlightTrackingService {
         // Create and save the tracking data
         FlightTracking tracking = FlightTracking.builder()
                 .flight(flight)
+                .hexident(trackingData.getHexident())
+                .timestamp(trackingData.getUpdateTime() != null ? trackingData.getUpdateTime() : LocalDateTime.now())
                 .altitude(trackingData.getAltitude())
                 .altitudeType(trackingData.getAltitudeType())
                 .targetAlt(trackingData.getTargetAlt())
@@ -307,7 +309,6 @@ public class FlightTrackingService implements IFlightTrackingService {
                         .createPoint(new Coordinate(trackingData.getLongitude(), trackingData.getLatitude())))
                 .landingUnixTimes(trackingData.getLandingUnixTimes())
                 .landingTimes(trackingData.getLandingTimes())
-
                 .build();
         flightTrackingRepository.save(tracking);
 
