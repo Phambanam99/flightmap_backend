@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.models;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -87,8 +88,10 @@ public class Aircraft extends BaseEntity {
     private Boolean isGovernment = false;
 
     @OneToMany(mappedBy = "aircraft", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Flight> flights;
 
     @OneToMany(mappedBy = "aircraft", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<AircraftMonitoring> monitoringData;
 }
