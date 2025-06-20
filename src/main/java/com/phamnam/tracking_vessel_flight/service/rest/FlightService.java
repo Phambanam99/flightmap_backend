@@ -65,7 +65,8 @@ public class FlightService implements IFlightService {
                 .callsign(flightRequest.getCallsign())
                 .departureTime(flightRequest.getDepartureTime())
                 .arrivalTime(flightRequest.getArrivalTime())
-                .status(flightRequest.getStatus())
+                // TODO: Convert String to FlightStatus enum
+                // .status(flightRequest.getStatus())
                 .originAirport(flightRequest.getOriginAirport())
                 .destinationAirport(flightRequest.getDestinationAirport())
                 .build();
@@ -104,7 +105,8 @@ public class FlightService implements IFlightService {
         }
 
         if (flightRequest.getStatus() != null) {
-            flight.setStatus(flightRequest.getStatus());
+            // TODO: Convert String to FlightStatus enum
+            // flight.setStatus(flightRequest.getStatus());
         }
 
         if (flightRequest.getOriginAirport() != null) {

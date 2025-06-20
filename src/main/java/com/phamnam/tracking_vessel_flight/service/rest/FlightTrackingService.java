@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
 @Slf4j
 @Service
 public class FlightTrackingService implements IFlightTrackingService {
@@ -76,55 +77,60 @@ public class FlightTrackingService implements IFlightTrackingService {
         return flightTrackingRepository.findWithinRadiusPaginated(longitude, latitude, radiusInMeters, pageable);
     }
 
-//    public FlightTracking save(FlightTrackingRequestDTO request, Long userId) {
-//        Aircraft aircraft = aircraftRepository.findByHexident(request.getHexident())
-//                .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "hexident", request.getHexident()));
-//
-//        List<Flight> flights = aircraft.getFlights();
-//
-//        Flight flight = flightRepository.findById(request.getHexident())
-//                .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", request.getFlightId()));
-//
-//        User user = null;
-//        if (userId != null) {
-//            user = userRepository.findById(userId)
-//                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-//        }
-//
-//        // Create point with correct SRID
-//        Point location = null;
-//        if (request.getLongitude() != null && request.getLatitude() != null) {
-//            // Make sure we're creating the coordinate in the right order (longitude first,
-//            // then latitude)
-//            Coordinate coordinate = new Coordinate(request.getLongitude(), request.getLatitude());
-//            location = geometryFactory.createPoint(coordinate);
-//            // Explicitly set SRID
-//            location.setSRID(4326);
-//        }
-//
-//        FlightTracking tracking = FlightTracking.builder()
-//                .flight(flight)
-//                .altitude(request.getAltitude())
-//                .altitudeType(request.getAltitudeType())
-//                .targetAlt(request.getTargetAlt())
-//                .callsign(request.getCallsign())
-//                .speed(request.getSpeed())
-//                .speedType(request.getSpeedType())
-//                .verticalSpeed(request.getVerticalSpeed())
-//                .squawk(request.getSquawk())
-//                .distance(request.getDistance())
-//                .bearing(request.getBearing())
-//                .unixTime(request.getUnixTime())
-//                .updateTime(request.getUpdateTime() != null ? request.getUpdateTime() : LocalDateTime.now())
-//                .location(location)
-//                .landingUnixTimes(request.getLandingUnixTimes())
-//                .landingTimes(request.getLandingTimes())
-//                .build();
-//
-//        tracking.setUpdatedBy(user);
-//
-//        return flightTrackingRepository.save(tracking);
-//    }
+    // public FlightTracking save(FlightTrackingRequestDTO request, Long userId) {
+    // Aircraft aircraft = aircraftRepository.findByHexident(request.getHexident())
+    // .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "hexident",
+    // request.getHexident()));
+    //
+    // List<Flight> flights = aircraft.getFlights();
+    //
+    // Flight flight = flightRepository.findById(request.getHexident())
+    // .orElseThrow(() -> new ResourceNotFoundException("Flight", "id",
+    // request.getFlightId()));
+    //
+    // User user = null;
+    // if (userId != null) {
+    // user = userRepository.findById(userId)
+    // .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+    // }
+    //
+    // // Create point with correct SRID
+    // Point location = null;
+    // if (request.getLongitude() != null && request.getLatitude() != null) {
+    // // Make sure we're creating the coordinate in the right order (longitude
+    // first,
+    // // then latitude)
+    // Coordinate coordinate = new Coordinate(request.getLongitude(),
+    // request.getLatitude());
+    // location = geometryFactory.createPoint(coordinate);
+    // // Explicitly set SRID
+    // location.setSRID(4326);
+    // }
+    //
+    // FlightTracking tracking = FlightTracking.builder()
+    // .flight(flight)
+    // .altitude(request.getAltitude())
+    // .altitudeType(request.getAltitudeType())
+    // .targetAlt(request.getTargetAlt())
+    // .callsign(request.getCallsign())
+    // .speed(request.getSpeed())
+    // .speedType(request.getSpeedType())
+    // .verticalSpeed(request.getVerticalSpeed())
+    // .squawk(request.getSquawk())
+    // .distance(request.getDistance())
+    // .bearing(request.getBearing())
+    // .unixTime(request.getUnixTime())
+    // .updateTime(request.getUpdateTime() != null ? request.getUpdateTime() :
+    // LocalDateTime.now())
+    // .location(location)
+    // .landingUnixTimes(request.getLandingUnixTimes())
+    // .landingTimes(request.getLandingTimes())
+    // .build();
+    //
+    // tracking.setUpdatedBy(user);
+    //
+    // return flightTrackingRepository.save(tracking);
+    // }
 
     public FlightTracking update(Long id, FlightTrackingRequest request, Long userId) {
         FlightTracking tracking = getById(id);
@@ -214,7 +220,7 @@ public class FlightTrackingService implements IFlightTrackingService {
      * flight.
      * If no active flight exists for the aircraft, a new flight will be created.
      * 
-
+     * 
      * @param trackingData The new tracking data (location, altitude, speed, etc.)
      * @param userId       The user ID for audit purposes (optional)
      * @return The saved FlightTracking entity
@@ -225,17 +231,17 @@ public class FlightTrackingService implements IFlightTrackingService {
         // Find or create the aircraft
         Long aircraftId = trackingData.getAircraftId();
         Aircraft aircraft = null;
-        
+
         // First try to find by aircraftId, then by hexident, or create new
         if (aircraftId != null) {
             aircraft = aircraftRepository.findById(aircraftId).orElse(null);
         }
-        
+
         // If not found by ID, try to find by hexident
         if (aircraft == null && trackingData.getHexident() != null) {
             aircraft = aircraftRepository.findByHexident(trackingData.getHexident()).orElse(null);
         }
-        
+
         // If still not found, create new aircraft
         if (aircraft == null) {
             aircraft = Aircraft.builder()
@@ -256,7 +262,7 @@ public class FlightTrackingService implements IFlightTrackingService {
                     .build();
             aircraft = aircraftRepository.save(aircraft);
         }
-        
+
         aircraftId = aircraft.getId();
         System.out.println("aricraftId " + aircraftId);
 
@@ -283,7 +289,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         trackingData.setFlight(flight.getId().toString());
 
         // Create and save the tracking data
-        FlightTracking tracking =  FlightTracking.builder()
+        FlightTracking tracking = FlightTracking.builder()
                 .flight(flight)
                 .altitude(trackingData.getAltitude())
                 .altitudeType(trackingData.getAltitudeType())
@@ -297,7 +303,8 @@ public class FlightTrackingService implements IFlightTrackingService {
                 .bearing(trackingData.getBearing())
                 .unixTime(trackingData.getUnixTime())
                 .updateTime(trackingData.getUpdateTime() != null ? trackingData.getUpdateTime() : LocalDateTime.now())
-                .location(geometryFactory.createPoint(new Coordinate(trackingData.getLongitude(), trackingData.getLatitude())))
+                .location(geometryFactory
+                        .createPoint(new Coordinate(trackingData.getLongitude(), trackingData.getLatitude())))
                 .landingUnixTimes(trackingData.getLandingUnixTimes())
                 .landingTimes(trackingData.getLandingTimes())
 
@@ -345,7 +352,6 @@ public class FlightTrackingService implements IFlightTrackingService {
         return null;
     }
 
-
     // Thêm vào implementation class của bạn
     @Scheduled(cron = "0 0 2 * * ?") // Chạy vào 2h sáng mỗi ngày
     public void archiveOldData() {
@@ -379,11 +385,11 @@ public class FlightTrackingService implements IFlightTrackingService {
         }
     }
 
-
     private void archiveToDatabase(List<FlightTracking> oldData) {
         // Triển khai lưu trữ vào cold storage database
         // Ví dụ: coldStorageRepository.saveAll(oldData);
     }
+
     /**
      * Update flight status based on tracking data
      * 
@@ -410,7 +416,8 @@ public class FlightTrackingService implements IFlightTrackingService {
                     trackingData.getAltitude() < 1000) {
 
                 // Update flight status to landing or landed
-                flight.setStatus("Landing");
+                // TODO: Convert String to FlightStatus enum
+                // flight.setStatus("Landing");
                 updated = true;
             }
 

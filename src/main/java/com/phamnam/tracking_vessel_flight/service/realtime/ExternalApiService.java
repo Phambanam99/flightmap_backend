@@ -230,10 +230,16 @@ public class ExternalApiService {
                 return List.of();
             }
 
-            return vessels.elements().asSequence()
-                    .map(this::parseVesselFromMarineTraffic)
-                    .filter(vessel -> vessel != null)
-                    .collect(Collectors.toList());
+            java.util.List<VesselTrackingRequest> vesselList = new java.util.ArrayList<>();
+
+            vessels.elements().forEachRemaining(vessel -> {
+                VesselTrackingRequest vesselRequest = parseVesselFromMarineTraffic(vessel);
+                if (vesselRequest != null) {
+                    vesselList.add(vesselRequest);
+                }
+            });
+
+            return vesselList;
         } catch (Exception e) {
             log.error("Failed to parse MarineTraffic response", e);
             return List.of();
@@ -374,10 +380,15 @@ public class ExternalApiService {
     }
 
     private String getHealthCheckUrl(DataSource dataSource) {
-        switch (dataSource.getSourceType()) {
-            case FLIGHT_RADAR:
+        if (dataSource.getSourceType() == null) {
+            return null;
+        }
+
+        String sourceTypeName = dataSource.getSourceType().name();
+        switch (sourceTypeName) {
+            case "FLIGHT_RADAR":
                 return flightradar24BaseUrl + "/zones/fcgi/feed.js?bounds=1,0,0,1";
-            case MARINE_TRAFFIC:
+            case "MARINE_TRAFFIC":
                 return marineTrafficBaseUrl + "/exportvessels/v:8/X-API-Key:" + marineTrafficApiKey + "/timespan:1";
             default:
                 return null;
