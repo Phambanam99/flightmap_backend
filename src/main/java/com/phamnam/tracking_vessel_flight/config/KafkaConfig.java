@@ -11,12 +11,10 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.streams.StreamsConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.KafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
@@ -32,7 +30,7 @@ import java.util.Properties;
 
 @Configuration
 @EnableKafka
-@EnableKafkaStreams
+// @EnableKafkaStreams // Commented out - no stream topologies defined
 public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
@@ -220,25 +218,6 @@ public class KafkaConfig {
         factory.getContainerProperties().setPollTimeout(5000);
         factory.setBatchListener(true); // Enable batch processing
         return factory;
-    }
-
-    // Kafka Streams Configuration
-    @Bean
-    public Properties kafkaStreamsProperties() {
-        Properties props = new Properties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "tracking-stream-processor");
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG,
-                org.apache.kafka.common.serialization.Serdes.String().getClass());
-        props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG,
-                org.springframework.kafka.support.serializer.JsonSerde.class);
-        props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 1000);
-        props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
-        props.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kafka-streams");
-        props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 1);
-        props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 4);
-
-        return props;
     }
 
     // Admin Client for Topic Management
