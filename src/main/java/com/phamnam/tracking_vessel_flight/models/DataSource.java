@@ -1,5 +1,6 @@
-    package com.phamnam.tracking_vessel_flight.models;
+package com.phamnam.tracking_vessel_flight.models;
 
+import com.phamnam.tracking_vessel_flight.models.enums.DataSourceType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,7 +30,7 @@ public class DataSource extends BaseEntity {
 
     @Column(name = "source_type")
     @Enumerated(EnumType.STRING)
-    private SourceType sourceType; // AIRCRAFT, VESSEL, BOTH
+    private DataSourceType sourceType; // AIRCRAFT, VESSEL, BOTH
 
     @Column(name = "api_url")
     private String apiUrl; // Base API URL
@@ -170,12 +171,6 @@ public class DataSource extends BaseEntity {
 
     @OneToMany(mappedBy = "dataSource", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<DataSourceStatus> statusHistory;
-
-    public enum SourceType {
-        AIRCRAFT,
-        VESSEL,
-        BOTH
-    }
 
     // Helper methods
     public void incrementTotalRequests() {

@@ -138,14 +138,9 @@ public class RedisConfig {
         return serializer;
     }
 
-    // Specialized Redis Templates for different data types
-    @Bean
-    public RedisTemplate<String, String> stringRedisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, String> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-        template.setDefaultSerializer(new StringRedisSerializer());
-        return template;
-    }
+    // Note: StringRedisTemplate is automatically provided by Spring Boot's
+    // auto-configuration
+    // No need to define it manually
 
     @Bean("positionRedisTemplate")
     public RedisTemplate<String, Object> positionRedisTemplate(RedisConnectionFactory connectionFactory) {

@@ -52,3 +52,8 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Specify the main class for Spring Boot
+springBoot {
+	mainClass = 'com.phamnam.tracking_vessel_flight.TrackingVesselFlightApplication'
+}

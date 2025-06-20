@@ -27,13 +27,13 @@ public interface DataSourceRepository extends JpaRepository<DataSource, Long> {
     @Query("SELECT ds FROM DataSource ds WHERE ds.isEnabled = true ORDER BY ds.priority ASC")
     List<DataSource> findEnabledOrderByPriority();
 
-    @Query("SELECT ds FROM DataSource ds WHERE ds.consecutiveFailures >= ds.maxRetries")
+    @Query("SELECT ds FROM DataSource ds WHERE ds.consecutiveFailures >= ds.circuitBreakerThreshold")
     List<DataSource> findFailedDataSources();
 
     @Query("SELECT ds FROM DataSource ds WHERE ds.lastSuccessTime < :threshold")
     List<DataSource> findStaleDataSources(@Param("threshold") LocalDateTime threshold);
 
-    @Query("SELECT ds FROM DataSource ds WHERE ds.successRate < :minRate")
+    @Query("SELECT ds FROM DataSource ds WHERE ds.totalRequests > 0 AND (CAST(ds.successfulRequests AS double) / CAST(ds.totalRequests AS double) * 100) < :minRate")
     List<DataSource> findLowPerformanceDataSources(@Param("minRate") Double minRate);
 
     boolean existsByNameAndSourceType(String name, DataSourceType sourceType);

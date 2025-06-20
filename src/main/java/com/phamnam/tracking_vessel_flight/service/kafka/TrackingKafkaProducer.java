@@ -1,7 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -11,36 +10,42 @@ import org.springframework.stereotype.Service;
 import java.util.concurrent.CompletableFuture;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class TrackingKafkaProducer {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
-
-    @Qualifier("rawAircraftDataTopicName")
     private final String rawAircraftDataTopic;
-
-    @Qualifier("rawVesselDataTopicName")
     private final String rawVesselDataTopic;
-
-    @Qualifier("processedAircraftDataTopicName")
     private final String processedAircraftDataTopic;
-
-    @Qualifier("processedVesselDataTopicName")
     private final String processedVesselDataTopic;
-
-    @Qualifier("realtimePositionsTopicName")
     private final String realtimePositionsTopic;
-
-    @Qualifier("alertsTopicName")
     private final String alertsTopic;
-
-    @Qualifier("notificationsTopicName")
     private final String notificationsTopic;
-
-    @Qualifier("websocketUpdatesTopicName")
     private final String websocketUpdatesTopic;
+
+    public TrackingKafkaProducer(
+            KafkaTemplate<String, Object> kafkaTemplate,
+            ObjectMapper objectMapper,
+            @Qualifier("rawAircraftDataTopicName") String rawAircraftDataTopic,
+            @Qualifier("rawVesselDataTopicName") String rawVesselDataTopic,
+            @Qualifier("processedAircraftDataTopicName") String processedAircraftDataTopic,
+            @Qualifier("processedVesselDataTopicName") String processedVesselDataTopic,
+            @Qualifier("realtimePositionsTopicName") String realtimePositionsTopic,
+            @Qualifier("alertsTopicName") String alertsTopic,
+            @Qualifier("notificationsTopicName") String notificationsTopic,
+            @Qualifier("websocketUpdatesTopicName") String websocketUpdatesTopic) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.rawAircraftDataTopic = rawAircraftDataTopic;
+        this.rawVesselDataTopic = rawVesselDataTopic;
+        this.processedAircraftDataTopic = processedAircraftDataTopic;
+        this.processedVesselDataTopic = processedVesselDataTopic;
+        this.realtimePositionsTopic = realtimePositionsTopic;
+        this.alertsTopic = alertsTopic;
+        this.notificationsTopic = notificationsTopic;
+        this.websocketUpdatesTopic = websocketUpdatesTopic;
+    }
 
     // Raw data publishing
     public CompletableFuture<SendResult<String, Object>> publishRawAircraftData(String key, Object data) {

@@ -29,5 +29,10 @@ public interface ShipTrackingRepository extends JpaRepository<ShipTracking, Long
             """)
     Optional<ShipTracking> findLastTrackingByShipId(@Param("shipId") Long shipId);
 
-    List<ShipTracking> findByVoyageIdOrderByTimestampDesc(Long voyageId);
+    @Query("""
+                SELECT t FROM ShipTracking t
+                WHERE t.voyage.id = :voyageId
+                ORDER BY t.timestamp DESC
+            """)
+    List<ShipTracking> findByVoyageIdOrderByTimestampDesc(@Param("voyageId") Long voyageId);
 }
