@@ -1,7 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.models.*;
-import com.phamnam.tracking_vessel_flight.models.enums.AlertPriority;
 import com.phamnam.tracking_vessel_flight.models.enums.AlertStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.EntityType;
 import com.phamnam.tracking_vessel_flight.repository.*;
@@ -126,7 +125,7 @@ public class AnalyticsDashboardService {
     }
 
     private int getCriticalAlertCount() {
-        return alertEventRepository.countByStatusAndPriority(AlertStatus.ACTIVE, AlertPriority.CRITICAL);
+        return alertEventRepository.countByStatusAndPriority(AlertStatus.ACTIVE, AlertRule.Priority.CRITICAL);
     }
 
     private int getAlertsLast24Hours(LocalDateTime oneDayAgo) {

@@ -1,6 +1,6 @@
 package com.phamnam.tracking_vessel_flight.controller;
 
-import com.phamnam.tracking_vessel_flight.models.enums.AlertPriority;
+import com.phamnam.tracking_vessel_flight.models.AlertRule;
 import com.phamnam.tracking_vessel_flight.models.enums.EntityType;
 import com.phamnam.tracking_vessel_flight.service.realtime.*;
 import lombok.RequiredArgsConstructor;
@@ -323,7 +323,7 @@ public class RealTimeController {
     public static class CreateManualAlertRequest {
         private EntityType entityType;
         private String entityId;
-        private AlertPriority priority;
+        private AlertRule.Priority priority;
         private String message;
         private Double latitude;
         private Double longitude;
@@ -345,11 +345,11 @@ public class RealTimeController {
             this.entityId = entityId;
         }
 
-        public AlertPriority getPriority() {
+        public AlertRule.Priority getPriority() {
             return priority;
         }
 
-        public void setPriority(AlertPriority priority) {
+        public void setPriority(AlertRule.Priority priority) {
             this.priority = priority;
         }
 

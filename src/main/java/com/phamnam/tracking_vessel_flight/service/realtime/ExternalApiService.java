@@ -111,8 +111,19 @@ public class ExternalApiService {
                 throw new RuntimeException("Unexpected response status: " + response.getStatusCode());
             }
 
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn(
+                    "FlightRadar24 API endpoint not found (404). This is expected if mock service is not running. Continuing without external data.");
+            updateDataSourceStatus(dataSource, SourceStatus.ERROR,
+                    "API endpoint not found - possibly mock service not running");
+            return CompletableFuture.completedFuture(List.of());
+        } catch (ResourceAccessException e) {
+            log.warn("Failed to connect to FlightRadar24 API: {}. Continuing without external data.", e.getMessage());
+            updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Connection failed: " + e.getMessage());
+            return CompletableFuture.completedFuture(List.of());
         } catch (Exception e) {
-            log.error("Failed to fetch aircraft data from FlightRadar24", e);
+            log.warn("Failed to fetch aircraft data from FlightRadar24: {}. Continuing without external data.",
+                    e.getMessage());
             updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Error: " + e.getMessage());
             return CompletableFuture.completedFuture(List.of());
         }
@@ -208,8 +219,19 @@ public class ExternalApiService {
                 throw new RuntimeException("Unexpected response status: " + response.getStatusCode());
             }
 
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn(
+                    "MarineTraffic API endpoint not found (404). This is expected if mock service is not running. Continuing without external data.");
+            updateDataSourceStatus(dataSource, SourceStatus.ERROR,
+                    "API endpoint not found - possibly mock service not running");
+            return CompletableFuture.completedFuture(List.of());
+        } catch (ResourceAccessException e) {
+            log.warn("Failed to connect to MarineTraffic API: {}. Continuing without external data.", e.getMessage());
+            updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Connection failed: " + e.getMessage());
+            return CompletableFuture.completedFuture(List.of());
         } catch (Exception e) {
-            log.error("Failed to fetch vessel data from MarineTraffic", e);
+            log.warn("Failed to fetch vessel data from MarineTraffic: {}. Continuing without external data.",
+                    e.getMessage());
             updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Error: " + e.getMessage());
             return CompletableFuture.completedFuture(List.of());
         }
@@ -298,7 +320,7 @@ public class ExternalApiService {
                             .isActive(true)
                             .priority(1)
                             .consecutiveFailures(0)
-//                            .successRate(100.0)
+                            // .successRate(100.0)
                             .build();
                     return dataSourceRepository.save(dataSource);
                 });
@@ -324,8 +346,8 @@ public class ExternalApiService {
                     .dataSource(dataSource)
                     .checkTime(LocalDateTime.now())
                     .responseTime(1000L) // TODO: Calculate actual response time
-//                    .dataCount(0)
-//                    .errorCount(status == SourceStatus.ERROR ? 1 : 0)
+                    // .dataCount(0)
+                    // .errorCount(status == SourceStatus.ERROR ? 1 : 0)
                     .build();
             dataSourceStatusRepository.save(statusRecord);
 
@@ -391,12 +413,12 @@ public class ExternalApiService {
             long responseTime, String message) {
         DataSourceStatus statusRecord = DataSourceStatus.builder()
                 .dataSource(dataSource)
-//                .status(status)
-//                .message(message)
+                // .status(status)
+                // .message(message)
                 .checkTime(LocalDateTime.now())
                 .responseTime(responseTime)
-//                .dataCount(0)
-//                .errorCount(status == SourceStatus.ERROR ? 1 : 0)
+                // .dataCount(0)
+                // .errorCount(status == SourceStatus.ERROR ? 1 : 0)
                 .build();
 
         dataSourceStatusRepository.save(statusRecord);

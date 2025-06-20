@@ -1,7 +1,6 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.models.*;
-import com.phamnam.tracking_vessel_flight.models.enums.AlertPriority;
 import com.phamnam.tracking_vessel_flight.models.enums.AlertStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.EntityType;
 import com.phamnam.tracking_vessel_flight.models.enums.RuleType;
@@ -74,14 +73,13 @@ public class AlertRuleEngine {
 
     @Transactional
     public AlertEvent createManualAlert(EntityType entityType, String entityId,
-            AlertPriority priority, String message,
+            AlertRule.Priority priority, String message,
             Double latitude, Double longitude) {
         AlertEvent alertEvent = AlertEvent.builder()
                 // TODO: Fix EntityType enum mismatch
                 // .entityType(entityType)
                 .entityId(entityId)
-                // TODO: Fix AlertPriority enum mismatch
-                // .priority(priority)
+                .priority(priority)
                 .alertMessage(message)
                 .latitude(latitude)
                 .longitude(longitude)
