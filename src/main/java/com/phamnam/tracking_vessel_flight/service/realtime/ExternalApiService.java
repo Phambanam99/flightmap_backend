@@ -87,6 +87,12 @@ public class ExternalApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
+        // Smart endpoint checking
+        if (!isEndpointAvailable(flightradar24BaseUrl, "/zones/fcgi/feed.js")) {
+            log.debug("FlightRadar24 endpoint not available, skipping data fetch");
+            return CompletableFuture.completedFuture(List.of());
+        }
+
         DataSource dataSource = getOrCreateDataSource("FlightRadar24", DataSourceType.FLIGHT_RADAR);
 
         try {
@@ -112,17 +118,17 @@ public class ExternalApiService {
             }
 
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn(
+            log.debug(
                     "FlightRadar24 API endpoint not found (404). This is expected if mock service is not running. Continuing without external data.");
             updateDataSourceStatus(dataSource, SourceStatus.ERROR,
                     "API endpoint not found - possibly mock service not running");
             return CompletableFuture.completedFuture(List.of());
         } catch (ResourceAccessException e) {
-            log.warn("Failed to connect to FlightRadar24 API: {}. Continuing without external data.", e.getMessage());
+            log.debug("Failed to connect to FlightRadar24 API: {}. Continuing without external data.", e.getMessage());
             updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Connection failed: " + e.getMessage());
             return CompletableFuture.completedFuture(List.of());
         } catch (Exception e) {
-            log.warn("Failed to fetch aircraft data from FlightRadar24: {}. Continuing without external data.",
+            log.debug("Failed to fetch aircraft data from FlightRadar24: {}. Continuing without external data.",
                     e.getMessage());
             updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Error: " + e.getMessage());
             return CompletableFuture.completedFuture(List.of());
@@ -195,6 +201,12 @@ public class ExternalApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
+        // Smart endpoint checking
+        if (!isEndpointAvailable(marineTrafficBaseUrl, "/exportvessels")) {
+            log.debug("MarineTraffic endpoint not available, skipping data fetch");
+            return CompletableFuture.completedFuture(List.of());
+        }
+
         DataSource dataSource = getOrCreateDataSource("MarineTraffic", DataSourceType.MARINE_TRAFFIC);
 
         try {
@@ -220,17 +232,17 @@ public class ExternalApiService {
             }
 
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn(
+            log.debug(
                     "MarineTraffic API endpoint not found (404). This is expected if mock service is not running. Continuing without external data.");
             updateDataSourceStatus(dataSource, SourceStatus.ERROR,
                     "API endpoint not found - possibly mock service not running");
             return CompletableFuture.completedFuture(List.of());
         } catch (ResourceAccessException e) {
-            log.warn("Failed to connect to MarineTraffic API: {}. Continuing without external data.", e.getMessage());
+            log.debug("Failed to connect to MarineTraffic API: {}. Continuing without external data.", e.getMessage());
             updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Connection failed: " + e.getMessage());
             return CompletableFuture.completedFuture(List.of());
         } catch (Exception e) {
-            log.warn("Failed to fetch vessel data from MarineTraffic: {}. Continuing without external data.",
+            log.debug("Failed to fetch vessel data from MarineTraffic: {}. Continuing without external data.",
                     e.getMessage());
             updateDataSourceStatus(dataSource, SourceStatus.ERROR, "Error: " + e.getMessage());
             return CompletableFuture.completedFuture(List.of());
@@ -316,6 +328,7 @@ public class ExternalApiService {
                 .orElseGet(() -> {
                     DataSource dataSource = DataSource.builder()
                             .name(name)
+                            .sourceType(type)
                             .isEnabled(true)
                             .isActive(true)
                             .priority(1)
@@ -450,5 +463,26 @@ public class ExternalApiService {
                 "marineTraffic", Map.of(
                         "enabled", marineTrafficEnabled,
                         "available", isMarineTrafficAvailable()));
+    }
+
+    // ============================================================================
+    // SMART ENDPOINT CHECKING
+    // ============================================================================
+
+    private boolean isEndpointAvailable(String baseUrl, String path) {
+        try {
+            String healthCheckUrl = baseUrl + path;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", "TrackingSystem/1.0");
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    healthCheckUrl, HttpMethod.GET, entity, String.class);
+
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            log.debug("Endpoint {} not available: {}", baseUrl + path, e.getMessage());
+            return false;
+        }
     }
 }

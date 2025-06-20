@@ -331,7 +331,7 @@ public class AnalyticsDashboardService {
             for (DataSource ds : dataSources) {
                 Map<String, Object> sourceMap = new java.util.HashMap<>();
                 sourceMap.put("name", ds.getName());
-                sourceMap.put("type", ds.getSourceType().name()); // TODO: Add getDisplayName method
+                sourceMap.put("type", ds.getSourceType() != null ? ds.getSourceType().name() : "UNKNOWN");
                 sourceMap.put("isEnabled", ds.getIsEnabled());
                 sourceMap.put("isActive", ds.getIsActive());
                 sourceMap.put("lastSuccess", ds.getLastSuccessTime());

@@ -340,7 +340,7 @@ public class RealTimeDataProcessor {
         return Map.of(
                 "totalAircraftTracked", lastAircraftUpdate.size(),
                 "totalVesselsTracked", lastVesselUpdate.size(),
-                "lastUpdateTime", LocalDateTime.now(),
+                "lastUpdateTime", LocalDateTime.now().toString(),
                 "batchSize", batchSize,
                 "persistenceEnabled", enablePersistence,
                 "kafkaEnabled", enableKafka);
