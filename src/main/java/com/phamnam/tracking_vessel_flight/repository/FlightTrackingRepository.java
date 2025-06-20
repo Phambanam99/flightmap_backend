@@ -14,11 +14,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FlightTrackingRepository extends JpaRepository<FlightTracking, Long> {
-        @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
+        @Query(value = "SELECT * FROM flight_tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
         List<FlightTracking> findWithinRadius(@Param("lon") double lon, @Param("lat") double lat,
                         @Param("radius") double radius);
 
-        @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", countQuery = "SELECT COUNT(*) FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
+        @Query(value = "SELECT * FROM flight_tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", countQuery = "SELECT COUNT(*) FROM flight_tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
         Page<FlightTracking> findWithinRadiusPaginated(@Param("lon") double lon, @Param("lat") double lat,
                         @Param("radius") double radius, Pageable pageable);
 
@@ -27,9 +27,9 @@ public interface FlightTrackingRepository extends JpaRepository<FlightTracking, 
         Page<FlightTracking> findByFlight_id(Long flightId, Pageable pageable);
 
         @Query(value = """
-                            SELECT * FROM tracking t
+                            SELECT * FROM flight_tracking t
                             WHERE t.flight_id = :flightId
-                            ORDER BY t.update_time DESC, t.id DESC
+                            ORDER BY t.update_time DESC, t.tracking_id DESC
                             LIMIT 1
                         """, nativeQuery = true)
         Optional<FlightTracking> findLastTrackingByFlightId(@Param("flightId") Long flightId);
