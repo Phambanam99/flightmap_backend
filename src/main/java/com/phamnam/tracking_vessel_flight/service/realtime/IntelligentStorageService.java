@@ -1,15 +1,4 @@
-/*
- * IntelligentStorageService - Temporarily disabled pending DTO alignment
- * 
- * This service will be re-enabled once DTOs are properly structured to support:
- * - Flight tracking with hexIdent, squawk, groundSpeed fields
- * - Ship tracking with mmsi field
- * - Compatible field types (Double vs Float consistency)
- */
-
-// TODO: Re-enable after DTO restructuring
-/*
- * package com.phamnam.tracking_vessel_flight.service.realtime;
+package com.phamnam.tracking_vessel_flight.service.realtime;
  * 
  * import com.phamnam.tracking_vessel_flight.models.FlightTracking;
  * import com.phamnam.tracking_vessel_flight.models.ShipTracking;
