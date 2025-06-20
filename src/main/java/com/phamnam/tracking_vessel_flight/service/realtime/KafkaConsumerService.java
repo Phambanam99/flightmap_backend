@@ -5,6 +5,8 @@ import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
 import com.phamnam.tracking_vessel_flight.service.rest.ShipTrackingService;
+import com.phamnam.tracking_vessel_flight.repository.ShipRepository;
+import com.phamnam.tracking_vessel_flight.models.Ship;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,6 +30,7 @@ public class KafkaConsumerService {
     // private final TrackingPushService trackingPushService;
     private final AircraftNotificationService aircraftNotificationService;
     private final ShipTrackingService shipTrackingService;
+    private final ShipRepository shipRepository;
 
     // Theo dõi số cập nhật mới từ lần gửi batch update cuối
     private final AtomicInteger updateCounter = new AtomicInteger(0);
@@ -123,15 +126,56 @@ public class KafkaConsumerService {
             // Cập nhật cache
             // trackingCacheService.cacheShipTracking(tracking);
 
-            // Lưu vào database thông qua ShipTrackingService
-            // Note: ShipTrackingService expects shipId, but we have voyageId and mmsi
-            // We need to use the save method that takes ShipTrackingRequest with voyageId
-            shipTrackingService.save(tracking, null);
+            // Approach 1: Try to find ship by MMSI and process tracking data
+            // This will automatically create voyage if needed
+            Long shipId = findOrCreateShipByMmsi(tracking.getMmsi());
+            if (shipId != null) {
+                shipTrackingService.processNewTrackingData(shipId, tracking, null);
+                log.debug("Successfully processed ship tracking for MMSI: {} (Ship ID: {})", tracking.getMmsi(),
+                        shipId);
+            } else {
+                // Approach 2: If ship doesn't exist, create a minimal one and process
+                log.warn("Could not find/create ship for MMSI: {}, creating minimal record", tracking.getMmsi());
+                // This approach requires additional implementation
+                throw new RuntimeException("Ship creation not implemented yet for MMSI: " + tracking.getMmsi());
+            }
 
-            log.debug("Successfully processed ship tracking for voyage ID: {}", tracking.getVoyageId());
         } catch (Exception e) {
-            log.error("Error processing ship tracking data for voyage ID: {}", tracking.getVoyageId(), e);
+            log.error("Error processing ship tracking data for MMSI: {}, voyage ID: {}",
+                    tracking.getMmsi(), tracking.getVoyageId(), e);
             throw e;
+        }
+    }
+
+    private Long findOrCreateShipByMmsi(String mmsi) {
+        try {
+            // Try to find existing ship by MMSI
+            Ship ship = shipRepository.findAll().stream()
+                    .filter(s -> mmsi.equals(s.getMmsi()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (ship != null) {
+                log.debug("Found existing ship with MMSI: {} (ID: {})", mmsi, ship.getId());
+                return ship.getId();
+            }
+
+            // Create new ship if not found
+            log.info("Creating new ship for MMSI: {}", mmsi);
+            Ship newShip = Ship.builder()
+                    .mmsi(mmsi)
+                    .name("Unknown Vessel " + mmsi)
+                    .isActive(true)
+                    .dataSource("Kafka Consumer")
+                    .build();
+
+            Ship savedShip = shipRepository.save(newShip);
+            log.info("Created new ship with MMSI: {} (ID: {})", mmsi, savedShip.getId());
+            return savedShip.getId();
+
+        } catch (Exception e) {
+            log.error("Error finding/creating ship for MMSI: {}", mmsi, e);
+            return null;
         }
     }
 
