@@ -22,10 +22,14 @@ public class ShipTrackingRequest {
     @NotNull(message = "Longitude is required")
     private Double longitude;
 
+    // Missing fields for IntelligentStorageService
+    @NotNull(message = "MMSI is required")
+    private String mmsi; // Maritime Mobile Service Identity
+    private Double heading; // Ship heading
+    private String navStatus; // Navigation status
+
     private Double speed;
-
     private Double course;
-
     private Double draught;
 
     @NotNull(message = "Voyage ID is required")

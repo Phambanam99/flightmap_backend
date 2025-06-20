@@ -35,4 +35,12 @@ public interface ShipTrackingRepository extends JpaRepository<ShipTracking, Long
                 ORDER BY t.timestamp DESC
             """)
     List<ShipTracking> findByVoyageIdOrderByTimestampDesc(@Param("voyageId") Long voyageId);
+
+    // Methods for IntelligentStorageService
+    @Query("SELECT st FROM ShipTracking st WHERE st.mmsi = :mmsi AND st.timestamp BETWEEN :fromTime AND :toTime ORDER BY st.timestamp ASC")
+    List<ShipTracking> findByMmsiAndTimestampBetweenOrderByTimestampAsc(@Param("mmsi") String mmsi,
+            @Param("fromTime") java.time.LocalDateTime fromTime, @Param("toTime") java.time.LocalDateTime toTime);
+
+    @Query("SELECT COUNT(st) FROM ShipTracking st WHERE st.timestamp > :afterTime")
+    long countByTimestampAfter(@Param("afterTime") java.time.LocalDateTime afterTime);
 }

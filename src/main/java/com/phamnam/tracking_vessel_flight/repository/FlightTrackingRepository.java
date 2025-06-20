@@ -14,30 +14,38 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FlightTrackingRepository extends JpaRepository<FlightTracking, Long> {
-    @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
-    List<FlightTracking> findWithinRadius(@Param("lon") double lon, @Param("lat") double lat,
-            @Param("radius") double radius);
+        @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
+        List<FlightTracking> findWithinRadius(@Param("lon") double lon, @Param("lat") double lat,
+                        @Param("radius") double radius);
 
-    @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", countQuery = "SELECT COUNT(*) FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
-    Page<FlightTracking> findWithinRadiusPaginated(@Param("lon") double lon, @Param("lat") double lat,
-            @Param("radius") double radius, Pageable pageable);
+        @Query(value = "SELECT * FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", countQuery = "SELECT COUNT(*) FROM tracking WHERE ST_DWithin(location, ST_SetSRID(ST_Point(:lon, :lat), 4326), :radius)", nativeQuery = true)
+        Page<FlightTracking> findWithinRadiusPaginated(@Param("lon") double lon, @Param("lat") double lat,
+                        @Param("radius") double radius, Pageable pageable);
 
-    List<FlightTracking> findByFlight_id(Long flightId);
+        List<FlightTracking> findByFlight_id(Long flightId);
 
-    Page<FlightTracking> findByFlight_id(Long flightId, Pageable pageable);
+        Page<FlightTracking> findByFlight_id(Long flightId, Pageable pageable);
 
-    @Query("""
-                SELECT t FROM FlightTracking t
-                WHERE t.flight.id = :flightId
-                ORDER BY t.updateTime DESC
-            """)
-    Optional<FlightTracking> findLastTrackingByFlightId(@Param("flightId") Long flightId);
+        @Query("""
+                            SELECT t FROM FlightTracking t
+                            WHERE t.flight.id = :flightId
+                            ORDER BY t.updateTime DESC
+                        """)
+        Optional<FlightTracking> findLastTrackingByFlightId(@Param("flightId") Long flightId);
 
-    @Query("SELECT ft FROM FlightTracking ft WHERE ft.updateTime < :date")
-    List<FlightTracking> findByUpdateTimeBefore(LocalDateTime date);
+        @Query("SELECT ft FROM FlightTracking ft WHERE ft.updateTime < :date")
+        List<FlightTracking> findByUpdateTimeBefore(LocalDateTime date);
 
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM FlightTracking ft WHERE ft.updateTime < :date")
-    void deleteByUpdateTimeBefore(LocalDateTime date);
+        @Modifying
+        @Transactional
+        @Query("DELETE FROM FlightTracking ft WHERE ft.updateTime < :date")
+        void deleteByUpdateTimeBefore(LocalDateTime date);
+
+        // Methods for IntelligentStorageService
+        @Query("SELECT ft FROM FlightTracking ft WHERE ft.hexIdent = :hexIdent AND ft.lastSeen BETWEEN :fromTime AND :toTime ORDER BY ft.lastSeen ASC")
+        List<FlightTracking> findByHexIdentAndLastSeenBetweenOrderByLastSeenAsc(@Param("hexIdent") String hexIdent,
+                        @Param("fromTime") LocalDateTime fromTime, @Param("toTime") LocalDateTime toTime);
+
+        @Query("SELECT COUNT(ft) FROM FlightTracking ft WHERE ft.lastSeen > :afterTime")
+        long countByLastSeenAfter(@Param("afterTime") LocalDateTime afterTime);
 }

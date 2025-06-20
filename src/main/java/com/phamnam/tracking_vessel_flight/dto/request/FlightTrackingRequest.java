@@ -18,16 +18,27 @@ public class FlightTrackingRequest {
     @NotNull(message = "Flight ID is required")
     private Long flightId;
 
-    private Float altitude;
+    // Missing fields for IntelligentStorageService
+    private String hexIdent; // Aircraft identifier
+    private Double groundSpeed; // Ground speed in knots
+    private LocalDateTime lastSeen; // Last seen timestamp
+    private String track; // Track/heading as string
+    private Double verticalRate; // Vertical rate
+    private String alert; // Alert status
+    private String emergency; // Emergency status
+    private String spi; // SPI status
+    private Boolean isOnGround; // On ground flag
+
+    private Double altitude; // Changed from Float to Double
     private String altitudeType;
-    private Float targetAlt;
+    private Double targetAlt; // Changed from Float to Double
     private String callsign;
-    private Float speed;
+    private Double speed; // Changed from Float to Double (for compatibility)
     private String speedType;
-    private Float verticalSpeed;
-    private Integer squawk;
-    private Float distance;
-    private Float bearing;
+    private Double verticalSpeed; // Changed from Float to Double
+    private String squawk; // Changed from Integer to String for emergency codes
+    private Double distance; // Changed from Float to Double
+    private Double bearing; // Changed from Float to Double
     private Long unixTime;
     private LocalDateTime updateTime;
 
