@@ -5,21 +5,24 @@
 -- Execution order: 02 (after extensions)
 
 -- ============================================================================
--- MEMORY CONFIGURATION
+-- CONFIGURATION NOTES
 -- ============================================================================
 
--- Set TimescaleDB memory settings for better performance
--- These settings optimize for high-throughput time-series workloads
-SELECT set_config('timescaledb.max_background_workers', '16', false);
-SELECT set_config('shared_preload_libraries', 'timescaledb', false);
+-- TimescaleDB configuration parameters that should be set in postgresql.conf:
+-- timescaledb.max_background_workers = 16
+-- shared_preload_libraries = 'timescaledb'
+-- timescaledb.enable_compression = on
+-- 
+-- These parameters require server restart and cannot be changed at runtime
 
 -- ============================================================================
--- COMPRESSION SETTINGS
+-- RUNTIME SETTINGS
 -- ============================================================================
 
--- Enable compression for better storage efficiency
--- This is crucial for long-term storage of tracking data
-SELECT set_config('timescaledb.enable_compression', 'on', false);
+-- Set session-level optimization settings that can be changed at runtime
+SET work_mem = '256MB';
+SET maintenance_work_mem = '512MB';
+SET effective_cache_size = '2GB';
 
 -- ============================================================================
 -- CHUNK TIME INTERVALS

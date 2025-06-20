@@ -61,7 +61,6 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     @EventListener(ApplicationReadyEvent.class)
-    @Transactional
     public void initializeDatabase() {
         if (!timescaleEnabled) {
             log.info("TimescaleDB initialization is disabled");
@@ -124,28 +123,115 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             String script = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
-            // Split script by statement separator and execute each statement
-            String[] statements = script.split(";");
+            // Execute the entire script as one statement to handle PostgreSQL functions
+            // properly
+            try {
+                jdbcTemplate.execute(script);
+                log.info("Successfully executed script: {}", scriptPath);
+            } catch (Exception e) {
+                log.warn("Failed to execute script {}: {}", scriptPath, e.getMessage());
 
-            for (String statement : statements) {
-                String trimmedStatement = statement.trim();
-                if (!trimmedStatement.isEmpty() && !trimmedStatement.startsWith("--")) {
-                    try {
-                        jdbcTemplate.execute(trimmedStatement);
-                    } catch (Exception e) {
-                        // Log warning but continue with next statement
-                        log.warn("Failed to execute statement in {}: {}", scriptPath, e.getMessage());
-                    }
-                }
+                // Fallback: try to split and execute individual statements
+                // but handle PostgreSQL function definitions properly
+                executeScriptWithStatementSplitting(script, scriptPath);
             }
-
-            log.info("Successfully executed script: {}", scriptPath);
 
         } catch (IOException e) {
             log.error("Failed to read script file: {}", scriptPath, e);
         } catch (Exception e) {
             log.error("Failed to execute script: {}", scriptPath, e);
         }
+    }
+
+    private void executeScriptWithStatementSplitting(String script, String scriptPath) {
+        // Remove comments and normalize whitespace
+        String cleanedScript = script
+                .replaceAll("--[^\r\n]*", "") // Remove line comments
+                .replaceAll("/\\*[\\s\\S]*?\\*/", "") // Remove block comments
+                .replaceAll("\\s+", " ") // Normalize whitespace
+                .trim();
+
+        StringBuilder currentStatement = new StringBuilder();
+        boolean inFunction = false;
+        boolean inDoBlock = false;
+        int dollarTagDepth = 0;
+
+        String[] lines = cleanedScript.split(";");
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+
+            if (line.isEmpty()) {
+                continue;
+            }
+
+            currentStatement.append(line);
+
+            // Check for function/procedure/do block start
+            if (line.toUpperCase().contains("CREATE OR REPLACE FUNCTION") ||
+                    line.toUpperCase().contains("CREATE FUNCTION") ||
+                    line.toUpperCase().contains("CREATE OR REPLACE PROCEDURE") ||
+                    line.toUpperCase().contains("CREATE PROCEDURE")) {
+                inFunction = true;
+            }
+
+            if (line.toUpperCase().startsWith("DO $$") || line.toUpperCase().contains("DO $$")) {
+                inDoBlock = true;
+                dollarTagDepth = 1;
+            }
+
+            // Count dollar tags for nested blocks
+            if (inFunction || inDoBlock) {
+                dollarTagDepth += countOccurrences(line, "$$");
+            }
+
+            // Check for end of function/procedure/do block
+            if ((inFunction && line.toUpperCase().contains("$$ LANGUAGE")) ||
+                    (inDoBlock && line.endsWith("$$") && dollarTagDepth % 2 == 0)) {
+                inFunction = false;
+                inDoBlock = false;
+                dollarTagDepth = 0;
+
+                // Execute the complete function/do block
+                executeStatement(currentStatement.toString(), scriptPath);
+                currentStatement.setLength(0);
+            } else if (!inFunction && !inDoBlock) {
+                // Execute regular statement
+                executeStatement(currentStatement.toString(), scriptPath);
+                currentStatement.setLength(0);
+            } else {
+                // Continue building the function/do block
+                currentStatement.append(";");
+            }
+        }
+
+        // Execute any remaining statement
+        if (currentStatement.length() > 0) {
+            executeStatement(currentStatement.toString(), scriptPath);
+        }
+    }
+
+    private void executeStatement(String statement, String scriptPath) {
+        String trimmedStatement = statement.trim();
+        if (!trimmedStatement.isEmpty() && !trimmedStatement.startsWith("--")) {
+            try {
+                jdbcTemplate.execute(trimmedStatement);
+            } catch (Exception e) {
+                log.warn("Failed to execute statement in {}: {} - Statement: {}",
+                        scriptPath, e.getMessage(),
+                        trimmedStatement.substring(0, Math.min(100, trimmedStatement.length())));
+            }
+        }
+    }
+
+    private int countOccurrences(String text, String pattern) {
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(pattern, index)) != -1) {
+            count++;
+            index += pattern.length();
+        }
+        return count;
     }
 
     private void verifyTimescaleSetup() {
