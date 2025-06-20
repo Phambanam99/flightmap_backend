@@ -43,7 +43,7 @@ public class WebSocketService {
                             "latitude", flightTracking.getLatitude(),
                             "longitude", flightTracking.getLongitude(),
                             "altitude", flightTracking.getAltitude(),
-                            "groundSpeed", flightTracking.getGroundSpeed(),
+                            "groundSpeed", flightTracking.getSpeed(),
                             "track", flightTracking.getTrack(),
                             "squawk", flightTracking.getSquawk(),
                             "onGround", flightTracking.getOnGround(),
@@ -237,14 +237,17 @@ public class WebSocketService {
 
         try {
             java.util.List<Map<String, Object>> updates = flightTrackings.stream()
-                    .map(ft -> Map.of(
-                            "hexident", ft.getHexident(),
-                            "latitude", ft.getLatitude(),
-                            "longitude", ft.getLongitude(),
-                            "altitude", ft.getAltitude(),
-                            "groundSpeed", ft.getGroundSpeed(),
-                            "track", ft.getTrack(),
-                            "lastUpdate", ft.getTimestamp()))
+                    .map(ft -> {
+                        Map<String, Object> update = new java.util.HashMap<>();
+                        update.put("hexident", ft.getHexident());
+                        update.put("latitude", ft.getLatitude());
+                        update.put("longitude", ft.getLongitude());
+                        update.put("altitude", ft.getAltitude());
+                        update.put("groundSpeed", ft.getSpeed());
+                        update.put("track", ft.getTrack());
+                        update.put("lastUpdate", ft.getTimestamp());
+                        return update;
+                    })
                     .collect(java.util.stream.Collectors.toList());
 
             Map<String, Object> batchUpdate = Map.of(
@@ -268,14 +271,17 @@ public class WebSocketService {
 
         try {
             java.util.List<Map<String, Object>> updates = shipTrackings.stream()
-                    .map(st -> Map.of(
-                            "mmsi", st.getMmsi(),
-                            "latitude", st.getLatitude(),
-                            "longitude", st.getLongitude(),
-                            "speed", st.getSpeed(),
-                            "course", st.getCourse(),
-                            "heading", st.getHeading(),
-                            "lastUpdate", st.getTimestamp()))
+                    .map(st -> {
+                        Map<String, Object> update = new java.util.HashMap<>();
+                        update.put("mmsi", st.getMmsi());
+                        update.put("latitude", st.getLatitude());
+                        update.put("longitude", st.getLongitude());
+                        update.put("speed", st.getSpeed());
+                        update.put("course", st.getCourse());
+                        update.put("heading", st.getHeading());
+                        update.put("lastUpdate", st.getTimestamp());
+                        return update;
+                    })
                     .collect(java.util.stream.Collectors.toList());
 
             Map<String, Object> batchUpdate = Map.of(

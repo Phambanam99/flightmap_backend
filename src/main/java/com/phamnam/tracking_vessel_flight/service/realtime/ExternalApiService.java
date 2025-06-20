@@ -127,13 +127,19 @@ public class ExternalApiService {
     private List<AircraftTrackingRequest> parseFlightRadar24Response(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            return root.fields().asSequence()
-                    .filter(entry -> !entry.getKey().equals("full_count") &&
-                            !entry.getKey().equals("version") &&
-                            !entry.getKey().equals("stats"))
-                    .map(entry -> parseAircraftFromFlightRadar24(entry.getKey(), entry.getValue()))
-                    .filter(aircraft -> aircraft != null)
-                    .collect(Collectors.toList());
+            java.util.List<AircraftTrackingRequest> aircraftList = new java.util.ArrayList<>();
+
+            root.fields().forEachRemaining(entry -> {
+                String key = entry.getKey();
+                if (!key.equals("full_count") && !key.equals("version") && !key.equals("stats")) {
+                    AircraftTrackingRequest aircraft = parseAircraftFromFlightRadar24(key, entry.getValue());
+                    if (aircraft != null) {
+                        aircraftList.add(aircraft);
+                    }
+                }
+            });
+
+            return aircraftList;
         } catch (Exception e) {
             log.error("Failed to parse FlightRadar24 response", e);
             return List.of();
@@ -142,31 +148,27 @@ public class ExternalApiService {
 
     private AircraftTrackingRequest parseAircraftFromFlightRadar24(String key, JsonNode data) {
         try {
-            if (!data.isArray() || data.size() < 13) {
-                return null;
-            }
-
             return AircraftTrackingRequest.builder()
                     .hexident(key)
-                    .latitude(data.get(1).asDouble())
-                    .longitude(data.get(2).asDouble())
-                    .track(data.get(3).asInt())
-                    .altitude(data.get(4).asInt())
-                    .groundSpeed(data.get(5).asInt())
-                    .squawk(data.get(6).asText())
-                    .aircraftType(data.get(8).asText())
-                    .registration(data.get(9).asText())
-                    .callsign(data.get(16).asText())
-                    .origin(data.get(11).asText())
-                    .destination(data.get(12).asText())
-                    .flightNumber(data.get(13).asText())
-                    .onGround(data.get(14).asInt() == 1)
-                    .verticalRate(data.get(15).asInt())
+                    .latitude(data.get(1) != null ? data.get(1).asDouble() : null)
+                    .longitude(data.get(2) != null ? data.get(2).asDouble() : null)
+                    .track(data.get(3) != null ? data.get(3).asInt() : null)
+                    .altitude(data.get(4) != null ? data.get(4).asInt() : null)
+                    .groundSpeed(data.get(5) != null ? data.get(5).asInt() : null)
+                    .squawk(data.get(6) != null ? data.get(6).asText() : null)
+                    .aircraftType(data.get(8) != null ? data.get(8).asText() : null)
+                    .registration(data.get(9) != null ? data.get(9).asText() : null)
                     .timestamp(LocalDateTime.now())
-                    .dataQuality(0.95) // FlightRadar24 generally has high quality data
+                    .onGround(data.get(14) != null ? data.get(14).asBoolean() : false)
+                    .verticalRate(data.get(15) != null ? data.get(15).asInt() : null)
+                    .callsign(data.get(16) != null ? data.get(16).asText() : null)
+                    .emergency("7500".equals(data.get(6) != null ? data.get(6).asText() : null) ||
+                            "7600".equals(data.get(6) != null ? data.get(6).asText() : null) ||
+                            "7700".equals(data.get(6) != null ? data.get(6).asText() : null))
+                    .dataQuality(0.8) // FlightRadar24 usually has good data quality
                     .build();
         } catch (Exception e) {
-            log.warn("Failed to parse aircraft data for key {}: {}", key, e.getMessage());
+            log.error("Error parsing aircraft data for {}: {}", key, e.getMessage());
             return null;
         }
     }

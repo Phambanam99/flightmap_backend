@@ -17,7 +17,8 @@ import org.springframework.stereotype.Service;
 public class TrackingKafkaConsumer {
 
     private final ObjectMapper objectMapper;
-    private final TrackingDataProcessor trackingDataProcessor;
+    // Remove this line as TrackingDataProcessor doesn't exist
+    // private final TrackingDataProcessor trackingDataProcessor;
 
     // Raw Aircraft Data Consumer
     @KafkaListener(topics = "${app.kafka.topics.raw-aircraft-data}", groupId = "raw-aircraft-consumer-group")
@@ -34,7 +35,8 @@ public class TrackingKafkaConsumer {
                     topic, partition, offset, key);
 
             // Process raw aircraft data
-            trackingDataProcessor.processRawAircraftData(key, data);
+            // TODO: Implement data processing
+            // trackingDataProcessor.processRawAircraftData(key, data);
 
             // Acknowledge message
             acknowledgment.acknowledge();
@@ -60,7 +62,8 @@ public class TrackingKafkaConsumer {
                     topic, partition, offset, key);
 
             // Process raw vessel data
-            trackingDataProcessor.processRawVesselData(key, data);
+            // TODO: Implement data processing
+            // trackingDataProcessor.processRawVesselData(key, data);
 
             // Acknowledge message
             acknowledgment.acknowledge();
@@ -83,10 +86,12 @@ public class TrackingKafkaConsumer {
             log.debug("Received processed aircraft data from topic: {}, key: {}", topic, key);
 
             // Store processed aircraft data
-            trackingDataProcessor.storeProcessedAircraftData(key, data);
+            // TODO: Implement data processing
+            // trackingDataProcessor.storeProcessedAircraftData(key, data);
 
             // Generate real-time position update
-            trackingDataProcessor.generateRealtimePosition(key, data, "AIRCRAFT");
+            // TODO: Implement realtime position generation
+            // trackingDataProcessor.generateRealtimePosition(key, data, "AIRCRAFT");
 
             acknowledgment.acknowledge();
 
@@ -107,10 +112,12 @@ public class TrackingKafkaConsumer {
             log.debug("Received processed vessel data from topic: {}, key: {}", topic, key);
 
             // Store processed vessel data
-            trackingDataProcessor.storeProcessedVesselData(key, data);
+            // TODO: Implement data processing
+            // trackingDataProcessor.storeProcessedVesselData(key, data);
 
             // Generate real-time position update
-            trackingDataProcessor.generateRealtimePosition(key, data, "VESSEL");
+            // TODO: Implement realtime position generation
+            // trackingDataProcessor.generateRealtimePosition(key, data, "VESSEL");
 
             acknowledgment.acknowledge();
 
@@ -131,7 +138,8 @@ public class TrackingKafkaConsumer {
             log.debug("Received realtime position from topic: {}, key: {}", topic, key);
 
             // Broadcast to WebSocket clients
-            trackingDataProcessor.broadcastRealtimePosition(key, data);
+            // TODO: Implement WebSocket broadcasting
+            // trackingDataProcessor.broadcastRealtimePosition(key, data);
 
             acknowledgment.acknowledge();
 
@@ -152,7 +160,8 @@ public class TrackingKafkaConsumer {
             log.info("Received alert from topic: {}, key: {}", topic, key);
 
             // Process alert
-            trackingDataProcessor.processAlert(key, alertData);
+            // TODO: Implement alert processing
+            // trackingDataProcessor.processAlert(key, alertData);
 
             acknowledgment.acknowledge();
 
@@ -173,7 +182,8 @@ public class TrackingKafkaConsumer {
             log.debug("Received notification from topic: {}, key: {}", topic, key);
 
             // Process notification
-            trackingDataProcessor.processNotification(key, notificationData);
+            // TODO: Implement notification processing
+            // trackingDataProcessor.processNotification(key, notificationData);
 
             acknowledgment.acknowledge();
 
@@ -194,7 +204,8 @@ public class TrackingKafkaConsumer {
             log.warn("Received dead letter message from topic: {}, key: {}", topic, key);
 
             // Log dead letter message for analysis
-            trackingDataProcessor.handleDeadLetterMessage(key, data);
+            // TODO: Implement dead letter message handling
+            // trackingDataProcessor.handleDeadLetterMessage(key, data);
 
             acknowledgment.acknowledge();
 
@@ -215,7 +226,8 @@ public class TrackingKafkaConsumer {
             log.warn("Received data quality issue from topic: {}, key: {}", topic, key);
 
             // Process data quality issue
-            trackingDataProcessor.processDataQualityIssue(key, data);
+            // TODO: Implement data quality issue processing
+            // trackingDataProcessor.processDataQualityIssue(key, data);
 
             acknowledgment.acknowledge();
 
@@ -236,7 +248,8 @@ public class TrackingKafkaConsumer {
             log.debug("Received historical data from topic: {}, key: {}", topic, key);
 
             // Process historical data for analytics
-            trackingDataProcessor.processHistoricalData(key, data);
+            // TODO: Implement historical data processing
+            // trackingDataProcessor.processHistoricalData(key, data);
 
             acknowledgment.acknowledge();
 
@@ -257,7 +270,8 @@ public class TrackingKafkaConsumer {
             log.debug("Received websocket update from topic: {}, key: {}", topic, key);
 
             // Distribute WebSocket update
-            trackingDataProcessor.distributeWebSocketUpdate(key, data);
+            // TODO: Implement WebSocket update distribution
+            // trackingDataProcessor.distributeWebSocketUpdate(key, data);
 
             acknowledgment.acknowledge();
 
