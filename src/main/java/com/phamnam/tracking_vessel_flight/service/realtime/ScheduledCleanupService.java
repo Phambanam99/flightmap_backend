@@ -24,8 +24,7 @@ public class ScheduledCleanupService {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
-    @Autowired
-    private IntelligentStorageService intelligentStorageService;
+    // Note: IntelligentStorageService will be integrated in future iterations
 
     /**
      * Cleanup inactive vehicles every 5 minutes

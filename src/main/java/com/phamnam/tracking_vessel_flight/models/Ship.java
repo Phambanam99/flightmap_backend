@@ -8,6 +8,7 @@ import java.util.List;
 @Entity
 @Table(name = "ship")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor

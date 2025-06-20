@@ -9,6 +9,7 @@ import java.util.List;
 @Entity
 @Table(name = "voyage")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor

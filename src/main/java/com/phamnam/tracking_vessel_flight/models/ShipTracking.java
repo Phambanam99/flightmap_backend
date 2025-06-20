@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "ship_tracking")
 @Data
+@EqualsAndHashCode(callSuper = false)
 @Getter
 @Setter
 @AllArgsConstructor
