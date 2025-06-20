@@ -274,7 +274,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         }
 
         // Find an active flight for this aircraft
-        Flight flight = findActiveFlightForAircraft(aircraftId);
+        Flight flight = findActiveFlightForAircraft(aircraftId, trackingData.getCallsign());
 
         // If no active flight exists, create a new one
         if (flight == null) {
@@ -317,37 +317,38 @@ public class FlightTrackingService implements IFlightTrackingService {
 
     /**
      * Find an active flight for the given aircraft.
-     * A flight is considered active if it has a departure time but no arrival time,
-     * or if the current time is between departure and arrival times.
+     * A flight is considered active if:
+     * 1. It has the same callsign as the tracking data
+     * 2. It was created recently (within the last 2 hours)
+     * 3. It doesn't have an arrival time (still active)
      * 
      * @param aircraftId the ID of the aircraft
+     * @param callsign   the callsign from tracking data
      * @return the active Flight or null if none exists
      */
-    private Flight findActiveFlightForAircraft(Long aircraftId) {
-        // Use the repository method to get the latest flight for this aircraft
+    private Flight findActiveFlightForAircraft(Long aircraftId, String callsign) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime timeWindow = now.minus(MAX_FLIGHT_INACTIVITY);
+
+        // First try to find a recent flight with the same callsign
+        if (callsign != null && !callsign.isEmpty()) {
+            List<Flight> recentFlights = flightRepository.findByAircraftIdAndCallsignAndCreatedAtAfter(
+                    aircraftId, callsign, timeWindow);
+
+            // Return the most recent active flight
+            for (Flight flight : recentFlights) {
+                if (flight.getArrivalTime() == null) { // Still active
+                    return flight;
+                }
+            }
+        }
+
+        // If no callsign match, find the most recent active flight for this aircraft
         Flight latestFlight = flightRepository.findLatestByAircraftId(aircraftId);
 
-        // If no flight exists or it's null, return null
-        if (latestFlight == null) {
-            return null;
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
-        // Flight has departed but not arrived
-        if (latestFlight.getDepartureTime() != null && latestFlight.getArrivalTime() == null) {
-            // Check if flight is not too old (within the inactivity period)
-            if (latestFlight.getDepartureTime().isAfter(now.minus(MAX_FLIGHT_INACTIVITY))) {
-                return latestFlight;
-            }
-        }
-
-        // Flight has both departure and arrival times - check if current time is in
-        // between
-        if (latestFlight.getDepartureTime() != null && latestFlight.getArrivalTime() != null) {
-            if (now.isAfter(latestFlight.getDepartureTime()) && now.isBefore(latestFlight.getArrivalTime())) {
-                return latestFlight;
-            }
+        if (latestFlight != null && latestFlight.getArrivalTime() == null &&
+                latestFlight.getCreatedAt().isAfter(timeWindow)) {
+            return latestFlight;
         }
 
         return null;
