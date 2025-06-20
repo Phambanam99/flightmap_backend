@@ -72,6 +72,7 @@ public class ShipTrackingService implements IShipTrackingService {
 
         ShipTracking shipTracking = ShipTracking.builder()
                 .timestamp(shipTrackingRequest.getTimestamp())
+                .mmsi(shipTrackingRequest.getMmsi()) // Add missing MMSI field
                 .latitude(shipTrackingRequest.getLatitude())
                 .longitude(shipTrackingRequest.getLongitude())
                 .speed(shipTrackingRequest.getSpeed())
@@ -170,6 +171,7 @@ public class ShipTrackingService implements IShipTrackingService {
         // Now create and save the tracking data
         ShipTracking shipTracking = ShipTracking.builder()
                 .timestamp(trackingData.getTimestamp())
+                .mmsi(trackingData.getMmsi()) // Add missing MMSI field
                 .latitude(trackingData.getLatitude())
                 .longitude(trackingData.getLongitude())
                 .speed(trackingData.getSpeed())
