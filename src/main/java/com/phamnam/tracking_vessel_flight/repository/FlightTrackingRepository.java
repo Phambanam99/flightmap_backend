@@ -42,8 +42,8 @@ public interface FlightTrackingRepository extends JpaRepository<FlightTracking, 
         void deleteByUpdateTimeBefore(LocalDateTime date);
 
         // Methods for IntelligentStorageService
-        @Query("SELECT ft FROM FlightTracking ft WHERE ft.hexIdent = :hexIdent AND ft.lastSeen BETWEEN :fromTime AND :toTime ORDER BY ft.lastSeen ASC")
-        List<FlightTracking> findByHexIdentAndLastSeenBetweenOrderByLastSeenAsc(@Param("hexIdent") String hexIdent,
+        @Query("SELECT ft FROM FlightTracking ft WHERE ft.hexident = :hexident AND ft.lastSeen BETWEEN :fromTime AND :toTime ORDER BY ft.lastSeen ASC")
+        List<FlightTracking> findByHexIdentAndLastSeenBetweenOrderByLastSeenAsc(@Param("hexident") String hexident,
                         @Param("fromTime") LocalDateTime fromTime, @Param("toTime") LocalDateTime toTime);
 
         @Query("SELECT COUNT(ft) FROM FlightTracking ft WHERE ft.lastSeen > :afterTime")
