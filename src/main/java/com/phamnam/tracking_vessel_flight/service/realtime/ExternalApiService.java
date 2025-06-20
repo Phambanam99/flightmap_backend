@@ -294,15 +294,9 @@ public class ExternalApiService {
                 .orElseGet(() -> {
                     DataSource dataSource = DataSource.builder()
                             .name(name)
-                            .sourceType(type)
                             .isEnabled(true)
                             .isActive(true)
                             .priority(1)
-                            .maxRetries(3)
-                            .retryDelay(5000)
-                            .timeout(type == DataSourceType.FLIGHT_RADAR ? flightradar24Timeout : marineTrafficTimeout)
-                            .rateLimitRequests(100)
-                            .rateLimitWindow(60)
                             .consecutiveFailures(0)
                             .successRate(100.0)
                             .build();
@@ -319,7 +313,7 @@ public class ExternalApiService {
                 dataSource.setIsActive(true);
             } else {
                 dataSource.setConsecutiveFailures(dataSource.getConsecutiveFailures() + 1);
-                if (dataSource.getConsecutiveFailures() >= dataSource.getMaxRetries()) {
+                if (dataSource.getConsecutiveFailures() >= 3) { // Hardcode for now
                     dataSource.setIsActive(false);
                 }
             }
@@ -328,8 +322,6 @@ public class ExternalApiService {
             // Create status record
             DataSourceStatus statusRecord = DataSourceStatus.builder()
                     .dataSource(dataSource)
-                    .status(status)
-                    .message(message)
                     .checkTime(LocalDateTime.now())
                     .responseTime(1000L) // TODO: Calculate actual response time
                     .dataCount(0)
