@@ -93,7 +93,8 @@ public class ExternalApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("FlightRadar24", DataSourceType.FLIGHT_RADAR);
+        DataSource dataSource = getOrCreateDataSource(DataSourceType.FLIGHT_RADAR.getDisplayName(),
+                DataSourceType.FLIGHT_RADAR);
 
         try {
             log.debug("Fetching aircraft data from FlightRadar24...");
@@ -207,7 +208,8 @@ public class ExternalApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("MarineTraffic", DataSourceType.MARINE_TRAFFIC);
+        DataSource dataSource = getOrCreateDataSource(DataSourceType.MARINE_TRAFFIC.getDisplayName(),
+                DataSourceType.MARINE_TRAFFIC);
 
         try {
             log.debug("Fetching vessel data from MarineTraffic...");

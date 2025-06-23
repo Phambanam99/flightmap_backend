@@ -69,7 +69,8 @@ public class VesselFinderApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("VesselFinder", DataSourceType.VESSEL_FINDER);
+        DataSource dataSource = getOrCreateDataSource(DataSourceType.VESSEL_FINDER.getDisplayName(),
+                DataSourceType.VESSEL_FINDER);
 
         try {
             log.debug("Fetching vessel data from VesselFinder API...");
@@ -280,7 +281,7 @@ public class VesselFinderApiService {
      * Check if VesselFinder API is available
      */
     public boolean isVesselFinderAvailable() {
-        return vesselFinderEnabled && isDataSourceHealthy("VesselFinder");
+        return vesselFinderEnabled && isDataSourceHealthy(DataSourceType.VESSEL_FINDER.getDisplayName());
     }
 
     private boolean isDataSourceHealthy(String name) {

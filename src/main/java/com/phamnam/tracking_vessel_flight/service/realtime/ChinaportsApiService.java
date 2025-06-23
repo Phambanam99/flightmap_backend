@@ -69,7 +69,8 @@ public class ChinaportsApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("Chinaports", DataSourceType.SHIP_TRACKING);
+        DataSource dataSource = getOrCreateDataSource(DataSourceType.SHIP_TRACKING.getDisplayName(),
+                DataSourceType.SHIP_TRACKING);
 
         try {
             log.debug("Fetching vessel data from Chinaports API...");
@@ -249,7 +250,7 @@ public class ChinaportsApiService {
      * Check if Chinaports API is available
      */
     public boolean isChinaportsAvailable() {
-        return chinaportsEnabled && isDataSourceHealthy("Chinaports");
+        return chinaportsEnabled && isDataSourceHealthy(DataSourceType.SHIP_TRACKING.getDisplayName());
     }
 
     private boolean isDataSourceHealthy(String name) {

@@ -69,7 +69,8 @@ public class MarineTrafficV2ApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("MarineTrafficV2", DataSourceType.MARINE_TRAFFIC);
+        DataSource dataSource = getOrCreateDataSource(DataSourceType.MARINE_TRAFFIC.getDisplayName() + " V2",
+                DataSourceType.MARINE_TRAFFIC);
 
         try {
             log.debug("Fetching vessel data from MarineTraffic V2 API...");
@@ -270,7 +271,7 @@ public class MarineTrafficV2ApiService {
      * Check if MarineTraffic V2 API is available
      */
     public boolean isMarineTrafficV2Available() {
-        return marineTrafficV2Enabled && isDataSourceHealthy("MarineTrafficV2");
+        return marineTrafficV2Enabled && isDataSourceHealthy(DataSourceType.MARINE_TRAFFIC.getDisplayName() + " V2");
     }
 
     private boolean isDataSourceHealthy(String name) {

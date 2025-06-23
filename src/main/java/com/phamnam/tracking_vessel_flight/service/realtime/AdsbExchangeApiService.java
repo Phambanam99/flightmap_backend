@@ -69,7 +69,7 @@ public class AdsbExchangeApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("AdsbExchange", DataSourceType.ADS_B);
+        DataSource dataSource = getOrCreateDataSource(DataSourceType.ADS_B.getDisplayName(), DataSourceType.ADS_B);
 
         try {
             log.debug("Fetching aircraft data from ADS-B Exchange API...");
@@ -262,7 +262,7 @@ public class AdsbExchangeApiService {
      * Check if ADS-B Exchange API is available
      */
     public boolean isAdsbExchangeAvailable() {
-        return adsbExchangeEnabled && isDataSourceHealthy("AdsbExchange");
+        return adsbExchangeEnabled && isDataSourceHealthy(DataSourceType.ADS_B.getDisplayName());
     }
 
     private boolean isDataSourceHealthy(String name) {
