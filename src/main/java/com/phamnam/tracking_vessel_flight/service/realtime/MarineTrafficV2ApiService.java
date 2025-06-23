@@ -117,10 +117,10 @@ public class MarineTrafficV2ApiService {
      * Build MarineTraffic V2 API URL
      */
     private String buildMarineTrafficV2Url() {
-        // MarineTraffic V2 might use different endpoint format
+        // Mock API format for simulator
         return String.format(
-                "%s/api/v2/vessels?bbox=%f,%f,%f,%f&timespan=60&format=json&api_key=%s",
-                marineTrafficV2BaseUrl, minLongitude, minLatitude, maxLongitude, maxLatitude, marineTrafficV2ApiKey);
+                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
+                marineTrafficV2BaseUrl, minLatitude, maxLatitude, minLongitude, maxLongitude);
     }
 
     /**

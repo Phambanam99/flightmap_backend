@@ -114,10 +114,10 @@ public class AdsbExchangeApiService {
      * Build ADS-B Exchange API URL with geographic bounds
      */
     private String buildAdsbExchangeUrl() {
-        // ADS-B Exchange API format (customize based on actual API documentation)
+        // Mock API format for simulator
         return String.format(
-                "%s/api/aircraft/json/lat1/%f/lon1/%f/lat2/%f/lon2/%f",
-                adsbExchangeBaseUrl, minLatitude, minLongitude, maxLatitude, maxLongitude);
+                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
+                adsbExchangeBaseUrl, minLatitude, maxLatitude, minLongitude, maxLongitude);
     }
 
     /**

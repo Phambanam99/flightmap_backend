@@ -115,10 +115,10 @@ public class VesselFinderApiService {
      * Build VesselFinder API URL with geographic bounds
      */
     private String buildVesselFinderUrl() {
-        // VesselFinder API format (customize based on actual API documentation)
+        // Mock API format for simulator
         return String.format(
-                "%s/api/v1/vessels/search?bounds=%f,%f,%f,%f&format=json&apikey=%s",
-                vesselFinderBaseUrl, minLatitude, minLongitude, maxLatitude, maxLongitude, vesselFinderApiKey);
+                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
+                vesselFinderBaseUrl, minLatitude, maxLatitude, minLongitude, maxLongitude);
     }
 
     /**

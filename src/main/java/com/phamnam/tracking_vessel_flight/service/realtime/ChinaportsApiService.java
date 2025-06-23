@@ -115,11 +115,10 @@ public class ChinaportsApiService {
      * Build Chinaports API URL with geographic bounds
      */
     private String buildChinaportsUrl() {
-        // Chinaports API format (customize based on actual API documentation)
+        // Mock API format for simulator - use main bounds instead of China-specific
         return String.format(
-                "%s/api/vessels?minlat=%f&maxlat=%f&minlon=%f&maxlon=%f&format=json&key=%s",
-                chinaportsBaseUrl, chinaMinLatitude, chinaMaxLatitude, chinaMinLongitude, chinaMaxLongitude,
-                chinaportsApiKey);
+                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
+                chinaportsBaseUrl, 8.5, 23.5, 102.0, 109.5);
     }
 
     /**
