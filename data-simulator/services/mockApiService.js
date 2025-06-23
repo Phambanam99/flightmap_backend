@@ -35,7 +35,7 @@ class MockApiService {
     
     // Generate 30 ships for Vietnam coastal area
     for (let i = 0; i < 30000; i++) {
-      const ship = this.movementSimulator.createNewShip();
+      const ship = this.movementSimulator.createNewVessel();
       const mmsi = this.generateMMSI();
       
       // Store mapping between mmsi and internal voyage ID
@@ -50,12 +50,12 @@ class MockApiService {
     // Update flight data every 30 seconds
     setInterval(() => {
       this.updateFlightData();
-    }, config.mockApis.flightRadar24.updateInterval);
+    }, config.mockApis.flightradar24.updateInterval);
 
     // Update ship data every 60 seconds
     setInterval(() => {
       this.updateShipData();
-    }, config.mockApis.marineTraffic.updateInterval);
+    }, config.mockApis.marinetraffic.updateInterval);
   }
 
   updateFlightData() {
@@ -98,7 +98,7 @@ class MockApiService {
     
     this.shipIdMap.forEach((voyageId, mmsi) => {
       // Update ship using MovementSimulator
-      const updatedShip = this.movementSimulator.updateShip(voyageId, 60);
+      const updatedShip = this.movementSimulator.updateVessel(voyageId, 60);
       
       if (updatedShip) {
         // Update the display data with new position
@@ -117,7 +117,7 @@ class MockApiService {
     
     // Add new ships to replace removed ones
     while (this.shipData.size < 30000) {
-      const newShip = this.movementSimulator.createNewShip();
+      const newShip = this.movementSimulator.createNewVessel();
       const mmsi = this.generateMMSI();
       this.shipIdMap.set(mmsi, newShip.voyageId);
       this.shipData.set(mmsi, this.convertToMarineTrafficFormat(newShip, mmsi));
@@ -380,7 +380,7 @@ class MockApiService {
   }
 
   getRandomShipType() {
-    return config.ship.shipTypes[Math.floor(Math.random() * config.ship.shipTypes.length)];
+    return config.vessel.vesselTypes[Math.floor(Math.random() * config.vessel.vesselTypes.length)].type;
   }
 
   getRandomAircraftType() {
@@ -401,7 +401,7 @@ class MockApiService {
 
   // Add new ship manually
   addShip(shipData) {
-    const newShip = this.movementSimulator.createNewShip();
+    const newShip = this.movementSimulator.createNewVessel();
     // Override with custom data if provided
     Object.assign(newShip, shipData);
     
@@ -759,7 +759,7 @@ class MockApiService {
       },
       movementSimulator: {
         activeFlights: this.movementSimulator.getAllActiveFlights().length,
-        activeShips: this.movementSimulator.getAllActiveShips().length
+        activeShips: this.movementSimulator.getAllActiveVessels().length
       }
     };
   }
