@@ -43,7 +43,6 @@ public class RawDataController {
     @Operation(summary = "Get raw data statistics", description = "Get comprehensive statistics about raw data from all external sources")
     public ResponseEntity<MyApiResponse<Map<String, Object>>> getRawDataStatistics(
             @Parameter(description = "Start time for statistics period") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-
             @Parameter(description = "End time for statistics period") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
 
         try {
@@ -54,16 +53,12 @@ public class RawDataController {
 
             Map<String, Object> statistics = rawDataStorageService.getRawDataStatistics(start, end);
 
-            return ResponseEntity.ok(MyApiResponse.<Map<String, Object>>builder()
-                    .result(statistics)
-                    .message("Raw data statistics retrieved successfully")
-                    .build());
+            return ResponseEntity.ok(MyApiResponse.success(statistics, "Raw data statistics retrieved successfully"));
 
         } catch (Exception e) {
             log.error("Error retrieving raw data statistics: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<Map<String, Object>>builder()
-                    .error("Failed to retrieve statistics: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to retrieve statistics: " + e.getMessage()));
         }
     }
 
@@ -74,9 +69,7 @@ public class RawDataController {
     @Operation(summary = "Get raw aircraft data by source", description = "Retrieve raw aircraft data from a specific external source")
     public ResponseEntity<MyApiResponse<Page<RawAircraftData>>> getRawAircraftData(
             @Parameter(description = "Data source name (flightradar24, adsbexchange)") @PathVariable String source,
-
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
 
         try {
@@ -84,16 +77,11 @@ public class RawDataController {
             Page<RawAircraftData> data = rawAircraftDataRepository.findByDataSourceOrderByReceivedAtDesc(source,
                     pageable);
 
-            return ResponseEntity.ok(MyApiResponse.<Page<RawAircraftData>>builder()
-                    .result(data)
-                    .message("Raw aircraft data retrieved successfully")
-                    .build());
+            return ResponseEntity.ok(MyApiResponse.success(data, "Raw aircraft data retrieved successfully"));
 
         } catch (Exception e) {
             log.error("Error retrieving raw aircraft data for source {}: {}", source, e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<Page<RawAircraftData>>builder()
-                    .error("Failed to retrieve data: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest().body(MyApiResponse.error("Failed to retrieve data: " + e.getMessage()));
         }
     }
 
@@ -104,25 +92,18 @@ public class RawDataController {
     @Operation(summary = "Get raw vessel data by source", description = "Retrieve raw vessel data from a specific external source")
     public ResponseEntity<MyApiResponse<Page<RawVesselData>>> getRawVesselData(
             @Parameter(description = "Data source name (marinetraffic, vesselfinder, chinaports, marinetrafficv2)") @PathVariable String source,
-
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
 
         try {
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "receivedAt"));
             Page<RawVesselData> data = rawVesselDataRepository.findByDataSourceOrderByReceivedAtDesc(source, pageable);
 
-            return ResponseEntity.ok(MyApiResponse.<Page<RawVesselData>>builder()
-                    .result(data)
-                    .message("Raw vessel data retrieved successfully")
-                    .build());
+            return ResponseEntity.ok(MyApiResponse.success(data, "Raw vessel data retrieved successfully"));
 
         } catch (Exception e) {
             log.error("Error retrieving raw vessel data for source {}: {}", source, e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<Page<RawVesselData>>builder()
-                    .error("Failed to retrieve data: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest().body(MyApiResponse.error("Failed to retrieve data: " + e.getMessage()));
         }
     }
 
@@ -133,7 +114,6 @@ public class RawDataController {
     @Operation(summary = "Get data quality analysis", description = "Analyze data quality metrics from all external sources")
     public ResponseEntity<MyApiResponse<Map<String, Object>>> getDataQualityAnalysis(
             @Parameter(description = "Start time for analysis period") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-
             @Parameter(description = "End time for analysis period") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
 
         try {
@@ -154,16 +134,12 @@ public class RawDataController {
                     "aircraftResponseTime", aircraftResponseTime,
                     "vesselResponseTime", vesselResponseTime);
 
-            return ResponseEntity.ok(MyApiResponse.<Map<String, Object>>builder()
-                    .result(analysis)
-                    .message("Data quality analysis completed successfully")
-                    .build());
+            return ResponseEntity.ok(MyApiResponse.success(analysis, "Data quality analysis completed successfully"));
 
         } catch (Exception e) {
             log.error("Error performing data quality analysis: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<Map<String, Object>>builder()
-                    .error("Failed to analyze data quality: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to analyze data quality: " + e.getMessage()));
         }
     }
 
@@ -182,16 +158,12 @@ public class RawDataController {
                     "aircraftSources", aircraftHealth,
                     "vesselSources", vesselHealth);
 
-            return ResponseEntity.ok(MyApiResponse.<Map<String, Object>>builder()
-                    .result(health)
-                    .message("Source health status retrieved successfully")
-                    .build());
+            return ResponseEntity.ok(MyApiResponse.success(health, "Source health status retrieved successfully"));
 
         } catch (Exception e) {
             log.error("Error retrieving source health: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<Map<String, Object>>builder()
-                    .error("Failed to retrieve source health: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to retrieve source health: " + e.getMessage()));
         }
     }
 
@@ -202,7 +174,6 @@ public class RawDataController {
     @Operation(summary = "Find duplicate aircraft records", description = "Find duplicate records for a specific aircraft across all sources")
     public ResponseEntity<MyApiResponse<List<RawAircraftData>>> findAircraftDuplicates(
             @Parameter(description = "Aircraft hexident") @PathVariable String hexident,
-
             @Parameter(description = "Hours to look back for duplicates") @RequestParam(defaultValue = "24") int hours) {
 
         try {
@@ -212,16 +183,13 @@ public class RawDataController {
             List<RawAircraftData> duplicates = rawAircraftDataRepository
                     .findDuplicatesForAircraft(hexident, start, end);
 
-            return ResponseEntity.ok(MyApiResponse.<List<RawAircraftData>>builder()
-                    .result(duplicates)
-                    .message("Duplicate aircraft records found: " + duplicates.size())
-                    .build());
+            return ResponseEntity
+                    .ok(MyApiResponse.success(duplicates, "Duplicate aircraft records found: " + duplicates.size()));
 
         } catch (Exception e) {
             log.error("Error finding aircraft duplicates for {}: {}", hexident, e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<List<RawAircraftData>>builder()
-                    .error("Failed to find duplicates: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to find duplicates: " + e.getMessage()));
         }
     }
 
@@ -232,7 +200,6 @@ public class RawDataController {
     @Operation(summary = "Find duplicate vessel records", description = "Find duplicate records for a specific vessel across all sources")
     public ResponseEntity<MyApiResponse<List<RawVesselData>>> findVesselDuplicates(
             @Parameter(description = "Vessel MMSI") @PathVariable String mmsi,
-
             @Parameter(description = "Hours to look back for duplicates") @RequestParam(defaultValue = "24") int hours) {
 
         try {
@@ -242,16 +209,13 @@ public class RawDataController {
             List<RawVesselData> duplicates = rawVesselDataRepository
                     .findDuplicatesForVessel(mmsi, start, end);
 
-            return ResponseEntity.ok(MyApiResponse.<List<RawVesselData>>builder()
-                    .result(duplicates)
-                    .message("Duplicate vessel records found: " + duplicates.size())
-                    .build());
+            return ResponseEntity
+                    .ok(MyApiResponse.success(duplicates, "Duplicate vessel records found: " + duplicates.size()));
 
         } catch (Exception e) {
             log.error("Error finding vessel duplicates for {}: {}", mmsi, e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<List<RawVesselData>>builder()
-                    .error("Failed to find duplicates: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to find duplicates: " + e.getMessage()));
         }
     }
 
@@ -264,16 +228,13 @@ public class RawDataController {
         try {
             rawDataStorageService.cleanupOldRawData();
 
-            return ResponseEntity.ok(MyApiResponse.<String>builder()
-                    .result("Cleanup completed")
-                    .message("Raw data cleanup triggered successfully")
-                    .build());
+            return ResponseEntity
+                    .ok(MyApiResponse.success("Cleanup completed", "Raw data cleanup triggered successfully"));
 
         } catch (Exception e) {
             log.error("Error triggering raw data cleanup: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.<String>builder()
-                    .error("Failed to trigger cleanup: " + e.getMessage())
-                    .build());
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to trigger cleanup: " + e.getMessage()));
         }
     }
 }
