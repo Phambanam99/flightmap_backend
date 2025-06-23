@@ -36,7 +36,7 @@ public class RawAircraftData {
     private Long apiResponseTime;
 
     // Aircraft identification
-    @Column(name = "hexident", length = 10)
+    @Column(name = "hexident", length = 20)
     private String hexident;
 
     @Column(name = "callsign", length = 20)
@@ -45,7 +45,7 @@ public class RawAircraftData {
     @Column(name = "registration", length = 20)
     private String registration;
 
-    @Column(name = "aircraft_type", length = 10)
+    @Column(name = "aircraft_type", length = 20)
     private String aircraftType;
 
     // Position data
