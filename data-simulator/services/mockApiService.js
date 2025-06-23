@@ -47,15 +47,23 @@ class MockApiService {
   }
 
   startDataUpdates() {
+    // Debug config
+    console.log('🔧 Config check:', {
+      flightradar24: config.mockApis?.flightradar24?.updateInterval,
+      marinetraffic: config.mockApis?.marinetraffic?.updateInterval,
+      configExists: !!config,
+      mockApisExists: !!config.mockApis
+    });
+
     // Update flight data every 30 seconds
     setInterval(() => {
       this.updateFlightData();
-    }, config.mockApis.flightradar24.updateInterval);
+    }, config.mockApis.flightradar24.updateInterval || 30000);
 
     // Update ship data every 60 seconds
     setInterval(() => {
       this.updateShipData();
-    }, config.mockApis.marinetraffic.updateInterval);
+    }, config.mockApis.marinetraffic.updateInterval || 60000);
   }
 
   updateFlightData() {
