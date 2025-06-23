@@ -69,7 +69,7 @@ public class AdsbExchangeApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("AdsbExchange", DataSourceType.FLIGHT_RADAR);
+        DataSource dataSource = getOrCreateDataSource("AdsbExchange", DataSourceType.ADS_B);
 
         try {
             log.debug("Fetching aircraft data from ADS-B Exchange API...");

@@ -69,7 +69,7 @@ public class VesselFinderApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("VesselFinder", DataSourceType.MARINE_TRAFFIC);
+        DataSource dataSource = getOrCreateDataSource("VesselFinder", DataSourceType.VESSEL_FINDER);
 
         try {
             log.debug("Fetching vessel data from VesselFinder API...");

@@ -69,7 +69,7 @@ public class ChinaportsApiService {
             return CompletableFuture.completedFuture(List.of());
         }
 
-        DataSource dataSource = getOrCreateDataSource("Chinaports", DataSourceType.MARINE_TRAFFIC);
+        DataSource dataSource = getOrCreateDataSource("Chinaports", DataSourceType.SHIP_TRACKING);
 
         try {
             log.debug("Fetching vessel data from Chinaports API...");
