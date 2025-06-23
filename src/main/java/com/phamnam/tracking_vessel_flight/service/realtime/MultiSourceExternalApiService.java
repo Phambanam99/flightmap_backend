@@ -24,10 +24,8 @@ public class MultiSourceExternalApiService {
     // New API services
     private final ChinaportsApiService chinaportsApiService;
     private final MarineTrafficV2ApiService marineTrafficV2ApiService;
-
-    // TODO: Add new API services when implemented
-    // private final AdsbExchangeApiService adsbExchangeService;
-    // private final VesselFinderApiService vesselFinderService;
+    private final AdsbExchangeApiService adsbExchangeApiService;
+    private final VesselFinderApiService vesselFinderApiService;
 
     /**
      * Collect aircraft data from all available sources
@@ -39,8 +37,8 @@ public class MultiSourceExternalApiService {
         // Existing FlightRadar24 API
         futures.put("flightradar24", externalApiService.fetchAircraftData());
 
-        // TODO: Add new API sources
-        // futures.put("adsbexchange", adsbExchangeService.fetchAircraftData());
+        // New aircraft API sources
+        futures.put("adsbexchange", adsbExchangeApiService.fetchAircraftData());
 
         // Wait for all futures to complete
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
@@ -81,12 +79,10 @@ public class MultiSourceExternalApiService {
         // Existing MarineTraffic API
         futures.put("marinetraffic", externalApiService.fetchVesselData());
 
-        // New API sources
+        // New vessel API sources
         futures.put("chinaports", chinaportsApiService.fetchVesselData());
         futures.put("marinetrafficv2", marineTrafficV2ApiService.fetchVesselData());
-
-        // TODO: Add new API sources
-        // futures.put("vesselfinder", vesselFinderService.fetchVesselData());
+        futures.put("vesselfinder", vesselFinderApiService.fetchVesselData());
 
         // Wait for all futures to complete
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
@@ -162,21 +158,20 @@ public class MultiSourceExternalApiService {
         // Get existing API status
         status.put("currentSources", externalApiService.getApiStatus());
 
-        // New API sources status
+        // All new API sources status
         status.put("newSources", Map.of(
+                "adsbexchange", adsbExchangeApiService.getAdsbExchangeStatus(),
+                "vesselfinder", vesselFinderApiService.getVesselFinderStatus(),
                 "chinaports", chinaportsApiService.getChinaportsStatus(),
                 "marinetrafficv2", marineTrafficV2ApiService.getMarineTrafficV2Status()));
-
-        // TODO: Add status for future APIs
-        status.put("additionalSources", Map.of(
-                "adsbexchange", Map.of("enabled", false, "status", "Not implemented"),
-                "vesselfinder", Map.of("enabled", false, "status", "Not implemented")));
 
         // Fusion service status
         status.put("dataFusion", Map.of(
                 "enabled", true,
                 "deduplicationEnabled", true,
-                "activeSources", 4 // MarineTraffic, Chinaports, MarineTrafficV2, plus future ones
+                "activeSources", 6, // FlightRadar24, AdsB, MarineTraffic, VesselFinder, Chinaports, MarineTrafficV2
+                "aircraftSources", 2, // FlightRadar24, AdsB Exchange
+                "vesselSources", 4 // MarineTraffic, VesselFinder, Chinaports, MarineTrafficV2
         ));
 
         return status;

@@ -8,15 +8,15 @@ Hệ thống tracking vessel/flight hỗ trợ tích hợp và hợp nhất dữ
 
 ### 1. **External API Sources**
 
-#### Đã triển khai:
-- **FlightRadar24**: Dữ liệu máy bay realtime
-- **MarineTraffic**: Dữ liệu tàu thủy realtime
-- **Chinaports**: Dữ liệu tàu thủy từ các cảng Trung Quốc
-- **MarineTraffic V2**: Phiên bản nâng cấp của MarineTraffic
+#### ✈️ Aircraft Sources (2):
+- **FlightRadar24**: Dữ liệu máy bay realtime (Priority 1)
+- **ADS-B Exchange**: Community-driven ADS-B data (Priority 2)
 
-#### Sẵn sàng tích hợp:
-- **ADS-B Exchange**: Nguồn dữ liệu máy bay bổ sung
-- **VesselFinder**: Nguồn dữ liệu tàu thủy bổ sung
+#### 🚢 Vessel Sources (4):
+- **MarineTraffic**: Dữ liệu tàu thủy realtime (Priority 1)
+- **VesselFinder**: Global vessel tracking (Priority 2) 
+- **Chinaports**: Dữ liệu tàu thủy từ các cảng Trung Quốc (Priority 3)
+- **MarineTraffic V2**: Phiên bản nâng cấp của MarineTraffic (Priority 4)
 
 ### 2. **Data Fusion Service**
 
@@ -131,6 +131,20 @@ Response:
     }
   },
   "newSources": {
+    "adsbexchange": {
+      "enabled": true,
+      "available": true,
+      "coverage": "Global ADS-B data with focus on US/Europe",
+      "dataSource": "Community-driven ADS-B receivers",
+      "priority": 2
+    },
+    "vesselfinder": {
+      "enabled": true,
+      "available": true,
+      "coverage": "Global vessel tracking with enhanced commercial vessel data",
+      "specialization": "Focus on commercial and cargo vessels",
+      "priority": 2
+    },
     "chinaports": {
       "enabled": true,
       "available": true,
@@ -145,20 +159,12 @@ Response:
       "priority": 4
     }
   },
-  "additionalSources": {
-    "adsbexchange": {
-      "enabled": false,
-      "status": "Not implemented"
-    },
-    "vesselfinder": {
-      "enabled": false,
-      "status": "Not implemented"
-    }
-  },
   "dataFusion": {
     "enabled": true,
     "deduplicationEnabled": true,
-    "activeSources": 4
+    "activeSources": 6,
+    "aircraftSources": 2,
+    "vesselSources": 4
   }
 }
 ```
