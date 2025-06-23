@@ -183,23 +183,25 @@ public class ExternalApiService {
 
     private AircraftTrackingRequest parseAircraftFromFlightRadar24(String key, JsonNode data) {
         try {
+            // FlightRadar24 array format: [hexident, lat, lon, heading, alt, speed, squawk,
+            // ...]
+            String squawk = getArrayElementTextSafely(data, 6);
+
             return AircraftTrackingRequest.builder()
                     .hexident(key)
-                    .latitude(data.get(1) != null ? data.get(1).asDouble() : null)
-                    .longitude(data.get(2) != null ? data.get(2).asDouble() : null)
-                    .track(data.get(3) != null ? data.get(3).asInt() : null)
-                    .altitude(data.get(4) != null ? data.get(4).asInt() : null)
-                    .groundSpeed(data.get(5) != null ? data.get(5).asInt() : null)
-                    .squawk(data.get(6) != null ? data.get(6).asText() : null)
-                    .aircraftType(data.get(8) != null ? data.get(8).asText() : null)
-                    .registration(data.get(9) != null ? data.get(9).asText() : null)
+                    .latitude(getArrayElementDoubleSafely(data, 1))
+                    .longitude(getArrayElementDoubleSafely(data, 2))
+                    .track(getArrayElementIntegerSafely(data, 3))
+                    .altitude(getArrayElementIntegerSafely(data, 4))
+                    .groundSpeed(getArrayElementIntegerSafely(data, 5))
+                    .squawk(squawk)
+                    .aircraftType(getArrayElementTextSafely(data, 8))
+                    .registration(getArrayElementTextSafely(data, 9))
                     .timestamp(LocalDateTime.now())
-                    .onGround(data.get(14) != null ? data.get(14).asBoolean() : false)
-                    .verticalRate(data.get(15) != null ? data.get(15).asInt() : null)
-                    .callsign(data.get(16) != null ? data.get(16).asText() : null)
-                    .emergency("7500".equals(data.get(6) != null ? data.get(6).asText() : null) ||
-                            "7600".equals(data.get(6) != null ? data.get(6).asText() : null) ||
-                            "7700".equals(data.get(6) != null ? data.get(6).asText() : null))
+                    .onGround(getArrayElementBooleanSafely(data, 14))
+                    .verticalRate(getArrayElementIntegerSafely(data, 15))
+                    .callsign(getArrayElementTextSafely(data, 16))
+                    .emergency("7500".equals(squawk) || "7600".equals(squawk) || "7700".equals(squawk))
                     .dataQuality(0.8) // FlightRadar24 usually has good data quality
                     .build();
         } catch (Exception e) {
@@ -314,23 +316,23 @@ public class ExternalApiService {
     private VesselTrackingRequest parseVesselFromMarineTraffic(JsonNode data) {
         try {
             return VesselTrackingRequest.builder()
-                    .mmsi(data.get("MMSI").asText())
-                    .latitude(data.get("LAT").asDouble())
-                    .longitude(data.get("LON").asDouble())
-                    .speed(data.get("SPEED").asDouble())
-                    .course(data.get("COURSE").asInt())
-                    .heading(data.get("HEADING").asInt())
-                    .navigationStatus(data.get("NAVSTAT").asText())
-                    .vesselName(data.get("SHIPNAME").asText())
-                    .vesselType(data.get("SHIPTYPE").asText())
-                    .imo(data.get("IMO").asText())
-                    .callsign(data.get("CALLSIGN").asText())
-                    .flag(data.get("FLAG").asText())
-                    .length(data.get("LENGTH").asInt())
-                    .width(data.get("WIDTH").asInt())
-                    .draught(data.get("DRAUGHT").asDouble())
-                    .destination(data.get("DESTINATION").asText())
-                    .eta(data.get("ETA").asText())
+                    .mmsi(getTextSafely(data, "MMSI"))
+                    .latitude(getDoubleSafely(data, "LAT"))
+                    .longitude(getDoubleSafely(data, "LON"))
+                    .speed(getDoubleSafely(data, "SPEED"))
+                    .course(getIntegerSafely(data, "COURSE"))
+                    .heading(getIntegerSafely(data, "HEADING"))
+                    .navigationStatus(getTextSafely(data, "STATUS")) // Use STATUS instead of NAVSTAT
+                    .vesselName(getTextSafely(data, "SHIPNAME"))
+                    .vesselType(getTextSafely(data, "SHIPTYPE"))
+                    .imo(getTextSafely(data, "IMO"))
+                    .callsign(getTextSafely(data, "CALLSIGN"))
+                    .flag(getTextSafely(data, "FLAG"))
+                    .length(getIntegerSafely(data, "LENGTH"))
+                    .width(getIntegerSafely(data, "WIDTH"))
+                    .draught(getDoubleSafely(data, "DRAUGHT"))
+                    .destination(getTextSafely(data, "DESTINATION"))
+                    .eta(getTextSafely(data, "ETA"))
                     .timestamp(LocalDateTime.now())
                     .dataQuality(0.90) // MarineTraffic generally has good quality data
                     .build();
@@ -515,5 +517,58 @@ public class ExternalApiService {
             log.debug("Endpoint {} not available: {}", baseUrl + path, e.getMessage());
             return false;
         }
+    }
+
+    // ============================================================================
+    // NULL-SAFE JSON PARSING UTILITIES
+    // ============================================================================
+
+    // For object-based JSON (vessels)
+    private String getTextSafely(JsonNode node, String fieldName) {
+        JsonNode field = node.get(fieldName);
+        return (field != null && !field.isNull()) ? field.asText() : null;
+    }
+
+    private Double getDoubleSafely(JsonNode node, String fieldName) {
+        JsonNode field = node.get(fieldName);
+        return (field != null && !field.isNull()) ? field.asDouble() : null;
+    }
+
+    private Integer getIntegerSafely(JsonNode node, String fieldName) {
+        JsonNode field = node.get(fieldName);
+        return (field != null && !field.isNull()) ? field.asInt() : null;
+    }
+
+    // For array-based JSON (aircraft)
+    private String getArrayElementTextSafely(JsonNode array, int index) {
+        if (array.isArray() && array.size() > index) {
+            JsonNode element = array.get(index);
+            return (element != null && !element.isNull()) ? element.asText() : null;
+        }
+        return null;
+    }
+
+    private Double getArrayElementDoubleSafely(JsonNode array, int index) {
+        if (array.isArray() && array.size() > index) {
+            JsonNode element = array.get(index);
+            return (element != null && !element.isNull()) ? element.asDouble() : null;
+        }
+        return null;
+    }
+
+    private Integer getArrayElementIntegerSafely(JsonNode array, int index) {
+        if (array.isArray() && array.size() > index) {
+            JsonNode element = array.get(index);
+            return (element != null && !element.isNull()) ? element.asInt() : null;
+        }
+        return null;
+    }
+
+    private Boolean getArrayElementBooleanSafely(JsonNode array, int index) {
+        if (array.isArray() && array.size() > index) {
+            JsonNode element = array.get(index);
+            return (element != null && !element.isNull()) ? element.asBoolean() : false;
+        }
+        return false;
     }
 }

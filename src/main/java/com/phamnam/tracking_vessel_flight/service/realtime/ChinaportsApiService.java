@@ -227,17 +227,7 @@ public class ChinaportsApiService {
      */
     private void updateDataSourceStatus(DataSource dataSource, SourceStatus status, String message) {
         try {
-            if (status == SourceStatus.HEALTHY) {
-                dataSource.setLastSuccessTime(LocalDateTime.now());
-                dataSource.setConsecutiveFailures(0);
-                dataSource.setIsActive(true);
-            } else {
-                dataSource.setConsecutiveFailures(dataSource.getConsecutiveFailures() + 1);
-                if (dataSource.getConsecutiveFailures() >= 3) {
-                    dataSource.setIsActive(false);
-                }
-            }
-            dataSourceRepository.save(dataSource);
+            MarineTrafficV2ApiService.checkHealthSource(dataSource, status, dataSourceRepository);
 
             DataSourceStatus statusRecord = DataSourceStatus.builder()
                     .dataSource(dataSource)

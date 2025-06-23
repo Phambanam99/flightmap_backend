@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -35,46 +36,52 @@ public class MultiSourceExternalApiService {
     public CompletableFuture<List<AircraftTrackingRequest>> collectAllAircraftData() {
         Map<String, CompletableFuture<List<AircraftTrackingRequest>>> futures = new HashMap<>();
 
-        // Existing FlightRadar24 API
-        futures.put("flightradar24", externalApiService.fetchAircraftData());
-
-        // New aircraft API sources
-        futures.put("adsbexchange", adsbExchangeApiService.fetchAircraftData());
-
-        // Wait for all futures to complete
+        // Đặt timeout để tránh treo lâu
+        futures.put("flightradar24", externalApiService.fetchAircraftData().orTimeout(10, TimeUnit.SECONDS));
+        futures.put("adsbexchange", adsbExchangeApiService.fetchAircraftData().orTimeout(10, TimeUnit.SECONDS));
+        // khi can them nguan
+        //futures.put("anotherApi", anotherApiService.fetchAircraftData().orTimeout(10, TimeUnit.SECONDS));
+        // Chờ tất cả hoàn thành
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
                 futures.values().toArray(new CompletableFuture[0]));
 
         return allFutures.thenApply(v -> {
             Map<String, List<AircraftTrackingRequest>> dataBySource = new HashMap<>();
 
-            // Collect results from each source and store raw data
             futures.forEach((source, future) -> {
-                try {
-                    long startTime = System.currentTimeMillis();
-                    List<AircraftTrackingRequest> data = future.join();
-                    long responseTime = System.currentTimeMillis() - startTime;
-
-                    if (data != null && !data.isEmpty()) {
-                        dataBySource.put(source, data);
-                        log.info("Collected {} aircraft from {}", data.size(), source);
-
-                        // Store raw data for audit and analysis
-                        String apiEndpoint = getAircraftApiEndpoint(source);
-                        rawDataStorageService.storeRawAircraftData(source, data, apiEndpoint, responseTime);
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to get data from {}: {}", source, e.getMessage());
+                List<AircraftTrackingRequest> data = safeGetAndStore(source, future);
+                if (!data.isEmpty()) {
+                    dataBySource.put(source, data);
                 }
             });
 
-            // Merge data using fusion service
             if (dataBySource.isEmpty()) {
-                return new ArrayList<>();
+                return Collections.emptyList();
             }
 
             return dataFusionService.mergeAircraftData(dataBySource);
         });
+    }
+    private List<AircraftTrackingRequest> safeGetAndStore(String source, CompletableFuture<List<AircraftTrackingRequest>> future) {
+        try {
+            long startTime = System.currentTimeMillis();
+            List<AircraftTrackingRequest> data = future.join();
+            long duration = System.currentTimeMillis() - startTime;
+
+            if (data != null && !data.isEmpty()) {
+                log.info("Collected {} aircraft from {}", data.size(), source);
+
+                String apiEndpoint = getAircraftApiEndpoint(source);
+                rawDataStorageService.storeRawAircraftData(source, data, apiEndpoint, duration);
+
+                return data;
+            }
+        } catch (Exception e) {
+            Throwable root = (e.getCause() != null) ? e.getCause() : e;
+            log.error("Failed to get data from {}: {}", source, root.getMessage(), root);
+        }
+
+        return Collections.emptyList();
     }
 
     /**
@@ -84,49 +91,55 @@ public class MultiSourceExternalApiService {
     public CompletableFuture<List<VesselTrackingRequest>> collectAllVesselData() {
         Map<String, CompletableFuture<List<VesselTrackingRequest>>> futures = new HashMap<>();
 
-        // Existing MarineTraffic API
-        futures.put("marinetraffic", externalApiService.fetchVesselData());
+        // Các API nguồn dữ liệu tàu thuyền, có timeout để tránh treo
+        futures.put("marinetraffic", externalApiService.fetchVesselData().orTimeout(10, TimeUnit.SECONDS));
+        futures.put("chinaports", chinaportsApiService.fetchVesselData().orTimeout(10, TimeUnit.SECONDS));
+        futures.put("marinetrafficv2", marineTrafficV2ApiService.fetchVesselData().orTimeout(10, TimeUnit.SECONDS));
+        futures.put("vesselfinder", vesselFinderApiService.fetchVesselData().orTimeout(10, TimeUnit.SECONDS));
 
-        // New vessel API sources
-        futures.put("chinaports", chinaportsApiService.fetchVesselData());
-        futures.put("marinetrafficv2", marineTrafficV2ApiService.fetchVesselData());
-        futures.put("vesselfinder", vesselFinderApiService.fetchVesselData());
-
-        // Wait for all futures to complete
+        // Chờ tất cả hoàn thành
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
                 futures.values().toArray(new CompletableFuture[0]));
 
         return allFutures.thenApply(v -> {
             Map<String, List<VesselTrackingRequest>> dataBySource = new HashMap<>();
 
-            // Collect results from each source and store raw data
             futures.forEach((source, future) -> {
-                try {
-                    long startTime = System.currentTimeMillis();
-                    List<VesselTrackingRequest> data = future.join();
-                    long responseTime = System.currentTimeMillis() - startTime;
-
-                    if (data != null && !data.isEmpty()) {
-                        dataBySource.put(source, data);
-                        log.info("Collected {} vessels from {}", data.size(), source);
-
-                        // Store raw data for audit and analysis
-                        String apiEndpoint = getVesselApiEndpoint(source);
-                        rawDataStorageService.storeRawVesselData(source, data, apiEndpoint, responseTime);
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to get data from {}: {}", source, e.getMessage());
+                List<VesselTrackingRequest> data = safeGetAndStoreVessel(source, future);
+                if (!data.isEmpty()) {
+                    dataBySource.put(source, data);
                 }
             });
 
-            // Merge data using fusion service
             if (dataBySource.isEmpty()) {
-                return new ArrayList<>();
+                return Collections.emptyList();
             }
 
             return dataFusionService.mergeVesselData(dataBySource);
         });
     }
+    private List<VesselTrackingRequest> safeGetAndStoreVessel(String source, CompletableFuture<List<VesselTrackingRequest>> future) {
+        try {
+            long startTime = System.currentTimeMillis();
+            List<VesselTrackingRequest> data = future.join();
+            long duration = System.currentTimeMillis() - startTime;
+
+            if (data != null && !data.isEmpty()) {
+                log.info("Collected {} vessels from {}", data.size(), source);
+
+                String apiEndpoint = getVesselApiEndpoint(source);
+                rawDataStorageService.storeRawVesselData(source, data, apiEndpoint, duration);
+
+                return data;
+            }
+        } catch (Exception e) {
+            Throwable root = (e.getCause() != null) ? e.getCause() : e;
+            log.error("Failed to get vessel data from {}: {}", source, root.getMessage(), root);
+        }
+
+        return Collections.emptyList();
+    }
+
 
     /**
      * Scheduled task to collect and process data from all sources

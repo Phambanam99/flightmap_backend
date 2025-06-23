@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -122,7 +123,7 @@ public class MarineTrafficV2ApiService {
             String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
                     minLatitude, maxLatitude, minLongitude, maxLongitude);
             return String.format("%s?bounds=%s", marineTrafficV2BaseUrl,
-                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+                    java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
             return marineTrafficV2BaseUrl;
@@ -165,6 +166,7 @@ public class MarineTrafficV2ApiService {
      * Parse individual vessel data from MarineTraffic V2 format
      */
     private VesselTrackingRequest parseVesselFromMarineTrafficV2(JsonNode data) {
+
         try {
             return VesselTrackingRequest.builder()
                     .mmsi(data.get("MMSI") != null ? data.get("MMSI").asText()
@@ -249,17 +251,7 @@ public class MarineTrafficV2ApiService {
      */
     private void updateDataSourceStatus(DataSource dataSource, SourceStatus status, String message) {
         try {
-            if (status == SourceStatus.HEALTHY) {
-                dataSource.setLastSuccessTime(LocalDateTime.now());
-                dataSource.setConsecutiveFailures(0);
-                dataSource.setIsActive(true);
-            } else {
-                dataSource.setConsecutiveFailures(dataSource.getConsecutiveFailures() + 1);
-                if (dataSource.getConsecutiveFailures() >= 3) {
-                    dataSource.setIsActive(false);
-                }
-            }
-            dataSourceRepository.save(dataSource);
+            checkHealthSource(dataSource, status, dataSourceRepository);
 
             DataSourceStatus statusRecord = DataSourceStatus.builder()
                     .dataSource(dataSource)
@@ -271,6 +263,20 @@ public class MarineTrafficV2ApiService {
         } catch (Exception e) {
             log.error("Failed to update MarineTraffic V2 data source status", e);
         }
+    }
+
+    static void checkHealthSource(DataSource dataSource, SourceStatus status, DataSourceRepository dataSourceRepository) {
+        if (status == SourceStatus.HEALTHY) {
+            dataSource.setLastSuccessTime(LocalDateTime.now());
+            dataSource.setConsecutiveFailures(0);
+            dataSource.setIsActive(true);
+        } else {
+            dataSource.setConsecutiveFailures(dataSource.getConsecutiveFailures() + 1);
+            if (dataSource.getConsecutiveFailures() >= 3) {
+                dataSource.setIsActive(false);
+            }
+        }
+        dataSourceRepository.save(dataSource);
     }
 
     /**

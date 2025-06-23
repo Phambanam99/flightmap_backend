@@ -52,8 +52,10 @@ public class RealTimeDataProcessor {
     // SCHEDULED DATA COLLECTION
     // ============================================================================
 
-    @Scheduled(fixedRate = 30000) // Every 30 seconds
-    @Async
+    // DISABLED: Now handled by MultiSourceExternalApiService with 6 sources + data
+    // fusion
+    // @Scheduled(fixedRate = 30000) // Every 30 seconds
+    // @Async
     public void collectAndProcessRealTimeData() {
         log.debug("Starting real-time data collection...");
 
@@ -126,7 +128,7 @@ public class RealTimeDataProcessor {
             try {
                 // Create or update aircraft
                 Aircraft aircraft = createOrUpdateAircraft(request);
-
+                // Flight flight = createOrUpdateFlight(request);
                 // Create tracking record
                 FlightTracking tracking = createFlightTracking(request, aircraft);
 
