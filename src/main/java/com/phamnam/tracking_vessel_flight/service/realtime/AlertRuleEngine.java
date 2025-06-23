@@ -39,7 +39,7 @@ public class AlertRuleEngine {
         LocalDateTime recentThreshold = LocalDateTime.now().minusMinutes(5); // Check last 5 minutes
 
         return alertEventRepository.existsByAlertRuleAndEntityTypeAndEntityIdAndEventTimeAfterAndStatus(
-                rule, entityType, entityId, recentThreshold, AlertStatus.ACTIVE);
+                rule, convertToModelsEntityType(entityType), entityId, recentThreshold, AlertStatus.ACTIVE);
     }
 
     // ============================================================================
@@ -55,7 +55,7 @@ public class AlertRuleEngine {
 
         if (cachedRules == null) {
             // Convert TrackingPoint.EntityType to models.enums.EntityType
-            EntityType ruleEntityType = convertEntityType(entityType);
+            EntityType ruleEntityType = convertToModelsEntityType(entityType);
             cachedRules = alertRuleRepository.findByIsEnabledTrueAndEntityTypeOrderByPriorityDesc(ruleEntityType);
             ruleCache.put(cacheKey, cachedRules);
         }
@@ -64,7 +64,7 @@ public class AlertRuleEngine {
     }
 
     // Convert between entity type enums
-    private EntityType convertEntityType(TrackingPoint.EntityType trackingType) {
+    private EntityType convertToModelsEntityType(TrackingPoint.EntityType trackingType) {
         switch (trackingType) {
             case AIRCRAFT:
                 return EntityType.AIRCRAFT;
@@ -72,6 +72,18 @@ public class AlertRuleEngine {
                 return EntityType.VESSEL;
             default:
                 throw new IllegalArgumentException("Unsupported entity type: " + trackingType);
+        }
+    }
+
+    // Convert from models.enums.EntityType to TrackingPoint.EntityType
+    private TrackingPoint.EntityType convertToTrackingPointEntityType(EntityType modelsType) {
+        switch (modelsType) {
+            case AIRCRAFT:
+                return TrackingPoint.EntityType.AIRCRAFT;
+            case VESSEL:
+                return TrackingPoint.EntityType.VESSEL;
+            default:
+                throw new IllegalArgumentException("Unsupported entity type: " + modelsType);
         }
     }
 
@@ -112,6 +124,15 @@ public class AlertRuleEngine {
         return alertEvent;
     }
 
+    // Overloaded method to accept models.enums.EntityType for compatibility
+    @Transactional
+    public AlertEvent createManualAlert(EntityType entityType, String entityId,
+            AlertRule.Priority priority, String message,
+            Double latitude, Double longitude) {
+        return createManualAlert(convertToTrackingPointEntityType(entityType), entityId, priority, message, latitude,
+                longitude);
+    }
+
     @Transactional
     public void resolveAlert(Long alertId, String resolution) {
         alertEventRepository.findById(alertId).ifPresent(alert -> {
@@ -127,6 +148,13 @@ public class AlertRuleEngine {
     }
 
     public List<AlertEvent> getAlertsByEntity(TrackingPoint.EntityType entityType, String entityId) {
-        return alertEventRepository.findByEntityTypeAndEntityIdOrderByEventTimeDesc(entityType, entityId);
+        return alertEventRepository
+                .findByEntityTypeAndEntityIdOrderByEventTimeDesc(convertToModelsEntityType(entityType), entityId);
+    }
+
+    // Overloaded method to accept models.enums.EntityType for compatibility with
+    // controllers
+    public List<AlertEvent> getAlertsByEntity(EntityType entityType, String entityId) {
+        return getAlertsByEntity(convertToTrackingPointEntityType(entityType), entityId);
     }
 }
