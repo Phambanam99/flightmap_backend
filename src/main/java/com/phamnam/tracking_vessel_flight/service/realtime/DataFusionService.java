@@ -163,15 +163,16 @@ public class DataFusionService {
         // Calculate average position if multiple recent sources
         List<AircraftDataPoint> recentPoints = dataPoints.stream()
                 .filter(p -> ChronoUnit.SECONDS.between(p.timestamp, LocalDateTime.now()) < 30)
+                .filter(p -> p.data.getLatitude() != null && p.data.getLongitude() != null)
                 .collect(Collectors.toList());
 
         if (recentPoints.size() > 1) {
             double avgLat = recentPoints.stream()
                     .mapToDouble(p -> p.data.getLatitude())
-                    .average().orElse(base.getLatitude());
+                    .average().orElse(base.getLatitude() != null ? base.getLatitude() : 0.0);
             double avgLon = recentPoints.stream()
                     .mapToDouble(p -> p.data.getLongitude())
-                    .average().orElse(base.getLongitude());
+                    .average().orElse(base.getLongitude() != null ? base.getLongitude() : 0.0);
 
             fusedBuilder.latitude(avgLat);
             fusedBuilder.longitude(avgLon);
@@ -239,15 +240,16 @@ public class DataFusionService {
         // Calculate average position if multiple recent sources
         List<VesselDataPoint> recentPoints = dataPoints.stream()
                 .filter(p -> ChronoUnit.SECONDS.between(p.timestamp, LocalDateTime.now()) < 60)
+                .filter(p -> p.data.getLatitude() != null && p.data.getLongitude() != null)
                 .collect(Collectors.toList());
 
         if (recentPoints.size() > 1) {
             double avgLat = recentPoints.stream()
                     .mapToDouble(p -> p.data.getLatitude())
-                    .average().orElse(base.getLatitude());
+                    .average().orElse(base.getLatitude() != null ? base.getLatitude() : 0.0);
             double avgLon = recentPoints.stream()
                     .mapToDouble(p -> p.data.getLongitude())
-                    .average().orElse(base.getLongitude());
+                    .average().orElse(base.getLongitude() != null ? base.getLongitude() : 0.0);
 
             fusedBuilder.latitude(avgLat);
             fusedBuilder.longitude(avgLon);
@@ -280,6 +282,13 @@ public class DataFusionService {
         AircraftTrackingRequest cachedData = cached.data;
         AircraftTrackingRequest latestData = newData.get(0).data;
 
+        // Skip duplicate check if any coordinates are null
+        if (cachedData.getLatitude() == null || cachedData.getLongitude() == null ||
+                latestData.getLatitude() == null || latestData.getLongitude() == null) {
+            log.debug("Skipping duplicate check for aircraft - missing coordinates");
+            return false; // Don't consider as duplicate if we can't compare positions
+        }
+
         double distance = calculateDistance(
                 cachedData.getLatitude(), cachedData.getLongitude(),
                 latestData.getLatitude(), latestData.getLongitude());
@@ -295,6 +304,13 @@ public class DataFusionService {
 
         VesselTrackingRequest cachedData = cached.data;
         VesselTrackingRequest latestData = newData.get(0).data;
+
+        // Skip duplicate check if any coordinates are null
+        if (cachedData.getLatitude() == null || cachedData.getLongitude() == null ||
+                latestData.getLatitude() == null || latestData.getLongitude() == null) {
+            log.debug("Skipping duplicate check for vessel - missing coordinates");
+            return false; // Don't consider as duplicate if we can't compare positions
+        }
 
         double distance = calculateDistance(
                 cachedData.getLatitude(), cachedData.getLongitude(),
@@ -346,7 +362,14 @@ public class DataFusionService {
     /**
      * Calculate distance between two coordinates (Haversine formula)
      */
-    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    private double calculateDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
+        // Null safety check
+        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
+            log.warn("Cannot calculate distance with null coordinates: lat1={}, lon1={}, lat2={}, lon2={}",
+                    lat1, lon1, lat2, lon2);
+            return Double.MAX_VALUE; // Return max value to indicate invalid distance
+        }
+
         double earthRadius = 6371; // km
         double dLat = Math.toRadians(lat2 - lat1);
         double dLon = Math.toRadians(lon2 - lon1);
