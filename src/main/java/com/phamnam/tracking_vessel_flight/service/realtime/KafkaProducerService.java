@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,5 +30,12 @@ public class KafkaProducerService {
 
         kafkaTemplate.send(topic, key, tracking);
         log.info("Vessel tracking data sent to Kafka: {}", tracking);
+    }
+
+    public void sendVesselTrackingDTO(ShipTrackingRequestDTO tracking) {
+        String topic = "ship-tracking-dto";
+        String key = tracking.getId() != null ? tracking.getId().toString() : "unknown";
+        kafkaTemplate.send(topic, key, tracking);
+        log.info("Vessel tracking DTO data sent to Kafka: {}", tracking);
     }
 }

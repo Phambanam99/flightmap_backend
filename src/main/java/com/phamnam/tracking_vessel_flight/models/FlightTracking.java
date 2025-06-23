@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 public class FlightTracking extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name="tracking_id")
     private Long trackingId;
 
     @ManyToOne(fetch = FetchType.LAZY)

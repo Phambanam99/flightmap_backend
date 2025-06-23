@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.config;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -191,6 +192,33 @@ public class KafkaConfig {
         factory.setConcurrency(1); // Single thread for batch processing
         factory.getContainerProperties().setPollTimeout(5000);
         factory.setBatchListener(true); // Enable batch processing
+        return factory;
+    }
+
+    // Ship tracking DTO container factory
+    @Bean
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, ShipTrackingRequestDTO>> shipKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ShipTrackingRequestDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
+
+        // Create consumer factory for ShipTrackingRequestDTO
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
+                "com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
+
+        DefaultKafkaConsumerFactory<String, ShipTrackingRequestDTO> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                props);
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(2);
+        factory.getContainerProperties().setPollTimeout(3000);
         return factory;
     }
 

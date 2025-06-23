@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
 import com.phamnam.tracking_vessel_flight.service.rest.ShipTrackingService;
 import com.phamnam.tracking_vessel_flight.repository.ShipRepository;
@@ -19,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.Map;
 import java.util.HashMap;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -101,6 +103,17 @@ public class KafkaConsumerService {
         }
     }
 
+    @KafkaListener(topics = "ship-tracking-dto", groupId = "ship-tracking-dto-consumer-group", containerFactory = "shipKafkaListenerContainerFactory")
+    public void consumeShipTrackingDTO(ShipTrackingRequestDTO tracking) {
+        try {
+            log.info("Received ship tracking DTO data: {}", tracking);
+            // Process ship tracking DTO from external APIs
+            processShipTrackingDTOData(tracking);
+        } catch (Exception e) {
+            log.error("Error processing ship tracking DTO message", e);
+        }
+    }
+
     @KafkaListener(topics = "ship-tracking-batch", groupId = "ship-tracking-batch-consumer-group", containerFactory = "batchShipKafkaListenerContainerFactory")
     public void consumeShipTrackingBatch(List<ShipTrackingRequest> trackings) {
         if (trackings == null || trackings.isEmpty()) {
@@ -143,6 +156,32 @@ public class KafkaConsumerService {
         } catch (Exception e) {
             log.error("Error processing ship tracking data for MMSI: {}, voyage ID: {}",
                     tracking.getMmsi(), tracking.getVoyageId(), e);
+            throw e;
+        }
+    }
+
+    private void processShipTrackingDTOData(ShipTrackingRequestDTO tracking) {
+        try {
+            // Convert DTO to internal request format
+            ShipTrackingRequest internalRequest = ShipTrackingRequest.builder()
+                    .timestamp(tracking.getUpdateTime() != null ? tracking.getUpdateTime() : LocalDateTime.now())
+                    .latitude(tracking.getLatitude() != null ? tracking.getLatitude().doubleValue() : null)
+                    .longitude(tracking.getLongitude() != null ? tracking.getLongitude().doubleValue() : null)
+                    .mmsi(tracking.getMmsi())
+                    .heading(tracking.getHeading() != null ? tracking.getHeading().doubleValue() : null)
+                    .navStatus(tracking.getNavigationStatus())
+                    .speed(tracking.getSpeed() != null ? tracking.getSpeed().doubleValue() : null)
+                    .course(tracking.getCourse() != null ? tracking.getCourse().doubleValue() : null)
+                    .draught(tracking.getDraught() != null ? tracking.getDraught().doubleValue() : null)
+                    .voyageId(tracking.getVoyageId())
+                    .build();
+
+            // Process using existing ship tracking logic
+            processShipTrackingData(internalRequest);
+
+        } catch (Exception e) {
+            log.error("Error processing ship tracking DTO data for MMSI: {}, ID: {}",
+                    tracking.getMmsi(), tracking.getId(), e);
             throw e;
         }
     }
