@@ -49,4 +49,9 @@ public interface FlightTrackingRepository extends JpaRepository<FlightTracking, 
 
         @Query("SELECT COUNT(ft) FROM FlightTracking ft WHERE ft.lastSeen > :afterTime")
         long countByLastSeenAfter(@Param("afterTime") LocalDateTime afterTime);
+
+        // Additional methods for data comparison
+        @Query("SELECT ft FROM FlightTracking ft WHERE ft.hexident = :hexident AND ft.timestamp BETWEEN :start AND :end ORDER BY ft.timestamp ASC")
+        List<FlightTracking> findByHexidentAndTimestampBetween(@Param("hexident") String hexident,
+                        @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

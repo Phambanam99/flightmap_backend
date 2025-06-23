@@ -43,4 +43,9 @@ public interface ShipTrackingRepository extends JpaRepository<ShipTracking, Long
 
     @Query("SELECT COUNT(st) FROM ShipTracking st WHERE st.timestamp > :afterTime")
     long countByTimestampAfter(@Param("afterTime") java.time.LocalDateTime afterTime);
+
+    // Additional methods for data comparison
+    @Query("SELECT st FROM ShipTracking st WHERE st.mmsi = :mmsi AND st.timestamp BETWEEN :start AND :end ORDER BY st.timestamp ASC")
+    List<ShipTracking> findByMmsiAndTimestampBetween(@Param("mmsi") String mmsi,
+            @Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
 }
