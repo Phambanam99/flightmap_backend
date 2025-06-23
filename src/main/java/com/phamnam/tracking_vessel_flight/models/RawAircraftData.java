@@ -49,10 +49,10 @@ public class RawAircraftData {
     private String aircraftType;
 
     // Position data
-    @Column(name = "latitude", precision = 10, scale = 7)
+    @Column(name = "latitude")
     private Double latitude;
 
-    @Column(name = "longitude", precision = 10, scale = 7)
+    @Column(name = "longitude")
     private Double longitude;
 
     @Column(name = "altitude")
@@ -78,7 +78,7 @@ public class RawAircraftData {
     private Boolean emergency;
 
     // Quality and metadata
-    @Column(name = "data_quality", precision = 4, scale = 3)
+    @Column(name = "data_quality")
     private Double dataQuality;
 
     @Column(name = "original_timestamp")

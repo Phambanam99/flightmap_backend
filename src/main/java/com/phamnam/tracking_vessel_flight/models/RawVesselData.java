@@ -52,13 +52,13 @@ public class RawVesselData {
     private String vesselType;
 
     // Position data
-    @Column(name = "latitude", precision = 10, scale = 7)
+    @Column(name = "latitude")
     private Double latitude;
 
-    @Column(name = "longitude", precision = 10, scale = 7)
+    @Column(name = "longitude")
     private Double longitude;
 
-    @Column(name = "speed", precision = 6, scale = 2)
+    @Column(name = "speed")
     private Double speed;
 
     @Column(name = "course")
@@ -84,7 +84,7 @@ public class RawVesselData {
     @Column(name = "width")
     private Integer width;
 
-    @Column(name = "draught", precision = 6, scale = 2)
+    @Column(name = "draught")
     private Double draught;
 
     @Column(name = "flag", length = 10)
@@ -113,7 +113,7 @@ public class RawVesselData {
     private String route;
 
     // Quality and metadata
-    @Column(name = "data_quality", precision = 4, scale = 3)
+    @Column(name = "data_quality")
     private Double dataQuality;
 
     @Column(name = "original_timestamp")
