@@ -23,6 +23,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -40,6 +41,9 @@ public class TrackingKafkaConsumer {
     private final FlightTrackingService flightTrackingService;
     private final ShipTrackingService shipTrackingService;
 
+    @Value("${raw.data.storage.enabled:false}")
+    private boolean rawStorageEnabled;
+
     // Raw Aircraft Data Consumer
     @KafkaListener(topics = "${app.kafka.topics.raw-aircraft-data}", groupId = "raw-aircraft-consumer-group", containerFactory = "rawAircraftKafkaListenerContainerFactory")
     public void consumeRawAircraftData(
@@ -54,27 +58,31 @@ public class TrackingKafkaConsumer {
             log.debug("Received raw aircraft data from topic: {}, partition: {}, offset: {}, key: {}",
                     topic, partition, offset, key);
 
-            // ✅ Save raw data for audit/compliance
-            RawAircraftData rawData = RawAircraftData.builder()
-                    .hexident(data.getHexident())
-                    .latitude(data.getLatitude())
-                    .longitude(data.getLongitude())
-                    .altitude(data.getAltitude())
-                    .groundSpeed(data.getGroundSpeed())
-                    .track(data.getTrack())
-                    .verticalRate(data.getVerticalRate())
-                    .squawk(data.getSquawk())
-                    .aircraftType(data.getAircraftType())
-                    .registration(data.getRegistration())
-                    .callsign(data.getCallsign())
-                    .onGround(data.getOnGround())
-                    .emergency(data.getEmergency())
-                    .dataSource("RAW_KAFKA")
-                    .receivedAt(LocalDateTime.now())
-                    .build();
+            // ✅ Save raw data only if storage enabled (for audit/compliance)
+            if (rawStorageEnabled) {
+                RawAircraftData rawData = RawAircraftData.builder()
+                        .hexident(data.getHexident())
+                        .latitude(data.getLatitude())
+                        .longitude(data.getLongitude())
+                        .altitude(data.getAltitude())
+                        .groundSpeed(data.getGroundSpeed())
+                        .track(data.getTrack())
+                        .verticalRate(data.getVerticalRate())
+                        .squawk(data.getSquawk())
+                        .aircraftType(data.getAircraftType())
+                        .registration(data.getRegistration())
+                        .callsign(data.getCallsign())
+                        .onGround(data.getOnGround())
+                        .emergency(data.getEmergency())
+                        .dataSource("RAW_KAFKA")
+                        .receivedAt(LocalDateTime.now())
+                        .build();
 
-            rawAircraftDataRepository.save(rawData);
-            log.info("✅ Saved raw aircraft data for hexident: {}", key);
+                rawAircraftDataRepository.save(rawData);
+                log.debug("✅ Saved raw aircraft data for hexident: {}", key);
+            } else {
+                log.debug("⏭️ Skipped raw aircraft data storage for hexident: {} (storage disabled)", key);
+            }
 
             acknowledgment.acknowledge();
 
@@ -98,32 +106,37 @@ public class TrackingKafkaConsumer {
             log.debug("Received raw vessel data from topic: {}, partition: {}, offset: {}, key: {}",
                     topic, partition, offset, key);
 
-            // ✅ Save raw vessel data for audit/compliance
-            RawVesselData rawData = RawVesselData.builder()
-                    .mmsi(data.getMmsi())
-                    .latitude(data.getLatitude() != null ? data.getLatitude().doubleValue() : null)
-                    .longitude(data.getLongitude() != null ? data.getLongitude().doubleValue() : null)
-                    .speed(data.getSpeed() != null ? data.getSpeed().doubleValue() : null)
-                    .course(data.getCourse() != null ? data.getCourse().intValue() : null)
-                    .heading(data.getHeading() != null ? data.getHeading().intValue() : null)
-                    .navigationStatus(data.getNavigationStatus())
-                    .vesselName(data.getVesselName())
-                    .vesselType(data.getVesselType())
-                    .imo(data.getImo())
-                    .callsign(data.getCallSign()) // ✅ Fixed: getCallSign() not getCallsign()
-                    .flag(data.getFlag())
-                    .length(data.getLength() != null ? data.getLength().intValue() : null)
-                    .width(data.getWidth() != null ? data.getWidth().intValue() : null)
-                    .draught(data.getDraught() != null ? data.getDraught().doubleValue() : null)
-                    .destination(data.getDestination())
-                    .eta(data.getEta() != null ? data.getEta().toString() : null) // ✅ Fixed: Convert LocalDateTime to
-                                                                                  // String
-                    .dataSource("RAW_KAFKA")
-                    .receivedAt(LocalDateTime.now())
-                    .build();
+            // ✅ Save raw vessel data only if storage enabled (for audit/compliance)
+            if (rawStorageEnabled) {
+                RawVesselData rawData = RawVesselData.builder()
+                        .mmsi(data.getMmsi())
+                        .latitude(data.getLatitude() != null ? data.getLatitude().doubleValue() : null)
+                        .longitude(data.getLongitude() != null ? data.getLongitude().doubleValue() : null)
+                        .speed(data.getSpeed() != null ? data.getSpeed().doubleValue() : null)
+                        .course(data.getCourse() != null ? data.getCourse().intValue() : null)
+                        .heading(data.getHeading() != null ? data.getHeading().intValue() : null)
+                        .navigationStatus(data.getNavigationStatus())
+                        .vesselName(data.getVesselName())
+                        .vesselType(data.getVesselType())
+                        .imo(data.getImo())
+                        .callsign(data.getCallSign()) // ✅ Fixed: getCallSign() not getCallsign()
+                        .flag(data.getFlag())
+                        .length(data.getLength() != null ? data.getLength().intValue() : null)
+                        .width(data.getWidth() != null ? data.getWidth().intValue() : null)
+                        .draught(data.getDraught() != null ? data.getDraught().doubleValue() : null)
+                        .destination(data.getDestination())
+                        .eta(data.getEta() != null ? data.getEta().toString() : null) // ✅ Fixed: Convert LocalDateTime
+                                                                                      // to
+                                                                                      // String
+                        .dataSource("RAW_KAFKA")
+                        .receivedAt(LocalDateTime.now())
+                        .build();
 
-            rawVesselDataRepository.save(rawData);
-            log.info("✅ Saved raw vessel data for mmsi: {}", key);
+                rawVesselDataRepository.save(rawData);
+                log.debug("✅ Saved raw vessel data for mmsi: {}", key);
+            } else {
+                log.debug("⏭️ Skipped raw vessel data storage for mmsi: {} (storage disabled)", key);
+            }
 
             acknowledgment.acknowledge();
 
