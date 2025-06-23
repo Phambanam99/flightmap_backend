@@ -235,6 +235,84 @@ app.get('/api/mock/stats', (req, res) => {
   }
 });
 
+// Get all 6 data sources data at once
+app.get('/api/all-sources', async (req, res) => {
+  try {
+    const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+    
+    systemLogger.info('Fetching data from all 6 sources', { bounds });
+
+    // Get data from all sources
+    const allSourcesData = {
+      aircraft: {
+        flightradar24: mockApiService.getFlightRadar24Data(bounds),
+        adsbexchange: mockApiService.getAdsbExchangeData(bounds)
+      },
+      vessels: {
+        marinetraffic: mockApiService.getMarineTrafficData(bounds),
+        vesselfinder: mockApiService.getVesselFinderData(bounds),
+        chinaports: mockApiService.getChinaportsData(bounds),
+        marinetrafficv2: mockApiService.getMarineTrafficV2Data(bounds)
+      }
+    };
+
+    // Count total entities
+    const totalCounts = {
+      flights: {
+        flightradar24: Object.keys(allSourcesData.aircraft.flightradar24).length - 2, // Exclude full_count, version
+        adsbexchange: allSourcesData.aircraft.adsbexchange.total || 0
+      },
+      vessels: {
+        marinetraffic: allSourcesData.vessels.marinetraffic.meta?.total || 0,
+        vesselfinder: allSourcesData.vessels.vesselfinder.count || 0,
+        chinaports: allSourcesData.vessels.chinaports.data?.total || 0,
+        marinetrafficv2: allSourcesData.vessels.marinetrafficv2.data?.meta?.total_count || 0
+      }
+    };
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      sources: {
+        aircraft: ['flightradar24', 'adsbexchange'],
+        vessels: ['marinetraffic', 'vesselfinder', 'chinaports', 'marinetrafficv2']
+      },
+      data: allSourcesData,
+      summary: {
+        totalSources: 6,
+        totalFlights: totalCounts.flights.flightradar24 + totalCounts.flights.adsbexchange,
+        totalVessels: totalCounts.vessels.marinetraffic + totalCounts.vessels.vesselfinder + 
+                     totalCounts.vessels.chinaports + totalCounts.vessels.marinetrafficv2,
+        counts: totalCounts
+      },
+      quality: {
+        flightradar24: config.mockApis.flightradar24.quality,
+        adsbexchange: config.mockApis.adsbexchange.quality,
+        marinetraffic: config.mockApis.marinetraffic.quality,
+        vesselfinder: config.mockApis.vesselfinder.quality,
+        chinaports: config.mockApis.chinaports.quality,
+        marinetrafficv2: config.mockApis.marinetrafficv2.quality
+      },
+      priority: {
+        flightradar24: config.mockApis.flightradar24.priority,
+        adsbexchange: config.mockApis.adsbexchange.priority,
+        marinetraffic: config.mockApis.marinetraffic.priority,
+        vesselfinder: config.mockApis.vesselfinder.priority,
+        chinaports: config.mockApis.chinaports.priority,
+        marinetrafficv2: config.mockApis.marinetrafficv2.priority
+      }
+    });
+
+  } catch (error) {
+    systemLogger.error('Error fetching all sources data', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Get simulator status
 app.get('/status', async (req, res) => {
   try {
