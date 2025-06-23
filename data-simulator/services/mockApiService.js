@@ -127,7 +127,11 @@ class MockApiService {
     console.log(`🚢 Updated ${this.shipData.size} ship positions (removed ${toRemove.length})`);
   }
 
-  // FlightRadar24 API Mock
+  // =================
+  // AIRCRAFT API MOCKS
+  // =================
+
+  // FlightRadar24 API Mock (Priority 1, Quality: 95%)
   getFlightRadar24Data(bounds) {
     const result = {
       full_count: this.flightData.size,
@@ -137,21 +141,51 @@ class MockApiService {
     this.flightData.forEach((flight, hexident) => {
       // Check if flight is within bounds
       if (this.isWithinBounds({ Latitude: flight[1], Longitude: flight[2] }, bounds)) {
-        result[hexident] = flight;
+        // Add some data quality variance - FlightRadar24 is very reliable
+        if (Math.random() > config.mockApis.flightradar24.errorRate) {
+          result[hexident] = this.addDataQualityVariance(flight, 'flightradar24');
+        }
       }
     });
 
     return result;
   }
 
-  // MarineTraffic API Mock
+  // ADS-B Exchange API Mock (Priority 2, Quality: 88%)
+  getAdsbExchangeData(bounds) {
+    const aircraft = [];
+    
+    this.flightData.forEach((flight, hexident) => {
+      if (this.isWithinBounds({ Latitude: flight[1], Longitude: flight[2] }, bounds)) {
+        // ADS-B Exchange has community-driven data with slightly lower quality
+        if (Math.random() > config.mockApis.adsbexchange.errorRate) {
+          aircraft.push(this.convertToAdsbExchangeFormat(flight, hexident));
+        }
+      }
+    });
+
+    return {
+      ac: aircraft,
+      total: aircraft.length,
+      ctime: Date.now(),
+      ptime: Date.now() - 30000
+    };
+  }
+
+  // =================
+  // VESSEL API MOCKS
+  // =================
+
+  // MarineTraffic API Mock (Priority 1, Quality: 92%)
   getMarineTrafficData(bounds) {
     const ships = [];
     
     this.shipData.forEach((ship, mmsi) => {
       // Check if ship is within bounds
       if (this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
-        ships.push(ship);
+        if (Math.random() > config.mockApis.marinetraffic.errorRate) {
+          ships.push(this.addVesselDataQualityVariance(ship, 'marinetraffic'));
+        }
       }
     });
 
@@ -160,6 +194,89 @@ class MockApiService {
       meta: {
         total: ships.length,
         last_update: new Date(this.lastUpdate.ships).toISOString()
+      }
+    };
+  }
+
+  // VesselFinder API Mock (Priority 2, Quality: 87%)
+  getVesselFinderData(bounds) {
+    const vessels = [];
+
+    this.shipData.forEach((ship, mmsi) => {
+      if (this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
+        if (Math.random() > config.mockApis.vesselfinder.errorRate) {
+          vessels.push(this.convertToVesselFinderFormat(ship, mmsi));
+        }
+      }
+    });
+
+    return {
+      vessels: vessels,
+      count: vessels.length,
+      status: "success",
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // Chinaports API Mock (Priority 3, Quality: 85%) - China Sea focus
+  getChinaportsData(bounds) {
+    const ships = [];
+    const chinaBounds = config.mockApis.chinaports.geoBounds;
+
+    this.shipData.forEach((ship, mmsi) => {
+      const shipLat = ship.LAT;
+      const shipLon = ship.LON;
+      
+      // Only return vessels in China Sea region
+      if (shipLat >= chinaBounds.minLatitude && shipLat <= chinaBounds.maxLatitude &&
+          shipLon >= chinaBounds.minLongitude && shipLon <= chinaBounds.maxLongitude) {
+        
+        if (bounds && this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
+          if (Math.random() > config.mockApis.chinaports.errorRate) {
+            ships.push(this.convertToChinaportsFormat(ship, mmsi));
+          }
+        } else if (!bounds) {
+          if (Math.random() > config.mockApis.chinaports.errorRate) {
+            ships.push(this.convertToChinaportsFormat(ship, mmsi));
+          }
+        }
+      }
+    });
+
+    return {
+      code: 200,
+      message: "success",
+      data: {
+        ships: ships,
+        total: ships.length,
+        region: "China Sea",
+        update_time: new Date().toISOString()
+      }
+    };
+  }
+
+  // MarineTraffic V2 API Mock (Priority 4, Quality: 89%)
+  getMarineTrafficV2Data(bounds) {
+    const positions = [];
+
+    this.shipData.forEach((ship, mmsi) => {
+      if (this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
+        if (Math.random() > config.mockApis.marinetrafficv2.errorRate) {
+          positions.push(this.convertToMarineTrafficV2Format(ship, mmsi));
+        }
+      }
+    });
+
+    return {
+      response_code: 200,
+      response_text: "OK",
+      data: {
+        positions: positions,
+        meta: {
+          total_count: positions.length,
+          api_version: "v2",
+          request_timestamp: new Date().toISOString()
+        }
       }
     };
   }
@@ -294,16 +411,351 @@ class MockApiService {
     return mmsi;
   }
 
-  // Get statistics
+  // =================
+  // FORMAT CONVERTERS
+  // =================
+
+  // ADS-B Exchange format (JSON object format)
+  convertToAdsbExchangeFormat(flight, hexident) {
+    return {
+      hex: hexident,
+      flight: flight[16] || flight[13], // callsign
+      lat: this.addPositionNoise(flight[1], 0.0001), // Slightly less precise
+      lon: this.addPositionNoise(flight[2], 0.0001),
+      alt_baro: flight[4],
+      alt_geom: flight[4] + Math.floor(Math.random() * 100 - 50),
+      gs: this.addSpeedNoise(flight[5], 2),
+      track: flight[3],
+      baro_rate: flight[15],
+      category: "A3", // Heavy aircraft
+      nav_qnh: 1013.25,
+      nav_altitude_mcp: flight[4],
+      nav_modes: ["autopilot", "althold"],
+      seen: Math.random() * 10,
+      rssi: -20 - Math.random() * 30,
+      messages: Math.floor(Math.random() * 1000) + 100,
+      seen_pos: Math.random() * 5,
+      emergency: flight[6] === "7700" ? "emergency" : "none",
+      spi: false,
+      alert: false
+    };
+  }
+
+  // VesselFinder format (Commercial focus)
+  convertToVesselFinderFormat(ship, mmsi) {
+    return {
+      mmsi: mmsi,
+      imo: this.generateIMO(),
+      name: ship.SHIPNAME,
+      lat: this.addPositionNoise(ship.LAT, 0.0005),
+      lng: this.addPositionNoise(ship.LON, 0.0005),
+      speed: this.addSpeedNoise(ship.SPEED, 0.5),
+      course: ship.COURSE,
+      heading: ship.HEADING,
+      nav_status: ship.STATUS,
+      ship_type: ship.SHIPTYPE,
+      flag: ship.FLAG,
+      length: ship.LENGTH,
+      width: ship.WIDTH,
+      eta: this.generateETA(),
+      destination: this.generateDestination(),
+      callsign: this.generateCallsign(),
+      draught: ship.DRAUGHT,
+      year_built: 1990 + Math.floor(Math.random() * 30),
+      gross_tonnage: Math.floor(Math.random() * 50000) + 5000,
+      dwt: Math.floor(Math.random() * 100000) + 10000,
+      last_port: this.generatePort(),
+      next_port: this.generatePort(),
+      photos_count: Math.floor(Math.random() * 5),
+      last_update: new Date().toISOString()
+    };
+  }
+
+  // Chinaports format (XML-converted, region-specific)
+  convertToChinaportsFormat(ship, mmsi) {
+    return {
+      vessel_id: mmsi,
+      vessel_name_cn: this.generateChineseVesselName(),
+      vessel_name_en: ship.SHIPNAME,
+      position: {
+        latitude: this.addPositionNoise(ship.LAT, 0.001),
+        longitude: this.addPositionNoise(ship.LON, 0.001),
+        coordinate_system: "WGS84"
+      },
+      navigation: {
+        speed_knots: this.addSpeedNoise(ship.SPEED, 1.0),
+        course_degrees: ship.COURSE,
+        heading_degrees: ship.HEADING,
+        nav_status_code: this.getChineseNavStatus(ship.STATUS)
+      },
+      vessel_info: {
+        ship_type_code: this.getChineseShipTypeCode(ship.SHIPTYPE),
+        flag_state: ship.FLAG,
+        length_m: ship.LENGTH,
+        beam_m: ship.WIDTH,
+        draught_m: ship.DRAUGHT,
+        grt: Math.floor(Math.random() * 20000) + 1000
+      },
+      port_info: {
+        last_port_code: this.getChinesePortCode(),
+        next_port_code: this.getChinesePortCode(),
+        eta_local: this.generateETA()
+      },
+      update_time: new Date().toISOString(),
+      data_source: "chinaports",
+      reliability: "medium"
+    };
+  }
+
+  // MarineTraffic V2 format (Extended details)
+  convertToMarineTrafficV2Format(ship, mmsi) {
+    return {
+      MMSI: mmsi,
+      IMO: this.generateIMO(),
+      SHIPNAME: ship.SHIPNAME,
+      LAT: this.addPositionNoise(ship.LAT, 0.0002),
+      LON: this.addPositionNoise(ship.LON, 0.0002),
+      SPEED: this.addSpeedNoise(ship.SPEED, 0.3),
+      COURSE: ship.COURSE,
+      HEADING: ship.HEADING,
+      STATUS: ship.STATUS,
+      SHIPTYPE: ship.SHIPTYPE,
+      FLAG: ship.FLAG,
+      LENGTH: ship.LENGTH,
+      WIDTH: ship.WIDTH,
+      DRAUGHT: ship.DRAUGHT,
+      CALLSIGN: this.generateVesselCallsign(),
+      DESTINATION: this.generateDestination(),
+      ETA: this.generateETA(),
+      // Extended V2 fields
+      AIS_VERSION: "2",
+      ROT: Math.floor(Math.random() * 10 - 5), // Rate of turn
+      NAV_STATUS_ID: Math.floor(Math.random() * 15),
+      TYPE_NAME: this.getExtendedShipTypeName(ship.SHIPTYPE),
+      DWT: Math.floor(Math.random() * 100000) + 5000,
+      YEAR_BUILT: 1980 + Math.floor(Math.random() * 40),
+      GT: Math.floor(Math.random() * 50000) + 1000,
+      OWNER: this.generateShipOwner(),
+      MANAGER: this.generateShipManager(),
+      LAST_PORT: this.generatePort(),
+      LAST_PORT_TIME: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+      NEXT_PORT: this.generatePort(),
+      CURRENT_PORT: null,
+      PHOTOS: Math.floor(Math.random() * 3),
+      NOTES: "",
+      TIMESTAMP: new Date().toISOString()
+    };
+  }
+
+  // =================
+  // DATA QUALITY VARIANCE
+  // =================
+
+  addDataQualityVariance(flight, source) {
+    const quality = config.mockApis[source].quality;
+    
+    if (Math.random() > quality) {
+      // Add some noise based on source quality
+      const noiseFactor = (1 - quality) * 10;
+      return [
+        flight[0], // hexident
+        this.addPositionNoise(flight[1], 0.0001 * noiseFactor), // lat
+        this.addPositionNoise(flight[2], 0.0001 * noiseFactor), // lon
+        flight[3] + (Math.random() - 0.5) * noiseFactor, // heading
+        flight[4] + Math.floor((Math.random() - 0.5) * 500 * noiseFactor), // altitude
+        this.addSpeedNoise(flight[5], noiseFactor), // speed
+        flight[6], // squawk
+        flight[7], // radar type
+        flight[8], // aircraft type
+        flight[9], // registration
+        flight[10], // timestamp
+        flight[11], // origin
+        flight[12], // destination
+        flight[13], // flight number
+        flight[14], // unknown
+        flight[15] + Math.floor((Math.random() - 0.5) * 200 * noiseFactor), // vertical speed
+        flight[16] // callsign
+      ];
+    }
+    
+    return flight; // Return original if quality check passes
+  }
+
+  addVesselDataQualityVariance(ship, source) {
+    const quality = config.mockApis[source].quality;
+    
+    if (Math.random() > quality) {
+      const noiseFactor = (1 - quality) * 5;
+      return {
+        ...ship,
+        LAT: this.addPositionNoise(ship.LAT, 0.001 * noiseFactor),
+        LON: this.addPositionNoise(ship.LON, 0.001 * noiseFactor),
+        SPEED: this.addSpeedNoise(ship.SPEED, noiseFactor),
+        COURSE: (ship.COURSE + (Math.random() - 0.5) * noiseFactor * 10) % 360
+      };
+    }
+    
+    return ship;
+  }
+
+  addPositionNoise(value, noiseFactor) {
+    return value + (Math.random() - 0.5) * noiseFactor;
+  }
+
+  addSpeedNoise(value, noiseFactor) {
+    return Math.max(0, value + (Math.random() - 0.5) * noiseFactor);
+  }
+
+  // =================
+  // HELPER GENERATORS
+  // =================
+
+  generateIMO() {
+    return Math.floor(Math.random() * 9000000) + 1000000;
+  }
+
+  generateETA() {
+    const now = new Date();
+    const eta = new Date(now.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000);
+    return eta.toISOString();
+  }
+
+  generateDestination() {
+    const destinations = ['HONG KONG', 'SINGAPORE', 'SHANGHAI', 'TOKYO', 'BUSAN', 'KAOHSIUNG', 'MANILA', 'JAKARTA'];
+    return destinations[Math.floor(Math.random() * destinations.length)];
+  }
+
+  generatePort() {
+    const ports = ['VNSGN', 'VNHPH', 'VNDNG', 'VNVUT', 'VNQNI', 'HKHKG', 'SGSIN', 'CNSHA'];
+    return ports[Math.floor(Math.random() * ports.length)];
+  }
+
+  generateVesselCallsign() {
+    const prefixes = ['3F', '9V', '3E', 'HL', 'XV'];
+    return prefixes[Math.floor(Math.random() * prefixes.length)] + Math.floor(Math.random() * 9999);
+  }
+
+  generateChineseVesselName() {
+    const names = ['海港之星', '东方明珠', '南海风帆', '长江货运', '珠江快航', '渤海之光'];
+    return names[Math.floor(Math.random() * names.length)];
+  }
+
+  getChineseNavStatus(status) {
+    const statusMap = {
+      'Under way using engine': 'UWE',
+      'At anchor': 'ANC',
+      'Not under command': 'NUC',
+      'Restricted maneuverability': 'RMA',
+      'Moored': 'MOR'
+    };
+    return statusMap[status] || 'UWE';
+  }
+
+  getChineseShipTypeCode(shipType) {
+    const typeMap = {
+      'Container': 'CON',
+      'Bulk Carrier': 'BUL',
+      'Tanker': 'TAN',
+      'Fishing': 'FIS',
+      'Cargo': 'CAR',
+      'Passenger': 'PAS'
+    };
+    return typeMap[shipType] || 'GEN';
+  }
+
+  getChinesePortCode() {
+    const ports = ['CNSHA', 'CNQIN', 'CNNGB', 'CNTIA', 'CNDALG', 'CNXIA', 'CNYTN'];
+    return ports[Math.floor(Math.random() * ports.length)];
+  }
+
+  getExtendedShipTypeName(shipType) {
+    const extendedNames = {
+      'Container': 'Container Ship (Cellular)',
+      'Bulk Carrier': 'Bulk Carrier (Dry Cargo)',
+      'Tanker': 'Chemical/Oil Tanker',
+      'Fishing': 'Fishing Vessel',
+      'Cargo': 'General Cargo Ship',
+      'Passenger': 'Passenger Vessel'
+    };
+    return extendedNames[shipType] || shipType;
+  }
+
+  generateShipOwner() {
+    const owners = ['COSCO Shipping', 'OOCL', 'Evergreen Marine', 'Yang Ming', 'MOL', 'NYK Line'];
+    return owners[Math.floor(Math.random() * owners.length)];
+  }
+
+  generateShipManager() {
+    const managers = ['Fleet Management Ltd', 'Marine Services Co', 'Ship Management Inc', 'Ocean Logistics'];
+    return managers[Math.floor(Math.random() * managers.length)];
+  }
+
+  // =================
+  // MULTI-SOURCE API
+  // =================
+
+  // Get all available aircraft data from all sources
+  getAllAircraftSources(bounds) {
+    return {
+      flightradar24: this.getFlightRadar24Data(bounds),
+      adsbexchange: this.getAdsbExchangeData(bounds)
+    };
+  }
+
+  // Get all available vessel data from all sources
+  getAllVesselSources(bounds) {
+    return {
+      marinetraffic: this.getMarineTrafficData(bounds),
+      vesselfinder: this.getVesselFinderData(bounds),
+      chinaports: this.getChinaportsData(bounds),
+      marinetrafficv2: this.getMarineTrafficV2Data(bounds)
+    };
+  }
+
+  // Get statistics with all sources
   getStats() {
     return {
       flights: {
         total: this.flightData.size,
-        lastUpdate: new Date(this.lastUpdate.flights).toISOString()
+        lastUpdate: new Date(this.lastUpdate.flights).toISOString(),
+        sources: {
+          flightradar24: {
+            quality: config.mockApis.flightradar24.quality,
+            priority: config.mockApis.flightradar24.priority,
+            updateInterval: config.mockApis.flightradar24.updateInterval
+          },
+          adsbexchange: {
+            quality: config.mockApis.adsbexchange.quality,
+            priority: config.mockApis.adsbexchange.priority,
+            updateInterval: config.mockApis.adsbexchange.updateInterval
+          }
+        }
       },
       ships: {
         total: this.shipData.size,
-        lastUpdate: new Date(this.lastUpdate.ships).toISOString()
+        lastUpdate: new Date(this.lastUpdate.ships).toISOString(),
+        sources: {
+          marinetraffic: {
+            quality: config.mockApis.marinetraffic.quality,
+            priority: config.mockApis.marinetraffic.priority,
+            updateInterval: config.mockApis.marinetraffic.updateInterval
+          },
+          vesselfinder: {
+            quality: config.mockApis.vesselfinder.quality,
+            priority: config.mockApis.vesselfinder.priority,
+            updateInterval: config.mockApis.vesselfinder.updateInterval
+          },
+          chinaports: {
+            quality: config.mockApis.chinaports.quality,
+            priority: config.mockApis.chinaports.priority,
+            updateInterval: config.mockApis.chinaports.updateInterval
+          },
+          marinetrafficv2: {
+            quality: config.mockApis.marinetrafficv2.quality,
+            priority: config.mockApis.marinetrafficv2.priority,
+            updateInterval: config.mockApis.marinetrafficv2.updateInterval
+          }
+        }
       },
       movementSimulator: {
         activeFlights: this.movementSimulator.getAllActiveFlights().length,

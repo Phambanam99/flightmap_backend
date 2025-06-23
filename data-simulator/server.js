@@ -3,6 +3,7 @@ const cors = require('cors');
 const config = require('./config');
 const FlightSimulator = require('./services/flightSimulator');
 const VesselSimulator = require('./services/vesselSimulator');
+const MockApiService = require('./services/mockApiService');
 const apiClient = require('./utils/apiClient');
 const { systemLogger } = require('./utils/logger');
 
@@ -14,6 +15,7 @@ app.use(express.json());
 // Initialize simulators
 const flightSimulator = new FlightSimulator();
 const vesselSimulator = new VesselSimulator();
+const mockApiService = new MockApiService();
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -23,6 +25,214 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
+});
+
+// =================
+// EXTERNAL API MOCK ENDPOINTS
+// =================
+
+// Aircraft API Endpoints
+
+// FlightRadar24 Mock API (Priority 1, Quality: 95%)
+app.get('/api/mock/flightradar24', (req, res) => {
+  try {
+    // Simulate response delay
+    const delay = Math.random() * (config.mockApis.flightradar24.responseDelay.max - config.mockApis.flightradar24.responseDelay.min) + config.mockApis.flightradar24.responseDelay.min;
+    
+    setTimeout(() => {
+      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const data = mockApiService.getFlightRadar24Data(bounds);
+      
+      res.json({
+        success: true,
+        source: 'flightradar24',
+        quality: config.mockApis.flightradar24.quality,
+        priority: config.mockApis.flightradar24.priority,
+        responseTime: Math.round(delay),
+        data: data
+      });
+    }, delay);
+  } catch (error) {
+    systemLogger.error('FlightRadar24 mock API error', error);
+    res.status(500).json({ error: error.message, source: 'flightradar24' });
+  }
+});
+
+// ADS-B Exchange Mock API (Priority 2, Quality: 88%)
+app.get('/api/mock/adsbexchange', (req, res) => {
+  try {
+    const delay = Math.random() * (config.mockApis.adsbexchange.responseDelay.max - config.mockApis.adsbexchange.responseDelay.min) + config.mockApis.adsbexchange.responseDelay.min;
+    
+    setTimeout(() => {
+      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const data = mockApiService.getAdsbExchangeData(bounds);
+      
+      res.json({
+        success: true,
+        source: 'adsbexchange',
+        quality: config.mockApis.adsbexchange.quality,
+        priority: config.mockApis.adsbexchange.priority,
+        responseTime: Math.round(delay),
+        data: data
+      });
+    }, delay);
+  } catch (error) {
+    systemLogger.error('ADS-B Exchange mock API error', error);
+    res.status(500).json({ error: error.message, source: 'adsbexchange' });
+  }
+});
+
+// Vessel API Endpoints
+
+// MarineTraffic Mock API (Priority 1, Quality: 92%)
+app.get('/api/mock/marinetraffic', (req, res) => {
+  try {
+    const delay = Math.random() * (config.mockApis.marinetraffic.responseDelay.max - config.mockApis.marinetraffic.responseDelay.min) + config.mockApis.marinetraffic.responseDelay.min;
+    
+    setTimeout(() => {
+      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const data = mockApiService.getMarineTrafficData(bounds);
+      
+      res.json({
+        success: true,
+        source: 'marinetraffic',
+        quality: config.mockApis.marinetraffic.quality,
+        priority: config.mockApis.marinetraffic.priority,
+        responseTime: Math.round(delay),
+        data: data
+      });
+    }, delay);
+  } catch (error) {
+    systemLogger.error('MarineTraffic mock API error', error);
+    res.status(500).json({ error: error.message, source: 'marinetraffic' });
+  }
+});
+
+// VesselFinder Mock API (Priority 2, Quality: 87%)
+app.get('/api/mock/vesselfinder', (req, res) => {
+  try {
+    const delay = Math.random() * (config.mockApis.vesselfinder.responseDelay.max - config.mockApis.vesselfinder.responseDelay.min) + config.mockApis.vesselfinder.responseDelay.min;
+    
+    setTimeout(() => {
+      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const data = mockApiService.getVesselFinderData(bounds);
+      
+      res.json({
+        success: true,
+        source: 'vesselfinder',
+        quality: config.mockApis.vesselfinder.quality,
+        priority: config.mockApis.vesselfinder.priority,
+        responseTime: Math.round(delay),
+        data: data
+      });
+    }, delay);
+  } catch (error) {
+    systemLogger.error('VesselFinder mock API error', error);
+    res.status(500).json({ error: error.message, source: 'vesselfinder' });
+  }
+});
+
+// Chinaports Mock API (Priority 3, Quality: 85%)
+app.get('/api/mock/chinaports', (req, res) => {
+  try {
+    const delay = Math.random() * (config.mockApis.chinaports.responseDelay.max - config.mockApis.chinaports.responseDelay.min) + config.mockApis.chinaports.responseDelay.min;
+    
+    setTimeout(() => {
+      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const data = mockApiService.getChinaportsData(bounds);
+      
+      res.json({
+        success: true,
+        source: 'chinaports',
+        quality: config.mockApis.chinaports.quality,
+        priority: config.mockApis.chinaports.priority,
+        responseTime: Math.round(delay),
+        data: data
+      });
+    }, delay);
+  } catch (error) {
+    systemLogger.error('Chinaports mock API error', error);
+    res.status(500).json({ error: error.message, source: 'chinaports' });
+  }
+});
+
+// MarineTraffic V2 Mock API (Priority 4, Quality: 89%)
+app.get('/api/mock/marinetrafficv2', (req, res) => {
+  try {
+    const delay = Math.random() * (config.mockApis.marinetrafficv2.responseDelay.max - config.mockApis.marinetrafficv2.responseDelay.min) + config.mockApis.marinetrafficv2.responseDelay.min;
+    
+    setTimeout(() => {
+      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const data = mockApiService.getMarineTrafficV2Data(bounds);
+      
+      res.json({
+        success: true,
+        source: 'marinetrafficv2',
+        quality: config.mockApis.marinetrafficv2.quality,
+        priority: config.mockApis.marinetrafficv2.priority,
+        responseTime: Math.round(delay),
+        data: data
+      });
+    }, delay);
+  } catch (error) {
+    systemLogger.error('MarineTraffic V2 mock API error', error);
+    res.status(500).json({ error: error.message, source: 'marinetrafficv2' });
+  }
+});
+
+// =================
+// MULTI-SOURCE ENDPOINTS
+// =================
+
+// Get all aircraft sources at once
+app.get('/api/mock/aircraft/all', (req, res) => {
+  try {
+    const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+    const data = mockApiService.getAllAircraftSources(bounds);
+    
+    res.json({
+      success: true,
+      sources: ['flightradar24', 'adsbexchange'],
+      timestamp: new Date().toISOString(),
+      data: data
+    });
+  } catch (error) {
+    systemLogger.error('All aircraft sources error', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all vessel sources at once
+app.get('/api/mock/vessels/all', (req, res) => {
+  try {
+    const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+    const data = mockApiService.getAllVesselSources(bounds);
+    
+    res.json({
+      success: true,
+      sources: ['marinetraffic', 'vesselfinder', 'chinaports', 'marinetrafficv2'],
+      timestamp: new Date().toISOString(),
+      data: data
+    });
+  } catch (error) {
+    systemLogger.error('All vessel sources error', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get mock API statistics
+app.get('/api/mock/stats', (req, res) => {
+  try {
+    const stats = mockApiService.getStats();
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      stats: stats
+    });
+  } catch (error) {
+    systemLogger.error('Mock API stats error', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get simulator status

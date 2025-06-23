@@ -99,6 +99,109 @@ const config = {
     flags: ['Vietnam', 'Singapore', 'Panama', 'Liberia', 'Marshall Islands', 'Hong Kong']
   },
   
+  // Mock External APIs Configuration
+  mockApis: {
+    // Aircraft Sources
+    flightradar24: {
+      updateInterval: 30000, // 30 seconds
+      quality: 0.95,
+      priority: 1,
+      coverage: 'global',
+      responseDelay: { min: 100, max: 500 },
+      errorRate: 0.02
+    },
+    adsbexchange: {
+      updateInterval: 35000, // 35 seconds
+      quality: 0.88,
+      priority: 2,
+      coverage: 'community',
+      responseDelay: { min: 200, max: 800 },
+      errorRate: 0.05
+    },
+    
+    // Vessel Sources
+    marinetraffic: {
+      updateInterval: 60000, // 60 seconds
+      quality: 0.92,
+      priority: 1,
+      coverage: 'global',
+      responseDelay: { min: 150, max: 600 },
+      errorRate: 0.03
+    },
+    vesselfinder: {
+      updateInterval: 70000, // 70 seconds
+      quality: 0.87,
+      priority: 2,
+      coverage: 'commercial',
+      responseDelay: { min: 300, max: 1000 },
+      errorRate: 0.06
+    },
+    chinaports: {
+      updateInterval: 90000, // 90 seconds
+      quality: 0.85,
+      priority: 3,
+      coverage: 'china_sea',
+      responseDelay: { min: 500, max: 1200 },
+      errorRate: 0.08,
+      geoBounds: {
+        minLatitude: 3.0,
+        maxLatitude: 25.0,
+        minLongitude: 99.0,
+        maxLongitude: 125.0
+      }
+    },
+    marinetrafficv2: {
+      updateInterval: 80000, // 80 seconds
+      quality: 0.89,
+      priority: 4,
+      coverage: 'extended',
+      responseDelay: { min: 200, max: 700 },
+      errorRate: 0.04
+    }
+  },
+
+  // Data Source Simulation Settings
+  dataSourceSettings: {
+    // Different formats for different sources
+    flightradar24: {
+      format: 'array_indexed',
+      includeGroundStatus: true,
+      includeEmergency: true,
+      altitudeUnit: 'feet'
+    },
+    adsbexchange: {
+      format: 'json_object',
+      includeGroundStatus: true,
+      includeEmergency: true,
+      altitudeUnit: 'feet',
+      communityReported: true
+    },
+    marinetraffic: {
+      format: 'json_object',
+      includeDestination: true,
+      includeDraught: true,
+      includeVesselDetails: true
+    },
+    vesselfinder: {
+      format: 'json_object',
+      includeDestination: true,
+      includeEta: true,
+      commercialFocus: true
+    },
+    chinaports: {
+      format: 'xml_converted',
+      regionSpecific: true,
+      includePortInfo: true,
+      language: 'mixed'
+    },
+    marinetrafficv2: {
+      format: 'json_extended',
+      includePhotos: false,
+      includeReviews: false,
+      extendedDetails: true
+    }
+  },
+
   // Logging Configuration
   logging: {
     level: process.env.LOG_LEVEL || 'info',
