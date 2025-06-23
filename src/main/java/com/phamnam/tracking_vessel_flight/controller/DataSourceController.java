@@ -1,0 +1,85 @@
+package com.phamnam.tracking_vessel_flight.controller;
+
+import com.phamnam.tracking_vessel_flight.service.realtime.MultiSourceExternalApiService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/data-sources")
+@RequiredArgsConstructor
+@Slf4j
+@Tag(name = "Data Source Management", description = "APIs for managing external data sources")
+public class DataSourceController {
+
+    private final MultiSourceExternalApiService multiSourceService;
+
+    @GetMapping("/status")
+    @Operation(summary = "Get status of all data sources", description = "Returns the current status of all configured external data sources")
+    public ResponseEntity<Map<String, Object>> getDataSourcesStatus() {
+        log.debug("Getting status of all data sources");
+        Map<String, Object> status = multiSourceService.getAllSourcesStatus();
+        return ResponseEntity.ok(status);
+    }
+
+    @PostMapping("/collect/aircraft")
+    @Operation(summary = "Manually trigger aircraft data collection", description = "Manually trigger collection of aircraft data from all configured sources")
+    public ResponseEntity<Map<String, Object>> triggerAircraftDataCollection() {
+        log.info("Manually triggering aircraft data collection from all sources");
+
+        multiSourceService.collectAllAircraftData()
+                .thenAccept(data -> log.info("Aircraft data collection completed with {} records", data.size()));
+
+        return ResponseEntity.ok(Map.of(
+                "status", "triggered",
+                "message", "Aircraft data collection started from all sources"));
+    }
+
+    @PostMapping("/collect/vessel")
+    @Operation(summary = "Manually trigger vessel data collection", description = "Manually trigger collection of vessel data from all configured sources")
+    public ResponseEntity<Map<String, Object>> triggerVesselDataCollection() {
+        log.info("Manually triggering vessel data collection from all sources");
+
+        multiSourceService.collectAllVesselData()
+                .thenAccept(data -> log.info("Vessel data collection completed with {} records", data.size()));
+
+        return ResponseEntity.ok(Map.of(
+                "status", "triggered",
+                "message", "Vessel data collection started from all sources"));
+    }
+
+    @PostMapping("/collect/all")
+    @Operation(summary = "Manually trigger all data collection", description = "Manually trigger collection of all tracking data from all configured sources")
+    public ResponseEntity<Map<String, Object>> triggerAllDataCollection() {
+        log.info("Manually triggering all data collection from all sources");
+
+        multiSourceService.collectAndProcessMultiSourceData();
+
+        return ResponseEntity.ok(Map.of(
+                "status", "triggered",
+                "message", "All data collection started from all sources",
+                "note", "Data will be automatically merged and deduplicated"));
+    }
+
+    @GetMapping("/fusion/config")
+    @Operation(summary = "Get data fusion configuration", description = "Returns the current configuration for data fusion and deduplication")
+    public ResponseEntity<Map<String, Object>> getFusionConfig() {
+        // TODO: Get actual config from DataFusionService
+        return ResponseEntity.ok(Map.of(
+                "fusionEnabled", true,
+                "deduplicationEnabled", true,
+                "deduplicationTimeWindow", "30 seconds",
+                "qualityThreshold", 0.5,
+                "sourcePriorities", Map.of(
+                        "flightradar24", 1,
+                        "adsbexchange", 2,
+                        "marinetraffic", 1,
+                        "vesselfinder", 2),
+                "mergeStrategy", "priority-based with quality scoring"));
+    }
+}
