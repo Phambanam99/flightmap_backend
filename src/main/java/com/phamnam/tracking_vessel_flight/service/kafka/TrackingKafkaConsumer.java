@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
+import com.phamnam.tracking_vessel_flight.models.FlightTracking;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -73,9 +74,9 @@ public class TrackingKafkaConsumer {
     }
 
     // Processed Aircraft Data Consumer
-    @KafkaListener(topics = "${app.kafka.topics.processed-aircraft-data}", groupId = "processed-aircraft-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.processed-aircraft-data}", groupId = "processed-aircraft-consumer-group", containerFactory = "processedAircraftKafkaListenerContainerFactory")
     public void consumeProcessedAircraftData(
-            @Payload JsonNode data,
+            @Payload FlightTracking data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
@@ -84,7 +85,7 @@ public class TrackingKafkaConsumer {
             log.debug("Received processed aircraft data from topic: {}, key: {}", topic, key);
 
             // Store processed aircraft data in main tracking tables
-            log.info("Storing processed aircraft data for hexident: {}", key);
+            log.info("Storing processed aircraft data for hexident: {}, flight: {}", key, data);
 
             // Generate real-time position update for WebSocket clients
             log.debug("Generated realtime position update for aircraft: {}", key);
@@ -97,7 +98,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Processed Vessel Data Consumer
-    @KafkaListener(topics = "${app.kafka.topics.processed-vessel-data}", groupId = "processed-vessel-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.processed-vessel-data}", groupId = "processed-vessel-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeProcessedVesselData(
             @Payload JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -121,7 +122,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Real-time Positions Consumer (for WebSocket broadcasting)
-    @KafkaListener(topics = "${app.kafka.topics.realtime-positions}", groupId = "realtime-positions-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.realtime-positions}", groupId = "realtime-positions-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeRealtimePositions(
             @Payload JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -142,7 +143,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Alerts Consumer
-    @KafkaListener(topics = "${app.kafka.topics.alerts}", groupId = "alerts-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.alerts}", groupId = "alerts-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeAlerts(
             @Payload JsonNode alertData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -163,7 +164,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Notifications Consumer
-    @KafkaListener(topics = "${app.kafka.topics.notifications}", groupId = "notifications-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.notifications}", groupId = "notifications-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeNotifications(
             @Payload JsonNode notificationData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -184,7 +185,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Dead Letter Queue Consumer
-    @KafkaListener(topics = "${app.kafka.topics.dead-letter}", groupId = "dead-letter-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.dead-letter}", groupId = "dead-letter-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeDeadLetterMessages(
             @Payload JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -205,7 +206,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Data Quality Issues Consumer
-    @KafkaListener(topics = "${app.kafka.topics.data-quality-issues}", groupId = "data-quality-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.data-quality-issues}", groupId = "data-quality-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeDataQualityIssues(
             @Payload JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -226,7 +227,7 @@ public class TrackingKafkaConsumer {
     }
 
     // Historical Data Consumer (for batch processing)
-    @KafkaListener(topics = "${app.kafka.topics.historical-data}", groupId = "historical-data-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.historical-data}", groupId = "historical-data-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeHistoricalData(
             @Payload JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
@@ -247,7 +248,7 @@ public class TrackingKafkaConsumer {
     }
 
     // WebSocket Updates Consumer (for internal distribution)
-    @KafkaListener(topics = "${app.kafka.topics.websocket-updates}", groupId = "websocket-updates-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.websocket-updates}", groupId = "websocket-updates-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeWebSocketUpdates(
             @Payload JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,

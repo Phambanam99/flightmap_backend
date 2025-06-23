@@ -5,6 +5,7 @@ import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
+import com.phamnam.tracking_vessel_flight.models.FlightTracking;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -274,6 +275,34 @@ public class KafkaConfig {
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
         DefaultKafkaConsumerFactory<String, ShipTrackingRequestDTO> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                props);
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(2);
+        factory.getContainerProperties().setPollTimeout(3000);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    // Processed Aircraft Data container factory (FlightTracking model)
+    @Bean
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, FlightTracking>> processedAircraftKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, FlightTracking> factory = new ConcurrentKafkaListenerContainerFactory<>();
+
+        // Create consumer factory for FlightTracking
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
+                "com.phamnam.tracking_vessel_flight.models.FlightTracking");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
+
+        DefaultKafkaConsumerFactory<String, FlightTracking> consumerFactory = new DefaultKafkaConsumerFactory<>(
                 props);
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
