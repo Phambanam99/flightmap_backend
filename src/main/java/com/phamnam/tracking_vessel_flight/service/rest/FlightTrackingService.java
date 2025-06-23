@@ -225,9 +225,18 @@ public class FlightTrackingService implements IFlightTrackingService {
      * @param userId       The user ID for audit purposes (optional)
      * @return The saved FlightTracking entity
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public FlightTracking processNewTrackingData(FlightTrackingRequestDTO trackingData, Long userId) {
+        // Validate required fields
+        if (trackingData == null) {
+            throw new IllegalArgumentException("Tracking data cannot be null");
+        }
+
+        if (trackingData.getHexident() == null || trackingData.getHexident().trim().isEmpty()) {
+            log.warn("Missing hexident in tracking data, using default");
+        }
+
         // Find or create the aircraft
         Long aircraftId = trackingData.getAircraftId();
         Aircraft aircraft = null;
@@ -288,10 +297,10 @@ public class FlightTrackingService implements IFlightTrackingService {
         // Update the tracking data to use the flight ID
         trackingData.setFlight(flight.getId().toString());
 
-        // Create and save the tracking data
-        FlightTracking tracking = FlightTracking.builder()
+        // Create and save the tracking data with proper validation
+        FlightTracking.FlightTrackingBuilder trackingBuilder = FlightTracking.builder()
                 .flight(flight)
-                .hexident(trackingData.getHexident())
+                .hexident(trackingData.getHexident() != null ? trackingData.getHexident() : "UNKNOWN")
                 .timestamp(trackingData.getUpdateTime() != null ? trackingData.getUpdateTime() : LocalDateTime.now())
                 .altitude(trackingData.getAltitude())
                 .altitudeType(trackingData.getAltitudeType())
@@ -305,12 +314,30 @@ public class FlightTrackingService implements IFlightTrackingService {
                 .bearing(trackingData.getBearing())
                 .unixTime(trackingData.getUnixTime())
                 .updateTime(trackingData.getUpdateTime() != null ? trackingData.getUpdateTime() : LocalDateTime.now())
-                .location(geometryFactory
-                        .createPoint(new Coordinate(trackingData.getLongitude(), trackingData.getLatitude())))
                 .landingUnixTimes(trackingData.getLandingUnixTimes())
-                .landingTimes(trackingData.getLandingTimes())
-                .build();
-        flightTrackingRepository.save(tracking);
+                .landingTimes(trackingData.getLandingTimes());
+
+        // Create location point only if coordinates are valid
+        if (trackingData.getLongitude() != null && trackingData.getLatitude() != null) {
+            try {
+                Point location = geometryFactory
+                        .createPoint(new Coordinate(trackingData.getLongitude(), trackingData.getLatitude()));
+                location.setSRID(4326);
+                trackingBuilder.location(location);
+            } catch (Exception e) {
+                log.warn("Failed to create location point for coordinates: {}, {}", trackingData.getLongitude(),
+                        trackingData.getLatitude(), e);
+            }
+        }
+
+        FlightTracking tracking = trackingBuilder.build();
+
+        try {
+            tracking = flightTrackingRepository.save(tracking);
+        } catch (Exception e) {
+            log.error("Failed to save flight tracking data for flight {}: {}", flight.getId(), e.getMessage(), e);
+            throw e;
+        }
 
         return tracking;
     }
