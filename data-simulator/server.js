@@ -40,7 +40,7 @@ app.get('/api/mock/flightradar24', (req, res) => {
     const delay = Math.random() * (config.mockApis.flightradar24.responseDelay.max - config.mockApis.flightradar24.responseDelay.min) + config.mockApis.flightradar24.responseDelay.min;
     
     setTimeout(() => {
-      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
       const data = mockApiService.getFlightRadar24Data(bounds);
       
       res.json({
@@ -64,7 +64,7 @@ app.get('/api/mock/adsbexchange', (req, res) => {
     const delay = Math.random() * (config.mockApis.adsbexchange.responseDelay.max - config.mockApis.adsbexchange.responseDelay.min) + config.mockApis.adsbexchange.responseDelay.min;
     
     setTimeout(() => {
-      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
       const data = mockApiService.getAdsbExchangeData(bounds);
       
       res.json({
@@ -90,7 +90,7 @@ app.get('/api/mock/marinetraffic', (req, res) => {
     const delay = Math.random() * (config.mockApis.marinetraffic.responseDelay.max - config.mockApis.marinetraffic.responseDelay.min) + config.mockApis.marinetraffic.responseDelay.min;
     
     setTimeout(() => {
-      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
       const data = mockApiService.getMarineTrafficData(bounds);
       
       res.json({
@@ -114,7 +114,7 @@ app.get('/api/mock/vesselfinder', (req, res) => {
     const delay = Math.random() * (config.mockApis.vesselfinder.responseDelay.max - config.mockApis.vesselfinder.responseDelay.min) + config.mockApis.vesselfinder.responseDelay.min;
     
     setTimeout(() => {
-      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
       const data = mockApiService.getVesselFinderData(bounds);
       
       res.json({
@@ -138,7 +138,7 @@ app.get('/api/mock/chinaports', (req, res) => {
     const delay = Math.random() * (config.mockApis.chinaports.responseDelay.max - config.mockApis.chinaports.responseDelay.min) + config.mockApis.chinaports.responseDelay.min;
     
     setTimeout(() => {
-      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
       const data = mockApiService.getChinaportsData(bounds);
       
       res.json({
@@ -162,7 +162,7 @@ app.get('/api/mock/marinetrafficv2', (req, res) => {
     const delay = Math.random() * (config.mockApis.marinetrafficv2.responseDelay.max - config.mockApis.marinetrafficv2.responseDelay.min) + config.mockApis.marinetrafficv2.responseDelay.min;
     
     setTimeout(() => {
-      const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+      const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
       const data = mockApiService.getMarineTrafficV2Data(bounds);
       
       res.json({
@@ -187,7 +187,7 @@ app.get('/api/mock/marinetrafficv2', (req, res) => {
 // Get all aircraft sources at once
 app.get('/api/mock/aircraft/all', (req, res) => {
   try {
-    const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+    const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
     const data = mockApiService.getAllAircraftSources(bounds);
     
     res.json({
@@ -205,7 +205,7 @@ app.get('/api/mock/aircraft/all', (req, res) => {
 // Get all vessel sources at once
 app.get('/api/mock/vessels/all', (req, res) => {
   try {
-    const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+    const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
     const data = mockApiService.getAllVesselSources(bounds);
     
     res.json({
@@ -238,7 +238,7 @@ app.get('/api/mock/stats', (req, res) => {
 // Get all 6 data sources data at once
 app.get('/api/all-sources', async (req, res) => {
   try {
-    const bounds = req.query.bounds ? JSON.parse(req.query.bounds) : null;
+    const bounds = req.query.bounds ? JSON.parse(decodeURIComponent(req.query.bounds)) : null;
     
     systemLogger.info('Fetching data from all 6 sources', { bounds });
 

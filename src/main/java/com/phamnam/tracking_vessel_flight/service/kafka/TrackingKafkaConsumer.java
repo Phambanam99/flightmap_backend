@@ -2,6 +2,8 @@ package com.phamnam.tracking_vessel_flight.service.kafka;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -19,9 +21,9 @@ public class TrackingKafkaConsumer {
     private final ObjectMapper objectMapper;
 
     // Raw Aircraft Data Consumer
-    @KafkaListener(topics = "${app.kafka.topics.raw-aircraft-data}", groupId = "raw-aircraft-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.raw-aircraft-data}", groupId = "raw-aircraft-consumer-group", containerFactory = "rawAircraftKafkaListenerContainerFactory")
     public void consumeRawAircraftData(
-            @Payload JsonNode data,
+            @Payload AircraftTrackingRequest data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
@@ -33,7 +35,7 @@ public class TrackingKafkaConsumer {
                     topic, partition, offset, key);
 
             // Process raw aircraft data - store in raw data repository for audit
-            log.info("Processing raw aircraft data for hexident: {}", key);
+            log.info("Processing raw aircraft data for hexident: {}, data: {}", key, data);
 
             // Acknowledge message
             acknowledgment.acknowledge();
@@ -45,9 +47,9 @@ public class TrackingKafkaConsumer {
     }
 
     // Raw Vessel Data Consumer
-    @KafkaListener(topics = "${app.kafka.topics.raw-vessel-data}", groupId = "raw-vessel-consumer-group")
+    @KafkaListener(topics = "${app.kafka.topics.raw-vessel-data}", groupId = "raw-vessel-consumer-group", containerFactory = "rawVesselKafkaListenerContainerFactory")
     public void consumeRawVesselData(
-            @Payload JsonNode data,
+            @Payload ShipTrackingRequestDTO data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
@@ -59,7 +61,7 @@ public class TrackingKafkaConsumer {
                     topic, partition, offset, key);
 
             // Process raw vessel data - store in raw data repository for audit
-            log.info("Processing raw vessel data for mmsi: {}", key);
+            log.info("Processing raw vessel data for mmsi: {}, data: {}", key, data);
 
             // Acknowledge message
             acknowledgment.acknowledge();

@@ -2,6 +2,7 @@ package com.phamnam.tracking_vessel_flight.config;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
+import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -21,6 +22,7 @@ import org.springframework.kafka.config.KafkaListenerContainerFactory;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
@@ -139,6 +141,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(4); // Number of consumer threads
         factory.getContainerProperties().setPollTimeout(3000);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }
 
@@ -219,6 +222,63 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    // Raw Aircraft Data container factory
+    @Bean
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, AircraftTrackingRequest>> rawAircraftKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, AircraftTrackingRequest> factory = new ConcurrentKafkaListenerContainerFactory<>();
+
+        // Create consumer factory for AircraftTrackingRequest
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
+                "com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
+
+        DefaultKafkaConsumerFactory<String, AircraftTrackingRequest> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                props);
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(2);
+        factory.getContainerProperties().setPollTimeout(3000);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        return factory;
+    }
+
+    // Raw Vessel Data container factory
+    @Bean
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, ShipTrackingRequestDTO>> rawVesselKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ShipTrackingRequestDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
+
+        // Create consumer factory for ShipTrackingRequestDTO (for raw vessel data)
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
+                "com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
+
+        DefaultKafkaConsumerFactory<String, ShipTrackingRequestDTO> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                props);
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(2);
+        factory.getContainerProperties().setPollTimeout(3000);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }
 

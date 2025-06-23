@@ -1,12 +1,16 @@
 package com.phamnam.tracking_vessel_flight.dto.request;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Data
 @Builder(toBuilder = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class AircraftTrackingRequest {
     private String hexident;
     private Double latitude;
