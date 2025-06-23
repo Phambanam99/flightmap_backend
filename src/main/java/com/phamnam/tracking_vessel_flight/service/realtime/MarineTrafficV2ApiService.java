@@ -117,10 +117,16 @@ public class MarineTrafficV2ApiService {
      * Build MarineTraffic V2 API URL
      */
     private String buildMarineTrafficV2Url() {
-        // Mock API format for simulator
-        return String.format(
-                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
-                marineTrafficV2BaseUrl, minLatitude, maxLatitude, minLongitude, maxLongitude);
+        // Mock API format for simulator - encode JSON properly
+        try {
+            String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
+                    minLatitude, maxLatitude, minLongitude, maxLongitude);
+            return String.format("%s?bounds=%s", marineTrafficV2BaseUrl,
+                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+        } catch (Exception e) {
+            // Fallback to simple URL if encoding fails
+            return marineTrafficV2BaseUrl;
+        }
     }
 
     /**

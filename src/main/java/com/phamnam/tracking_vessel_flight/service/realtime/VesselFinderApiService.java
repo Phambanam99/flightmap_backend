@@ -115,10 +115,16 @@ public class VesselFinderApiService {
      * Build VesselFinder API URL with geographic bounds
      */
     private String buildVesselFinderUrl() {
-        // Mock API format for simulator
-        return String.format(
-                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
-                vesselFinderBaseUrl, minLatitude, maxLatitude, minLongitude, maxLongitude);
+        // Mock API format for simulator - encode JSON properly
+        try {
+            String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
+                    minLatitude, maxLatitude, minLongitude, maxLongitude);
+            return String.format("%s?bounds=%s", vesselFinderBaseUrl,
+                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+        } catch (Exception e) {
+            // Fallback to simple URL if encoding fails
+            return vesselFinderBaseUrl;
+        }
     }
 
     /**

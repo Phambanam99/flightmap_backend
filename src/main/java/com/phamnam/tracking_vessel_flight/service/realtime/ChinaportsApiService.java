@@ -115,10 +115,16 @@ public class ChinaportsApiService {
      * Build Chinaports API URL with geographic bounds
      */
     private String buildChinaportsUrl() {
-        // Mock API format for simulator - use main bounds instead of China-specific
-        return String.format(
-                "%s?bounds={\"minLat\":%f,\"maxLat\":%f,\"minLon\":%f,\"maxLon\":%f}",
-                chinaportsBaseUrl, 8.5, 23.5, 102.0, 109.5);
+        // Mock API format for simulator - encode JSON properly
+        try {
+            String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
+                    8.5, 23.5, 102.0, 109.5); // Use main bounds instead of China-specific
+            return String.format("%s?bounds=%s", chinaportsBaseUrl,
+                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+        } catch (Exception e) {
+            // Fallback to simple URL if encoding fails
+            return chinaportsBaseUrl;
+        }
     }
 
     /**

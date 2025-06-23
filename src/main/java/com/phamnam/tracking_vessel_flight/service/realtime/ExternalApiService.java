@@ -88,7 +88,7 @@ public class ExternalApiService {
         }
 
         // Smart endpoint checking
-        if (!isEndpointAvailable(flightradar24BaseUrl, "/zones/fcgi/feed.js")) {
+        if (!isEndpointAvailable(flightradar24BaseUrl, "")) {
             log.debug("FlightRadar24 endpoint not available, skipping data fetch");
             return CompletableFuture.completedFuture(List.of());
         }
@@ -137,9 +137,16 @@ public class ExternalApiService {
     }
 
     private String buildFlightRadar24Url() {
-        return String.format(
-                "%s/zones/fcgi/feed.js?bounds=%f,%f,%f,%f&faa=1&satellite=1&mlat=1&flarm=1&adsb=1&gnd=1&air=1&vehicles=1&estimated=1&maxage=14400&gliders=1&stats=1",
-                flightradar24BaseUrl, maxLatitude, minLatitude, minLongitude, maxLongitude);
+        // Mock API format - base URL already includes the full path
+        try {
+            String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
+                    minLatitude, maxLatitude, minLongitude, maxLongitude);
+            return String.format("%s?bounds=%s", flightradar24BaseUrl,
+                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+        } catch (Exception e) {
+            // Fallback to simple URL if encoding fails
+            return flightradar24BaseUrl;
+        }
     }
 
     private List<AircraftTrackingRequest> parseFlightRadar24Response(String responseBody) {
@@ -203,7 +210,7 @@ public class ExternalApiService {
         }
 
         // Smart endpoint checking
-        if (!isEndpointAvailable(marineTrafficBaseUrl, "/exportvessels")) {
+        if (!isEndpointAvailable(marineTrafficBaseUrl, "")) {
             log.debug("MarineTraffic endpoint not available, skipping data fetch");
             return CompletableFuture.completedFuture(List.of());
         }
@@ -252,9 +259,16 @@ public class ExternalApiService {
     }
 
     private String buildMarineTrafficUrl() {
-        return String.format(
-                "%s/exportvessels/v:8/X-API-Key:%s/timespan:60/protocol:json/minlat:%f/maxlat:%f/minlon:%f/maxlon:%f",
-                marineTrafficBaseUrl, marineTrafficApiKey, minLatitude, maxLatitude, minLongitude, maxLongitude);
+        // Mock API format - base URL already includes the full path
+        try {
+            String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
+                    minLatitude, maxLatitude, minLongitude, maxLongitude);
+            return String.format("%s?bounds=%s", marineTrafficBaseUrl,
+                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+        } catch (Exception e) {
+            // Fallback to simple URL if encoding fails
+            return marineTrafficBaseUrl;
+        }
     }
 
     private List<VesselTrackingRequest> parseMarineTrafficResponse(String responseBody) {
@@ -416,9 +430,9 @@ public class ExternalApiService {
         String sourceTypeName = dataSource.getSourceType().name();
         switch (sourceTypeName) {
             case "FLIGHT_RADAR":
-                return flightradar24BaseUrl + "/zones/fcgi/feed.js?bounds=1,0,0,1";
+                return flightradar24BaseUrl;
             case "MARINE_TRAFFIC":
-                return marineTrafficBaseUrl + "/exportvessels/v:8/X-API-Key:" + marineTrafficApiKey + "/timespan:1";
+                return marineTrafficBaseUrl;
             default:
                 return null;
         }
