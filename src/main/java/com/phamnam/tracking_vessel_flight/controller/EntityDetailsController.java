@@ -72,7 +72,8 @@ public class EntityDetailsController {
 
         } catch (Exception e) {
             log.error("Error retrieving aircraft details for {}: {}", hexident, e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.error("Failed to retrieve aircraft details: " + e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to retrieve aircraft details: " + e.getMessage()));
         }
     }
 
@@ -114,7 +115,8 @@ public class EntityDetailsController {
 
         } catch (Exception e) {
             log.error("Error retrieving vessel details for {}: {}", mmsi, e.getMessage());
-            return ResponseEntity.badRequest().body(MyApiResponse.error("Failed to retrieve vessel details: " + e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(MyApiResponse.error("Failed to retrieve vessel details: " + e.getMessage()));
         }
     }
 
@@ -213,28 +215,26 @@ public class EntityDetailsController {
                 .orElse(null);
 
         return Map.of(
-            "recordCount", data.size(),
-            "latestRecord", latest != null ? formatSingleFlightTracking(latest) : null,
-            "allRecords", data.stream()
-                    .sorted(Comparator.comparing(FlightTracking::getTimestamp).reversed())
-                    .limit(50)
-                    .map(this::formatSingleFlightTracking)
-                    .collect(Collectors.toList())
-        );
+                "recordCount", data.size(),
+                "latestRecord", latest != null ? formatSingleFlightTracking(latest) : null,
+                "allRecords", data.stream()
+                        .sorted(Comparator.comparing(FlightTracking::getTimestamp).reversed())
+                        .limit(50)
+                        .map(this::formatSingleFlightTracking)
+                        .collect(Collectors.toList()));
     }
 
     private Map<String, Object> formatSingleFlightTracking(FlightTracking tracking) {
         return Map.of(
-            "timestamp", tracking.getTimestamp(),
-            "hexident", tracking.getHexident(),
-            "callsign", tracking.getCallsign() != null ? tracking.getCallsign() : "",
-            "latitude", tracking.getLatitude(),
-            "longitude", tracking.getLongitude(),
-            "altitude", tracking.getAltitude() != null ? tracking.getAltitude() : 0,
-            "speed", tracking.getSpeed() != null ? tracking.getSpeed() : 0,
-            "track", tracking.getTrack() != null ? tracking.getTrack() : 0,
-            "dataSource", "Merged Data"
-        );
+                "timestamp", tracking.getTimestamp(),
+                "hexident", tracking.getHexident(),
+                "callsign", tracking.getCallsign() != null ? tracking.getCallsign() : "",
+                "latitude", tracking.getLatitude(),
+                "longitude", tracking.getLongitude(),
+                "altitude", tracking.getAltitude() != null ? tracking.getAltitude() : 0,
+                "speed", tracking.getSpeed() != null ? tracking.getSpeed() : 0,
+                "track", tracking.getTrack() != null ? tracking.getTrack() : 0,
+                "dataSource", "Merged Data");
     }
 
     private Map<String, Object> formatRawAircraftDataBySources(List<RawAircraftData> rawData) {
@@ -242,7 +242,7 @@ public class EntityDetailsController {
                 .collect(Collectors.groupingBy(RawAircraftData::getDataSource));
 
         Map<String, Object> result = new HashMap<>();
-        
+
         dataBySource.forEach((source, data) -> {
             List<Map<String, Object>> formattedData = data.stream()
                     .sorted(Comparator.comparing(RawAircraftData::getReceivedAt).reversed())
@@ -251,11 +251,10 @@ public class EntityDetailsController {
                     .collect(Collectors.toList());
 
             result.put(source, Map.of(
-                "source", source,
-                "totalRecords", data.size(),
-                "priority", data.isEmpty() ? null : data.get(0).getSourcePriority(),
-                "records", formattedData
-            ));
+                    "source", source,
+                    "totalRecords", data.size(),
+                    "priority", data.isEmpty() ? null : data.get(0).getSourcePriority(),
+                    "records", formattedData));
         });
 
         return result;
@@ -263,16 +262,15 @@ public class EntityDetailsController {
 
     private Map<String, Object> formatSingleRawAircraftData(RawAircraftData raw) {
         return Map.of(
-            "receivedAt", raw.getReceivedAt(),
-            "hexident", raw.getHexident() != null ? raw.getHexident() : "",
-            "callsign", raw.getCallsign() != null ? raw.getCallsign() : "",
-            "latitude", raw.getLatitude(),
-            "longitude", raw.getLongitude(),
-            "altitude", raw.getAltitude() != null ? raw.getAltitude() : 0,
-            "speed", raw.getGroundSpeed() != null ? raw.getGroundSpeed() : 0,
-            "dataQuality", raw.getDataQuality(),
-            "dataSource", raw.getDataSource()
-        );
+                "receivedAt", raw.getReceivedAt(),
+                "hexident", raw.getHexident() != null ? raw.getHexident() : "",
+                "callsign", raw.getCallsign() != null ? raw.getCallsign() : "",
+                "latitude", raw.getLatitude(),
+                "longitude", raw.getLongitude(),
+                "altitude", raw.getAltitude() != null ? raw.getAltitude() : 0,
+                "speed", raw.getGroundSpeed() != null ? raw.getGroundSpeed() : 0,
+                "dataQuality", raw.getDataQuality(),
+                "dataSource", raw.getDataSource());
     }
 
     private Map<String, Object> createAircraftSourceSummary(List<RawAircraftData> rawData) {
@@ -280,14 +278,15 @@ public class EntityDetailsController {
                 .collect(Collectors.groupingBy(RawAircraftData::getDataSource));
 
         Map<String, Object> summary = new HashMap<>();
-        
+
         dataBySource.forEach((source, data) -> {
             summary.put(source, Map.of(
-                "recordCount", data.size(),
-                "averageQuality", data.stream().mapToDouble(d -> d.getDataQuality() != null ? d.getDataQuality() : 0.0).average().orElse(0.0),
-                "latestUpdate", data.stream().map(RawAircraftData::getReceivedAt).max(Comparator.naturalOrder()),
-                "priority", data.isEmpty() ? null : data.get(0).getSourcePriority()
-            ));
+                    "recordCount", data.size(),
+                    "averageQuality",
+                    data.stream().mapToDouble(d -> d.getDataQuality() != null ? d.getDataQuality() : 0.0).average()
+                            .orElse(0.0),
+                    "latestUpdate", data.stream().map(RawAircraftData::getReceivedAt).max(Comparator.naturalOrder()),
+                    "priority", data.isEmpty() ? null : data.get(0).getSourcePriority()));
         });
 
         return summary;
@@ -304,27 +303,25 @@ public class EntityDetailsController {
                 .orElse(null);
 
         return Map.of(
-            "recordCount", data.size(),
-            "latestRecord", latest != null ? formatSingleShipTracking(latest) : null,
-            "allRecords", data.stream()
-                    .sorted(Comparator.comparing(ShipTracking::getTimestamp).reversed())
-                    .limit(50)
-                    .map(this::formatSingleShipTracking)
-                    .collect(Collectors.toList())
-        );
+                "recordCount", data.size(),
+                "latestRecord", latest != null ? formatSingleShipTracking(latest) : null,
+                "allRecords", data.stream()
+                        .sorted(Comparator.comparing(ShipTracking::getTimestamp).reversed())
+                        .limit(50)
+                        .map(this::formatSingleShipTracking)
+                        .collect(Collectors.toList()));
     }
 
     private Map<String, Object> formatSingleShipTracking(ShipTracking tracking) {
         return Map.of(
-            "timestamp", tracking.getTimestamp(),
-            "mmsi", tracking.getMmsi(),
-            "latitude", tracking.getLatitude(),
-            "longitude", tracking.getLongitude(),
-            "speed", tracking.getSpeed() != null ? tracking.getSpeed() : 0.0,
-            "course", tracking.getCourse() != null ? tracking.getCourse() : 0.0,
-            "navigationStatus", tracking.getNavigationStatus() != null ? tracking.getNavigationStatus() : "",
-            "dataSource", "Merged Data"
-        );
+                "timestamp", tracking.getTimestamp(),
+                "mmsi", tracking.getMmsi(),
+                "latitude", tracking.getLatitude(),
+                "longitude", tracking.getLongitude(),
+                "speed", tracking.getSpeed() != null ? tracking.getSpeed() : 0.0,
+                "course", tracking.getCourse() != null ? tracking.getCourse() : 0.0,
+                "navigationStatus", tracking.getNavigationStatus() != null ? tracking.getNavigationStatus() : "",
+                "dataSource", "Merged Data");
     }
 
     private Map<String, Object> formatRawVesselDataBySources(List<RawVesselData> rawData) {
@@ -332,7 +329,7 @@ public class EntityDetailsController {
                 .collect(Collectors.groupingBy(RawVesselData::getDataSource));
 
         Map<String, Object> result = new HashMap<>();
-        
+
         dataBySource.forEach((source, data) -> {
             List<Map<String, Object>> formattedData = data.stream()
                     .sorted(Comparator.comparing(RawVesselData::getReceivedAt).reversed())
@@ -341,11 +338,10 @@ public class EntityDetailsController {
                     .collect(Collectors.toList());
 
             result.put(source, Map.of(
-                "source", source,
-                "totalRecords", data.size(),
-                "priority", data.isEmpty() ? null : data.get(0).getSourcePriority(),
-                "records", formattedData
-            ));
+                    "source", source,
+                    "totalRecords", data.size(),
+                    "priority", data.isEmpty() ? null : data.get(0).getSourcePriority(),
+                    "records", formattedData));
         });
 
         return result;
@@ -353,17 +349,16 @@ public class EntityDetailsController {
 
     private Map<String, Object> formatSingleRawVesselData(RawVesselData raw) {
         return Map.of(
-            "receivedAt", raw.getReceivedAt(),
-            "mmsi", raw.getMmsi() != null ? raw.getMmsi() : "",
-            "vesselName", raw.getVesselName() != null ? raw.getVesselName() : "",
-            "latitude", raw.getLatitude(),
-            "longitude", raw.getLongitude(),
-            "speed", raw.getSpeed() != null ? raw.getSpeed() : 0.0,
-            "destination", raw.getDestination() != null ? raw.getDestination() : "",
-            "vesselType", raw.getVesselType() != null ? raw.getVesselType() : "",
-            "dataQuality", raw.getDataQuality(),
-            "dataSource", raw.getDataSource()
-        );
+                "receivedAt", raw.getReceivedAt(),
+                "mmsi", raw.getMmsi() != null ? raw.getMmsi() : "",
+                "vesselName", raw.getVesselName() != null ? raw.getVesselName() : "",
+                "latitude", raw.getLatitude(),
+                "longitude", raw.getLongitude(),
+                "speed", raw.getSpeed() != null ? raw.getSpeed() : 0.0,
+                "destination", raw.getDestination() != null ? raw.getDestination() : "",
+                "vesselType", raw.getVesselType() != null ? raw.getVesselType() : "",
+                "dataQuality", raw.getDataQuality(),
+                "dataSource", raw.getDataSource());
     }
 
     private Map<String, Object> createVesselSourceSummary(List<RawVesselData> rawData) {
@@ -371,14 +366,15 @@ public class EntityDetailsController {
                 .collect(Collectors.groupingBy(RawVesselData::getDataSource));
 
         Map<String, Object> summary = new HashMap<>();
-        
+
         dataBySource.forEach((source, data) -> {
             summary.put(source, Map.of(
-                "recordCount", data.size(),
-                "averageQuality", data.stream().mapToDouble(d -> d.getDataQuality() != null ? d.getDataQuality() : 0.0).average().orElse(0.0),
-                "latestUpdate", data.stream().map(RawVesselData::getReceivedAt).max(Comparator.naturalOrder()),
-                "priority", data.isEmpty() ? null : data.get(0).getSourcePriority()
-            ));
+                    "recordCount", data.size(),
+                    "averageQuality",
+                    data.stream().mapToDouble(d -> d.getDataQuality() != null ? d.getDataQuality() : 0.0).average()
+                            .orElse(0.0),
+                    "latestUpdate", data.stream().map(RawVesselData::getReceivedAt).max(Comparator.naturalOrder()),
+                    "priority", data.isEmpty() ? null : data.get(0).getSourcePriority()));
         });
 
         return summary;

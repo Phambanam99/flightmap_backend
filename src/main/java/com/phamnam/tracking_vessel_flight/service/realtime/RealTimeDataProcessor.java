@@ -132,9 +132,8 @@ public class RealTimeDataProcessor {
 
                 // Send to Kafka for real-time processing
                 if (enableKafka) {
-                    // TODO: Implement kafka producer methods
-                    // kafkaProducer.sendRawAircraftData(request);
-                    // kafkaProducer.sendProcessedAircraftData(tracking);
+                    kafkaProducer.publishRawAircraftData(request.getHexident(), request);
+                    kafkaProducer.publishProcessedAircraftData(tracking.getHexident(), tracking);
                 }
 
                 // Update cache
@@ -155,20 +154,22 @@ public class RealTimeDataProcessor {
 
         // Update aircraft information if available
         if (request.getRegistration() != null) {
-            // TODO: Fix field name - aircraft.setRegistration(request.getRegistration());
+            aircraft.setRegister(request.getRegistration());
         }
 
         if (request.getAircraftType() != null) {
-            // TODO: Fix field name - aircraft.setAircraftType(request.getAircraftType());
+            aircraft.setType(request.getAircraftType());
         }
 
         return aircraftRepository.save(aircraft);
     }
 
     private FlightTracking createFlightTracking(AircraftTrackingRequest request, Aircraft aircraft) {
+        // Need to find or create a flight for this aircraft
+        Flight flight = getOrCreateFlightForAircraft(aircraft, request);
+
         return FlightTracking.builder()
-                // TODO: Fix relationship - FlightTracking has flight field, not aircraft
-                // .aircraft(aircraft)
+                .flight(flight)
                 .hexident(request.getHexident())
                 .callsign(request.getCallsign())
                 .latitude(request.getLatitude())
@@ -183,6 +184,26 @@ public class RealTimeDataProcessor {
                 .timestamp(request.getTimestamp())
                 .updateTime(LocalDateTime.now())
                 .dataSource("External API")
+                .build();
+    }
+
+    /**
+     * Get or create a flight for aircraft tracking
+     */
+    private Flight getOrCreateFlightForAircraft(Aircraft aircraft, AircraftTrackingRequest request) {
+        // Try to find an active flight for this aircraft
+        // For simplicity, we'll create a basic flight record
+        // In a real implementation, you might want more sophisticated flight management
+
+        String callsign = request.getCallsign() != null ? request.getCallsign()
+                : aircraft.getOperatorCode() + "-" + System.currentTimeMillis() % 10000;
+
+        return Flight.builder()
+                .aircraft(aircraft)
+                .callsign(callsign)
+                .departureTime(request.getTimestamp())
+                .originAirport("Unknown")
+                .destinationAirport("Unknown")
                 .build();
     }
 
@@ -231,9 +252,8 @@ public class RealTimeDataProcessor {
 
                 // Send to Kafka for real-time processing
                 if (enableKafka) {
-                    // TODO: Implement kafka producer methods
-                    // kafkaProducer.sendRawVesselData(request);
-                    // kafkaProducer.sendProcessedVesselData(tracking);
+                    kafkaProducer.publishRawVesselData(request.getMmsi(), request);
+                    kafkaProducer.publishProcessedVesselData(tracking.getMmsi(), tracking);
                 }
 
                 // Update cache
@@ -247,35 +267,25 @@ public class RealTimeDataProcessor {
     }
 
     private Ship createOrUpdateShip(VesselTrackingRequest request) {
-        // TODO: Add findByMmsi method to ShipRepository or fix Ship ID type
-        // Ship ship = shipRepository.findById(request.getMmsi())
-        Optional<Ship> shipOpt = shipRepository.findAll().stream()
-                .filter(s -> s.getMmsi().equals(request.getMmsi()))
-                .findFirst();
-
-        Ship ship = shipOpt.orElse(Ship.builder()
-                .mmsi(request.getMmsi())
-                .build());
+        Ship ship = shipRepository.findByMmsi(request.getMmsi())
+                .orElse(Ship.builder()
+                        .mmsi(request.getMmsi())
+                        .build());
 
         // Update ship information if available
         if (request.getVesselName() != null) {
-            // TODO: Add setVesselName method to Ship model
-            // ship.setVesselName(request.getVesselName());
+            ship.setName(request.getVesselName());
         }
         if (request.getVesselType() != null) {
-            // TODO: Add setVesselType method to Ship model
-            // ship.setVesselType(request.getVesselType());
+            ship.setShipType(request.getVesselType());
         }
         if (request.getImo() != null) {
-            // TODO: Add setImo method or check field name
-            // ship.setImo(request.getImo());
+            ship.setImo(request.getImo());
         }
         if (request.getCallsign() != null) {
-            // TODO: Add setCallsign method or check field name
-            // ship.setCallsign(request.getCallsign());
+            ship.setCallsign(request.getCallsign());
         }
-        // TODO: Add setLastSeen method or check field name
-        // ship.setLastSeen(request.getTimestamp());
+        ship.setLastSeen(request.getTimestamp());
 
         if (enablePersistence) {
             return shipRepository.save(ship);
@@ -284,9 +294,11 @@ public class RealTimeDataProcessor {
     }
 
     private ShipTracking createShipTracking(VesselTrackingRequest request, Ship ship) {
-        ShipTracking tracking = ShipTracking.builder()
-                // TODO: Fix relationship - ShipTracking has voyage field, not ship
-                // .ship(ship)
+        // Need to find or create a voyage for this ship
+        Voyage voyage = getOrCreateVoyageForShip(ship, request);
+
+        return ShipTracking.builder()
+                .voyage(voyage)
                 .mmsi(request.getMmsi())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
@@ -297,14 +309,21 @@ public class RealTimeDataProcessor {
                 .timestamp(request.getTimestamp())
                 .updateTime(LocalDateTime.now())
                 .dataSource("External API")
-                // TODO: Add dataQuality field or check field name
-                // .dataQuality(request.getDataQuality())
                 .build();
+    }
 
-        if (enablePersistence) {
-            return shipTrackingRepository.save(tracking);
-        }
-        return tracking;
+    /**
+     * Get or create a voyage for ship tracking
+     */
+    private Voyage getOrCreateVoyageForShip(Ship ship, VesselTrackingRequest request) {
+        // For simplicity, we'll create a basic voyage record
+        // In a real implementation, you might want more sophisticated voyage management
+
+        return Voyage.builder()
+                .ship(ship)
+                .departureTime(request.getTimestamp())
+                .arrivalPort(request.getDestination() != null ? request.getDestination() : "Unknown")
+                .build();
     }
 
     // ============================================================================

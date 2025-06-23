@@ -39,6 +39,7 @@ package com.phamnam.tracking_vessel_flight.controller;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipSubscriptionRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.AreaSubscriptionRequest;
 import com.phamnam.tracking_vessel_flight.service.realtime.WebSocketSubscriptionService;
+import com.phamnam.tracking_vessel_flight.service.realtime.RealTimeDataQueryService;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -63,9 +64,8 @@ public class ShipWebSocketController {
     @Autowired
     private WebSocketSubscriptionService subscriptionService;
 
-    // Note: RealTimeDataQueryService will be enabled separately
-    // @Autowired
-    // private RealTimeDataQueryService realTimeDataQueryService;
+    @Autowired
+    private RealTimeDataQueryService realTimeDataQueryService;
 
     /**
      * Subscribe to ship area updates
@@ -169,24 +169,32 @@ public class ShipWebSocketController {
         }
     }
 
-    // Helper methods (will be replaced when RealTimeDataQueryService is enabled)
+    // Helper methods using RealTimeDataQueryService
 
     private List<ShipTrackingRequest> getShipsInArea(Double minLat, Double maxLat, Double minLon, Double maxLon) {
-        // TODO: Implement with RealTimeDataQueryService when enabled
-        // return realTimeDataQueryService.getShipsInArea(minLat, maxLat, minLon,
-        // maxLon);
-        return java.util.Collections.emptyList();
+        try {
+            return realTimeDataQueryService.getShipsInArea(minLat, maxLat, minLon, maxLon);
+        } catch (Exception e) {
+            logger.error("Error getting ships in area: {}", e.getMessage(), e);
+            return java.util.Collections.emptyList();
+        }
     }
 
     private ShipTrackingRequest getCurrentShipData(String mmsi) {
-        // TODO: Implement with RealTimeDataQueryService when enabled
-        // return realTimeDataQueryService.getCurrentShipData(mmsi);
-        return null;
+        try {
+            return realTimeDataQueryService.getCurrentShipData(mmsi);
+        } catch (Exception e) {
+            logger.error("Error getting current ship data for MMSI {}: {}", mmsi, e.getMessage(), e);
+            return null;
+        }
     }
 
     private Map<String, Object> getRecentShipData(String mmsi) {
-        // TODO: Implement with RealTimeDataQueryService when enabled
-        // return realTimeDataQueryService.getRecentShipData(mmsi);
-        return java.util.Collections.emptyMap();
+        try {
+            return realTimeDataQueryService.getRecentShipData(mmsi);
+        } catch (Exception e) {
+            logger.error("Error getting recent ship data for MMSI {}: {}", mmsi, e.getMessage(), e);
+            return java.util.Collections.emptyMap();
+        }
     }
 }

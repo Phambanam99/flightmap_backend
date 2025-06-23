@@ -103,12 +103,14 @@ public class RawAircraftData {
 
     // Data validation flags
     @Column(name = "is_valid")
+    @Builder.Default
     private Boolean isValid = true;
 
     @Column(name = "validation_errors", columnDefinition = "TEXT")
     private String validationErrors;
 
     @Column(name = "is_duplicate")
+    @Builder.Default
     private Boolean isDuplicate = false;
 
     @Column(name = "duplicate_of_id")
@@ -116,5 +118,6 @@ public class RawAircraftData {
 
     // Retention policy
     @Column(name = "retention_days")
+    @Builder.Default
     private Integer retentionDays = 30; // Keep raw data for 30 days by default
 }

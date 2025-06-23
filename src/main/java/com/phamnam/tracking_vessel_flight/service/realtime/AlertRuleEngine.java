@@ -35,7 +35,7 @@ public class AlertRuleEngine {
     // ALERT MANAGEMENT
     // ============================================================================
 
-    private boolean isDuplicateAlert(AlertRule rule, EntityType entityType, String entityId) {
+    private boolean isDuplicateAlert(AlertRule rule, TrackingPoint.EntityType entityType, String entityId) {
         LocalDateTime recentThreshold = LocalDateTime.now().minusMinutes(5); // Check last 5 minutes
 
         return alertEventRepository.existsByAlertRuleAndEntityTypeAndEntityIdAndEventTimeAfterAndStatus(
@@ -46,7 +46,7 @@ public class AlertRuleEngine {
     // UTILITY METHODS
     // ============================================================================
 
-    private List<AlertRule> getActiveRulesForEntityType(EntityType entityType) {
+    private List<AlertRule> getActiveRulesForEntityType(TrackingPoint.EntityType entityType) {
         String cacheKey = "rules_" + entityType.name();
 
         // Check cache first
@@ -54,11 +54,25 @@ public class AlertRuleEngine {
         List<AlertRule> cachedRules = (List<AlertRule>) ruleCache.get(cacheKey);
 
         if (cachedRules == null) {
-            cachedRules = alertRuleRepository.findByIsEnabledTrueAndEntityTypeOrderByPriorityDesc(entityType);
+            // Convert TrackingPoint.EntityType to models.enums.EntityType
+            EntityType ruleEntityType = convertEntityType(entityType);
+            cachedRules = alertRuleRepository.findByIsEnabledTrueAndEntityTypeOrderByPriorityDesc(ruleEntityType);
             ruleCache.put(cacheKey, cachedRules);
         }
 
         return cachedRules;
+    }
+
+    // Convert between entity type enums
+    private EntityType convertEntityType(TrackingPoint.EntityType trackingType) {
+        switch (trackingType) {
+            case AIRCRAFT:
+                return EntityType.AIRCRAFT;
+            case VESSEL:
+                return EntityType.VESSEL;
+            default:
+                throw new IllegalArgumentException("Unsupported entity type: " + trackingType);
+        }
     }
 
     // Clear cache when rules are updated
@@ -72,27 +86,24 @@ public class AlertRuleEngine {
     // ============================================================================
 
     @Transactional
-    public AlertEvent createManualAlert(EntityType entityType, String entityId,
+    public AlertEvent createManualAlert(TrackingPoint.EntityType entityType, String entityId,
             AlertRule.Priority priority, String message,
             Double latitude, Double longitude) {
         AlertEvent alertEvent = AlertEvent.builder()
-                // TODO: Fix EntityType enum mismatch
-                // .entityType(entityType)
+                .entityType(entityType)
                 .entityId(entityId)
                 .priority(priority)
                 .alertMessage(message)
                 .latitude(latitude)
                 .longitude(longitude)
                 .eventTime(LocalDateTime.now())
-                // TODO: Fix AlertStatus enum mismatch
-                // .status(AlertStatus.ACTIVE)
+                .status(AlertStatus.ACTIVE)
                 .build();
 
         alertEvent = alertEventRepository.save(alertEvent);
 
         // Broadcast the manual alert
-        // TODO: Add sendAlert method to KafkaProducer
-        // kafkaProducer.sendAlert(alertEvent);
+        kafkaProducer.publishAlert(alertEvent.getId().toString(), alertEvent);
         webSocketService.broadcastAlert(alertEvent);
 
         log.info("Created manual {} priority alert for {} {}: {}",
@@ -104,10 +115,7 @@ public class AlertRuleEngine {
     @Transactional
     public void resolveAlert(Long alertId, String resolution) {
         alertEventRepository.findById(alertId).ifPresent(alert -> {
-            // TODO: Fix AlertStatus enum mismatch and missing methods
-            // alert.setStatus(AlertStatus.RESOLVED);
-            // alert.setResolution(resolution);
-            // alert.setResolvedTime(LocalDateTime.now());
+            alert.resolve("system", resolution);
             alertEventRepository.save(alert);
 
             log.info("Resolved alert {}: {}", alertId, resolution);
@@ -115,13 +123,10 @@ public class AlertRuleEngine {
     }
 
     public List<AlertEvent> getActiveAlerts() {
-        // TODO: Fix AlertStatus enum mismatch
-        // return
-        // alertEventRepository.findByStatusOrderByEventTimeDesc(AlertStatus.ACTIVE);
-        return alertEventRepository.findAll(); // Temporary workaround
+        return alertEventRepository.findByStatusOrderByEventTimeDesc(AlertStatus.ACTIVE);
     }
 
-    public List<AlertEvent> getAlertsByEntity(EntityType entityType, String entityId) {
+    public List<AlertEvent> getAlertsByEntity(TrackingPoint.EntityType entityType, String entityId) {
         return alertEventRepository.findByEntityTypeAndEntityIdOrderByEventTimeDesc(entityType, entityId);
     }
 }

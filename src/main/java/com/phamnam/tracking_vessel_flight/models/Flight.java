@@ -217,7 +217,8 @@ public class Flight extends BaseEntity {
     public enum FlightStatus {
         SCHEDULED, // Flight is scheduled
         DELAYED, // Flight is delayed
-        DEPARTED, // Flight has departed
+        DEPARTED,
+        BOARDING,// Flight has departed
         IN_AIR, // Flight is airborne
         APPROACHING, // Flight is approaching destination
         LANDED, // Flight has landed

@@ -420,8 +420,7 @@ public class FlightTrackingService implements IFlightTrackingService {
                         trackingData.getAltitude() < 1000) {
 
                     // Update flight status to landing or landed
-                    // TODO: Convert String to FlightStatus enum
-                    // flight.setStatus("Landing");
+                    flight.setStatus(Flight.FlightStatus.APPROACHING);
                     updated = true;
                 }
 

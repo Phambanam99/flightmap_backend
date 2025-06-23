@@ -65,8 +65,7 @@ public class FlightService implements IFlightService {
                 .callsign(flightRequest.getCallsign())
                 .departureTime(flightRequest.getDepartureTime())
                 .arrivalTime(flightRequest.getArrivalTime())
-                // TODO: Convert String to FlightStatus enum
-                // .status(flightRequest.getStatus())
+                .status(convertStringToFlightStatus(flightRequest.getStatus()))
                 .originAirport(flightRequest.getOriginAirport())
                 .destinationAirport(flightRequest.getDestinationAirport())
                 .build();
@@ -126,5 +125,56 @@ public class FlightService implements IFlightService {
     public void deleteFlight(Long id) {
         Flight flight = getFlightById(id);
         flightRepository.delete(flight);
+    }
+
+    /**
+     * Convert string status to FlightStatus enum
+     */
+    private Flight.FlightStatus convertStringToFlightStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return Flight.FlightStatus.SCHEDULED;
+        }
+
+        try {
+            // Try direct enum conversion first
+            return Flight.FlightStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            // Handle common status mappings
+            switch (status.toLowerCase()) {
+                case "scheduled":
+                case "planned":
+                case "boarding":
+                case "preparing":
+                    return Flight.FlightStatus.SCHEDULED;
+                case "departed":
+                case "takeoff":
+                case "airborne":
+                    return Flight.FlightStatus.DEPARTED;
+                case "in air":
+                case "in_air":
+                case "cruise":
+                case "flying":
+                    return Flight.FlightStatus.IN_AIR;
+                case "approaching":
+                case "descent":
+                case "landing":
+                    return Flight.FlightStatus.APPROACHING;
+                case "landed":
+                    return Flight.FlightStatus.LANDED;
+                case "arrived":
+                    return Flight.FlightStatus.ARRIVED;
+                case "cancelled":
+                case "canceled":
+                    return Flight.FlightStatus.CANCELLED;
+                case "delayed":
+                    return Flight.FlightStatus.DELAYED;
+                case "diverted":
+                    return Flight.FlightStatus.DIVERTED;
+                case "returned":
+                    return Flight.FlightStatus.RETURNED;
+                default:
+                    return Flight.FlightStatus.UNKNOWN;
+            }
+        }
     }
 }
