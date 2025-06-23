@@ -21,6 +21,10 @@ public class MultiSourceExternalApiService {
     private final DataFusionService dataFusionService;
     private final RealTimeDataProcessor dataProcessor;
 
+    // New API services
+    private final ChinaportsApiService chinaportsApiService;
+    private final MarineTrafficV2ApiService marineTrafficV2ApiService;
+
     // TODO: Add new API services when implemented
     // private final AdsbExchangeApiService adsbExchangeService;
     // private final VesselFinderApiService vesselFinderService;
@@ -76,6 +80,10 @@ public class MultiSourceExternalApiService {
 
         // Existing MarineTraffic API
         futures.put("marinetraffic", externalApiService.fetchVesselData());
+
+        // New API sources
+        futures.put("chinaports", chinaportsApiService.fetchVesselData());
+        futures.put("marinetrafficv2", marineTrafficV2ApiService.fetchVesselData());
 
         // TODO: Add new API sources
         // futures.put("vesselfinder", vesselFinderService.fetchVesselData());
@@ -154,7 +162,12 @@ public class MultiSourceExternalApiService {
         // Get existing API status
         status.put("currentSources", externalApiService.getApiStatus());
 
-        // TODO: Add status for new APIs
+        // New API sources status
+        status.put("newSources", Map.of(
+                "chinaports", chinaportsApiService.getChinaportsStatus(),
+                "marinetrafficv2", marineTrafficV2ApiService.getMarineTrafficV2Status()));
+
+        // TODO: Add status for future APIs
         status.put("additionalSources", Map.of(
                 "adsbexchange", Map.of("enabled", false, "status", "Not implemented"),
                 "vesselfinder", Map.of("enabled", false, "status", "Not implemented")));
@@ -163,7 +176,7 @@ public class MultiSourceExternalApiService {
         status.put("dataFusion", Map.of(
                 "enabled", true,
                 "deduplicationEnabled", true,
-                "activeSources", 2 // Will increase when new APIs are added
+                "activeSources", 4 // MarineTraffic, Chinaports, MarineTrafficV2, plus future ones
         ));
 
         return status;

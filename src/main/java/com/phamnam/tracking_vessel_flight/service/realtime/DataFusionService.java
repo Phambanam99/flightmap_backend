@@ -387,6 +387,16 @@ public class DataFusionService {
         sourcePriority.put("vesselfinder", priority);
     }
 
+    @Value("${data.fusion.priority.chinaports:3}")
+    public void setChinaportsPriority(int priority) {
+        sourcePriority.put("chinaports", priority);
+    }
+
+    @Value("${data.fusion.priority.marinetrafficv2:4}")
+    public void setMarineTrafficV2Priority(int priority) {
+        sourcePriority.put("marinetrafficv2", priority);
+    }
+
     // Inner classes for data points
     private static class AircraftDataPoint {
         final AircraftTrackingRequest data;

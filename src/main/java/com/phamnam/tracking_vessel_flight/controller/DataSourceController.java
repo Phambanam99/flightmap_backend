@@ -79,7 +79,9 @@ public class DataSourceController {
                         "flightradar24", 1,
                         "adsbexchange", 2,
                         "marinetraffic", 1,
-                        "vesselfinder", 2),
+                        "vesselfinder", 2,
+                        "chinaports", 3,
+                        "marinetrafficv2", 4),
                 "mergeStrategy", "priority-based with quality scoring"));
     }
 }
