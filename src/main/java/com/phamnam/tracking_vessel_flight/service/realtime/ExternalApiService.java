@@ -152,9 +152,18 @@ public class ExternalApiService {
     private List<AircraftTrackingRequest> parseFlightRadar24Response(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
+
+            // Handle mock API response format: {"data": {"full_count": 50000, "version": 4,
+            // "hexident": [flight_data]}}
+            JsonNode dataWrapper = root.path("data");
+            if (dataWrapper.isMissingNode()) {
+                log.debug("No data wrapper found in FlightRadar24 response");
+                return List.of();
+            }
+
             java.util.List<AircraftTrackingRequest> aircraftList = new java.util.ArrayList<>();
 
-            root.fields().forEachRemaining(entry -> {
+            dataWrapper.fields().forEachRemaining(entry -> {
                 String key = entry.getKey();
                 if (!key.equals("full_count") && !key.equals("version") && !key.equals("stats")) {
                     AircraftTrackingRequest aircraft = parseAircraftFromFlightRadar24(key, entry.getValue());
@@ -164,6 +173,7 @@ public class ExternalApiService {
                 }
             });
 
+            log.debug("Parsed {} aircraft from FlightRadar24 response", aircraftList.size());
             return aircraftList;
         } catch (Exception e) {
             log.error("Failed to parse FlightRadar24 response", e);
@@ -274,9 +284,13 @@ public class ExternalApiService {
     private List<VesselTrackingRequest> parseMarineTrafficResponse(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode vessels = root.get("data");
 
-            if (vessels == null || !vessels.isArray()) {
+            // Handle mock API response format: {"data": {"data": [vessels], "meta": {...}}}
+            JsonNode dataWrapper = root.path("data");
+            JsonNode vessels = dataWrapper.path("data");
+
+            if (vessels == null || vessels.isMissingNode() || !vessels.isArray()) {
+                log.debug("No vessels data found in response or invalid format");
                 return List.of();
             }
 
@@ -289,6 +303,7 @@ public class ExternalApiService {
                 }
             });
 
+            log.debug("Parsed {} vessels from MarineTraffic response", vesselList.size());
             return vesselList;
         } catch (Exception e) {
             log.error("Failed to parse MarineTraffic response", e);
