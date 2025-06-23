@@ -35,20 +35,23 @@ public class WebSocketService {
     @Async
     public void broadcastAircraftUpdate(FlightTracking flightTracking) {
         try {
-            Map<String, Object> update = Map.of(
-                    "type", "aircraft-update",
-                    "timestamp", LocalDateTime.now(),
-                    "data", Map.of(
-                            "hexident", flightTracking.getHexident(),
-                            "latitude", flightTracking.getLatitude(),
-                            "longitude", flightTracking.getLongitude(),
-                            "altitude", flightTracking.getAltitude(),
-                            "groundSpeed", flightTracking.getSpeed(),
-                            "track", flightTracking.getTrack(),
-                            "squawk", flightTracking.getSquawk(),
-                            "onGround", flightTracking.getOnGround(),
-                            "emergency", flightTracking.getEmergency(),
-                            "lastUpdate", flightTracking.getTimestamp()));
+            // Use HashMap to allow null values
+            Map<String, Object> data = new java.util.HashMap<>();
+            data.put("hexident", flightTracking.getHexident());
+            data.put("latitude", flightTracking.getLatitude());
+            data.put("longitude", flightTracking.getLongitude());
+            data.put("altitude", flightTracking.getAltitude());
+            data.put("groundSpeed", flightTracking.getSpeed());
+            data.put("track", flightTracking.getTrack());
+            data.put("squawk", flightTracking.getSquawk());
+            data.put("onGround", flightTracking.getOnGround());
+            data.put("emergency", flightTracking.getEmergency());
+            data.put("lastUpdate", flightTracking.getTimestamp());
+
+            Map<String, Object> update = new java.util.HashMap<>();
+            update.put("type", "aircraft-update");
+            update.put("timestamp", LocalDateTime.now());
+            update.put("data", data);
 
             // Broadcast to all aircraft subscribers
             messagingTemplate.convertAndSend("/topic/aircraft/positions", update);
@@ -71,20 +74,23 @@ public class WebSocketService {
     @Async
     public void broadcastVesselUpdate(ShipTracking shipTracking) {
         try {
-            Map<String, Object> update = Map.of(
-                    "type", "vessel-update",
-                    "timestamp", LocalDateTime.now(),
-                    "data", Map.of(
-                            "mmsi", shipTracking.getMmsi(),
-                            "latitude", shipTracking.getLatitude(),
-                            "longitude", shipTracking.getLongitude(),
-                            "speed", shipTracking.getSpeed(),
-                            "course", shipTracking.getCourse(),
-                            "heading", shipTracking.getHeading(),
-                            "navigationStatus", shipTracking.getNavigationStatus(),
-                            "securityAlert", shipTracking.getSecurityAlert(),
-                            "dangerousCargo", shipTracking.getDangerousCargo(),
-                            "lastUpdate", shipTracking.getTimestamp()));
+            // Use HashMap to allow null values
+            Map<String, Object> data = new java.util.HashMap<>();
+            data.put("mmsi", shipTracking.getMmsi());
+            data.put("latitude", shipTracking.getLatitude());
+            data.put("longitude", shipTracking.getLongitude());
+            data.put("speed", shipTracking.getSpeed());
+            data.put("course", shipTracking.getCourse());
+            data.put("heading", shipTracking.getHeading());
+            data.put("navigationStatus", shipTracking.getNavigationStatus());
+            data.put("securityAlert", shipTracking.getSecurityAlert());
+            data.put("dangerousCargo", shipTracking.getDangerousCargo());
+            data.put("lastUpdate", shipTracking.getTimestamp());
+
+            Map<String, Object> update = new java.util.HashMap<>();
+            update.put("type", "vessel-update");
+            update.put("timestamp", LocalDateTime.now());
+            update.put("data", data);
 
             // Broadcast to all vessel subscribers
             messagingTemplate.convertAndSend("/topic/vessels/positions", update);
@@ -107,20 +113,23 @@ public class WebSocketService {
     @Async
     public void broadcastAlert(AlertEvent alertEvent) {
         try {
-            Map<String, Object> alert = Map.of(
-                    "type", "alert",
-                    "timestamp", LocalDateTime.now(),
-                    "data", Map.of(
-                            "id", alertEvent.getId(),
-                            "entityType", alertEvent.getEntityType(),
-                            "entityId", alertEvent.getEntityId(),
-                            "entityName", alertEvent.getEntityName(),
-                            "priority", alertEvent.getPriority(),
-                            "message", alertEvent.getAlertMessage(),
-                            "latitude", alertEvent.getLatitude(),
-                            "longitude", alertEvent.getLongitude(),
-                            "eventTime", alertEvent.getEventTime(),
-                            "status", alertEvent.getStatus()));
+            // Use HashMap to allow null values
+            Map<String, Object> data = new java.util.HashMap<>();
+            data.put("id", alertEvent.getId());
+            data.put("entityType", alertEvent.getEntityType());
+            data.put("entityId", alertEvent.getEntityId());
+            data.put("entityName", alertEvent.getEntityName());
+            data.put("priority", alertEvent.getPriority());
+            data.put("message", alertEvent.getAlertMessage());
+            data.put("latitude", alertEvent.getLatitude());
+            data.put("longitude", alertEvent.getLongitude());
+            data.put("eventTime", alertEvent.getEventTime());
+            data.put("status", alertEvent.getStatus());
+
+            Map<String, Object> alert = new java.util.HashMap<>();
+            alert.put("type", "alert");
+            alert.put("timestamp", LocalDateTime.now());
+            alert.put("data", data);
 
             // Broadcast to all alert subscribers
             messagingTemplate.convertAndSend("/topic/alerts", alert);

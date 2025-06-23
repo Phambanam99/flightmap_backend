@@ -122,6 +122,7 @@ public class AdsbExchangeApiService {
                     java.net.URLEncoder.encode(boundsJson, "UTF-8"));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
+            log.warn("Failed to encode bounds JSON for ADS-B Exchange URL: {}", e.getMessage());
             return adsbExchangeBaseUrl;
         }
     }

@@ -58,12 +58,12 @@ class MockApiService {
     // Update flight data every 30 seconds
     setInterval(() => {
       this.updateFlightData();
-    }, config.mockApis.flightradar24.updateInterval || 30000);
+    }, config.mockApis?.flightradar24?.updateInterval || 30000);
 
     // Update ship data every 60 seconds
     setInterval(() => {
       this.updateShipData();
-    }, config.mockApis.marinetraffic.updateInterval || 60000);
+    }, config.mockApis?.marinetraffic?.updateInterval || 60000);
   }
 
   updateFlightData() {
@@ -150,7 +150,7 @@ class MockApiService {
       // Check if flight is within bounds
       if (this.isWithinBounds({ Latitude: flight[1], Longitude: flight[2] }, bounds)) {
         // Add some data quality variance - FlightRadar24 is very reliable
-        if (Math.random() > config.mockApis.flightradar24.errorRate) {
+        if (Math.random() > (config.mockApis?.flightradar24?.errorRate || 0.02)) {
           result[hexident] = this.addDataQualityVariance(flight, 'flightradar24');
         }
       }
@@ -166,7 +166,7 @@ class MockApiService {
     this.flightData.forEach((flight, hexident) => {
       if (this.isWithinBounds({ Latitude: flight[1], Longitude: flight[2] }, bounds)) {
         // ADS-B Exchange has community-driven data with slightly lower quality
-        if (Math.random() > config.mockApis.adsbexchange.errorRate) {
+        if (Math.random() > (config.mockApis?.adsbexchange?.errorRate || 0.05)) {
           aircraft.push(this.convertToAdsbExchangeFormat(flight, hexident));
         }
       }
@@ -191,7 +191,7 @@ class MockApiService {
     this.shipData.forEach((ship, mmsi) => {
       // Check if ship is within bounds
       if (this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
-        if (Math.random() > config.mockApis.marinetraffic.errorRate) {
+        if (Math.random() > (config.mockApis?.marinetraffic?.errorRate || 0.03)) {
           ships.push(this.addVesselDataQualityVariance(ship, 'marinetraffic'));
         }
       }
@@ -212,7 +212,7 @@ class MockApiService {
 
     this.shipData.forEach((ship, mmsi) => {
       if (this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
-        if (Math.random() > config.mockApis.vesselfinder.errorRate) {
+        if (Math.random() > (config.mockApis?.vesselfinder?.errorRate || 0.06)) {
           vessels.push(this.convertToVesselFinderFormat(ship, mmsi));
         }
       }
@@ -229,7 +229,12 @@ class MockApiService {
   // Chinaports API Mock (Priority 3, Quality: 85%) - China Sea focus
   getChinaportsData(bounds) {
     const ships = [];
-    const chinaBounds = config.mockApis.chinaports.geoBounds;
+    const chinaBounds = config.mockApis?.chinaports?.geoBounds || {
+      minLatitude: 3.0,
+      maxLatitude: 25.0,
+      minLongitude: 99.0,
+      maxLongitude: 125.0
+    };
 
     this.shipData.forEach((ship, mmsi) => {
       const shipLat = ship.LAT;
@@ -240,11 +245,11 @@ class MockApiService {
           shipLon >= chinaBounds.minLongitude && shipLon <= chinaBounds.maxLongitude) {
         
         if (bounds && this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
-          if (Math.random() > config.mockApis.chinaports.errorRate) {
+          if (Math.random() > (config.mockApis?.chinaports?.errorRate || 0.08)) {
             ships.push(this.convertToChinaportsFormat(ship, mmsi));
           }
         } else if (!bounds) {
-          if (Math.random() > config.mockApis.chinaports.errorRate) {
+          if (Math.random() > (config.mockApis?.chinaports?.errorRate || 0.08)) {
             ships.push(this.convertToChinaportsFormat(ship, mmsi));
           }
         }
@@ -269,7 +274,7 @@ class MockApiService {
 
     this.shipData.forEach((ship, mmsi) => {
       if (this.isWithinBounds({ Latitude: ship.LAT, Longitude: ship.LON }, bounds)) {
-        if (Math.random() > config.mockApis.marinetrafficv2.errorRate) {
+        if (Math.random() > (config.mockApis?.marinetrafficv2?.errorRate || 0.04)) {
           positions.push(this.convertToMarineTrafficV2Format(ship, mmsi));
         }
       }
@@ -374,7 +379,7 @@ class MockApiService {
   }
 
   generateCallsign() {
-    const prefixes = config.flight.callsignPrefixes;
+    const prefixes = config.flight?.callsignPrefixes || ['VN', 'VJ', 'BL'];
     const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
     const number = Math.floor(Math.random() * 999) + 1;
     return prefix + number;
@@ -388,11 +393,11 @@ class MockApiService {
   }
 
   getRandomShipType() {
-    return config.vessel.vesselTypes[Math.floor(Math.random() * config.vessel.vesselTypes.length)].type;
+    return config.vessel?.vesselTypes?.[Math.floor(Math.random() * config.vessel.vesselTypes.length)]?.type || 'Container';
   }
 
   getRandomAircraftType() {
-    return config.flight.aircraftTypes[Math.floor(Math.random() * config.flight.aircraftTypes.length)];
+    return config.flight?.aircraftTypes?.[Math.floor(Math.random() * config.flight.aircraftTypes.length)]?.type || 'B737';
   }
 
   // Add new flight manually
@@ -560,7 +565,7 @@ class MockApiService {
   // =================
 
   addDataQualityVariance(flight, source) {
-    const quality = config.mockApis[source].quality;
+    const quality = config.mockApis?.[source]?.quality || 0.9;
     
     if (Math.random() > quality) {
       // Add some noise based on source quality
@@ -590,7 +595,7 @@ class MockApiService {
   }
 
   addVesselDataQualityVariance(ship, source) {
-    const quality = config.mockApis[source].quality;
+    const quality = config.mockApis?.[source]?.quality || 0.9;
     
     if (Math.random() > quality) {
       const noiseFactor = (1 - quality) * 5;
@@ -728,14 +733,14 @@ class MockApiService {
         lastUpdate: new Date(this.lastUpdate.flights).toISOString(),
         sources: {
           flightradar24: {
-            quality: config.mockApis.flightradar24.quality,
-            priority: config.mockApis.flightradar24.priority,
-            updateInterval: config.mockApis.flightradar24.updateInterval
+            quality: config.mockApis?.flightradar24?.quality || 0.95,
+            priority: config.mockApis?.flightradar24?.priority || 1,
+            updateInterval: config.mockApis?.flightradar24?.updateInterval || 30000
           },
           adsbexchange: {
-            quality: config.mockApis.adsbexchange.quality,
-            priority: config.mockApis.adsbexchange.priority,
-            updateInterval: config.mockApis.adsbexchange.updateInterval
+            quality: config.mockApis?.adsbexchange?.quality || 0.88,
+            priority: config.mockApis?.adsbexchange?.priority || 2,
+            updateInterval: config.mockApis?.adsbexchange?.updateInterval || 35000
           }
         }
       },
@@ -744,30 +749,30 @@ class MockApiService {
         lastUpdate: new Date(this.lastUpdate.ships).toISOString(),
         sources: {
           marinetraffic: {
-            quality: config.mockApis.marinetraffic.quality,
-            priority: config.mockApis.marinetraffic.priority,
-            updateInterval: config.mockApis.marinetraffic.updateInterval
+            quality: config.mockApis?.marinetraffic?.quality || 0.92,
+            priority: config.mockApis?.marinetraffic?.priority || 1,
+            updateInterval: config.mockApis?.marinetraffic?.updateInterval || 60000
           },
           vesselfinder: {
-            quality: config.mockApis.vesselfinder.quality,
-            priority: config.mockApis.vesselfinder.priority,
-            updateInterval: config.mockApis.vesselfinder.updateInterval
+            quality: config.mockApis?.vesselfinder?.quality || 0.87,
+            priority: config.mockApis?.vesselfinder?.priority || 2,
+            updateInterval: config.mockApis?.vesselfinder?.updateInterval || 70000
           },
           chinaports: {
-            quality: config.mockApis.chinaports.quality,
-            priority: config.mockApis.chinaports.priority,
-            updateInterval: config.mockApis.chinaports.updateInterval
+            quality: config.mockApis?.chinaports?.quality || 0.85,
+            priority: config.mockApis?.chinaports?.priority || 3,
+            updateInterval: config.mockApis?.chinaports?.updateInterval || 90000
           },
           marinetrafficv2: {
-            quality: config.mockApis.marinetrafficv2.quality,
-            priority: config.mockApis.marinetrafficv2.priority,
-            updateInterval: config.mockApis.marinetrafficv2.updateInterval
+            quality: config.mockApis?.marinetrafficv2?.quality || 0.89,
+            priority: config.mockApis?.marinetrafficv2?.priority || 4,
+            updateInterval: config.mockApis?.marinetrafficv2?.updateInterval || 80000
           }
         }
       },
       movementSimulator: {
-        activeFlights: this.movementSimulator.getAllActiveFlights().length,
-        activeShips: this.movementSimulator.getAllActiveVessels().length
+        activeFlights: this.flightData.size,
+        activeShips: this.shipData.size
       }
     };
   }

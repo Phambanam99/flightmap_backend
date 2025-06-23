@@ -126,6 +126,7 @@ public class MarineTrafficV2ApiService {
                     java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
+            log.warn("Failed to encode bounds JSON for MarineTraffic V2 URL: {}", e.getMessage());
             return marineTrafficV2BaseUrl;
         }
     }
@@ -265,7 +266,8 @@ public class MarineTrafficV2ApiService {
         }
     }
 
-    static void checkHealthSource(DataSource dataSource, SourceStatus status, DataSourceRepository dataSourceRepository) {
+    static void checkHealthSource(DataSource dataSource, SourceStatus status,
+            DataSourceRepository dataSourceRepository) {
         if (status == SourceStatus.HEALTHY) {
             dataSource.setLastSuccessTime(LocalDateTime.now());
             dataSource.setConsecutiveFailures(0);

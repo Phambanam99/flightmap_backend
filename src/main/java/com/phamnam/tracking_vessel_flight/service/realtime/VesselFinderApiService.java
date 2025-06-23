@@ -123,6 +123,7 @@ public class VesselFinderApiService {
                     java.net.URLEncoder.encode(boundsJson, "UTF-8"));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
+            log.warn("Failed to encode bounds JSON for VesselFinder URL: {}", e.getMessage());
             return vesselFinderBaseUrl;
         }
     }
