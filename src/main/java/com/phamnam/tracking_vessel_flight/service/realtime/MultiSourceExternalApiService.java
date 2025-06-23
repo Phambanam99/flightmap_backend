@@ -20,6 +20,7 @@ public class MultiSourceExternalApiService {
     private final ExternalApiService externalApiService;
     private final DataFusionService dataFusionService;
     private final RealTimeDataProcessor dataProcessor;
+    private final RawDataStorageService rawDataStorageService;
 
     // New API services
     private final ChinaportsApiService chinaportsApiService;
@@ -47,13 +48,20 @@ public class MultiSourceExternalApiService {
         return allFutures.thenApply(v -> {
             Map<String, List<AircraftTrackingRequest>> dataBySource = new HashMap<>();
 
-            // Collect results from each source
+            // Collect results from each source and store raw data
             futures.forEach((source, future) -> {
                 try {
+                    long startTime = System.currentTimeMillis();
                     List<AircraftTrackingRequest> data = future.join();
+                    long responseTime = System.currentTimeMillis() - startTime;
+
                     if (data != null && !data.isEmpty()) {
                         dataBySource.put(source, data);
                         log.info("Collected {} aircraft from {}", data.size(), source);
+
+                        // Store raw data for audit and analysis
+                        String apiEndpoint = getAircraftApiEndpoint(source);
+                        rawDataStorageService.storeRawAircraftData(source, data, apiEndpoint, responseTime);
                     }
                 } catch (Exception e) {
                     log.error("Failed to get data from {}: {}", source, e.getMessage());
@@ -91,13 +99,20 @@ public class MultiSourceExternalApiService {
         return allFutures.thenApply(v -> {
             Map<String, List<VesselTrackingRequest>> dataBySource = new HashMap<>();
 
-            // Collect results from each source
+            // Collect results from each source and store raw data
             futures.forEach((source, future) -> {
                 try {
+                    long startTime = System.currentTimeMillis();
                     List<VesselTrackingRequest> data = future.join();
+                    long responseTime = System.currentTimeMillis() - startTime;
+
                     if (data != null && !data.isEmpty()) {
                         dataBySource.put(source, data);
                         log.info("Collected {} vessels from {}", data.size(), source);
+
+                        // Store raw data for audit and analysis
+                        String apiEndpoint = getVesselApiEndpoint(source);
+                        rawDataStorageService.storeRawVesselData(source, data, apiEndpoint, responseTime);
                     }
                 } catch (Exception e) {
                     log.error("Failed to get data from {}: {}", source, e.getMessage());
@@ -175,5 +190,29 @@ public class MultiSourceExternalApiService {
         ));
 
         return status;
+    }
+
+    /**
+     * Get API endpoint for aircraft data source
+     */
+    private String getAircraftApiEndpoint(String source) {
+        return switch (source) {
+            case "flightradar24" -> "/api/aircraft/flightradar24";
+            case "adsbexchange" -> "/api/aircraft/adsbexchange";
+            default -> "/api/aircraft/" + source;
+        };
+    }
+
+    /**
+     * Get API endpoint for vessel data source
+     */
+    private String getVesselApiEndpoint(String source) {
+        return switch (source) {
+            case "marinetraffic" -> "/api/vessels/marinetraffic";
+            case "vesselfinder" -> "/api/vessels/vesselfinder";
+            case "chinaports" -> "/api/vessels/chinaports";
+            case "marinetrafficv2" -> "/api/vessels/marinetrafficv2";
+            default -> "/api/vessels/" + source;
+        };
     }
 }
