@@ -3,9 +3,9 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
 import com.phamnam.tracking_vessel_flight.models.*;
-import com.phamnam.tracking_vessel_flight.models.enums.EntityType;
 import com.phamnam.tracking_vessel_flight.repository.*;
 import com.phamnam.tracking_vessel_flight.service.kafka.TrackingKafkaProducer;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.ExternalApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +34,7 @@ public class RealTimeDataProcessor {
     private final ShipRepository shipRepository;
     private final FlightTrackingRepository flightTrackingRepository;
     private final ShipTrackingRepository shipTrackingRepository;
+    private final VoyageRepository voyageRepository;
 
     @Value("${tracking.data.processing.batch-size:100}")
     private int batchSize;
@@ -54,8 +55,8 @@ public class RealTimeDataProcessor {
 
     // DISABLED: Now handled by MultiSourceExternalApiService with 6 sources + data
     // fusion
-//     @Scheduled(fixedRate = 30000) // Every 30 seconds
-//     @Async
+    // @Scheduled(fixedRate = 30000) // Every 30 seconds
+    // @Async
     public void collectAndProcessRealTimeData() {
         log.debug("Starting real-time data collection...");
 
@@ -252,6 +253,12 @@ public class RealTimeDataProcessor {
                 // Create tracking record
                 ShipTracking tracking = createShipTracking(request, ship);
 
+                // Save tracking record to database
+                if (enablePersistence) {
+                    shipTrackingRepository.save(tracking);
+                    log.debug("✅ Saved vessel tracking for MMSI: {}", request.getMmsi());
+                }
+
                 // Send to Kafka for real-time processing
                 if (enableKafka) {
                     kafkaProducer.publishRawVesselData(request.getMmsi(), request);
@@ -318,14 +325,47 @@ public class RealTimeDataProcessor {
      * Get or create a voyage for ship tracking
      */
     private Voyage getOrCreateVoyageForShip(Ship ship, VesselTrackingRequest request) {
-        // For simplicity, we'll create a basic voyage record
-        // In a real implementation, you might want more sophisticated voyage management
+        // Try to find an active voyage for this ship
+        if (ship.getId() != null) {
+            Optional<Voyage> activeVoyage = voyageRepository.findLatestVoyageByShipId(ship.getId());
+            if (activeVoyage.isPresent()) {
+                Voyage voyage = activeVoyage.get();
+                // Check if voyage is still active (no arrival time or recent)
+                if (voyage.getArrivalTime() == null ||
+                        voyage.getLastSeen() != null &&
+                                voyage.getLastSeen().isAfter(LocalDateTime.now().minusHours(2))) {
 
-        return Voyage.builder()
+                    // Update voyage info and return existing
+                    voyage.setLastSeen(request.getTimestamp());
+                    if (enablePersistence) {
+                        return voyageRepository.save(voyage);
+                    }
+                    return voyage;
+                }
+            }
+        }
+
+        // Create new voyage if no active voyage found
+        Voyage newVoyage = Voyage.builder()
                 .ship(ship)
+                .voyageNumber("AUTO-" + System.currentTimeMillis())
                 .departureTime(request.getTimestamp())
+                .departurePort("Unknown")
                 .arrivalPort(request.getDestination() != null ? request.getDestination() : "Unknown")
+                .status(Voyage.VoyageStatus.UNDERWAY)
+                .voyagePhase(Voyage.VoyagePhase.OPEN_SEA)
+                .firstSeen(request.getTimestamp())
+                .lastSeen(request.getTimestamp())
+                .currentSpeed(request.getSpeed())
+                .currentHeading(request.getHeading() != null ? request.getHeading().doubleValue() : null)
+                .navigationStatus(request.getNavigationStatus())
+                .destinationEta(request.getTimestamp().plusDays(1)) // Estimate 1 day
                 .build();
+
+        if (enablePersistence) {
+            return voyageRepository.save(newVoyage);
+        }
+        return newVoyage;
     }
 
     // ============================================================================
