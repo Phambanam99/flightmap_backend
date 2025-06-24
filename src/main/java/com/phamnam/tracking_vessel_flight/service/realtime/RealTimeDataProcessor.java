@@ -244,6 +244,8 @@ public class RealTimeDataProcessor {
         }
     }
 
+    @Async
+    @Transactional
     private void processBatchVesselData(List<VesselTrackingRequest> batch) {
         for (VesselTrackingRequest request : batch) {
             try {

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -190,7 +191,11 @@ public class MultiSourceExternalApiService {
             if (!aircraftData.isEmpty()) {
                 try {
                     log.info("🔄 Sending {} aircraft records to processor...", aircraftData.size());
-                    dataProcessor.processAircraftData(aircraftData);
+
+                    // CRITICAL FIX: Await the async processing!
+                    CompletableFuture<Void> aircraftProcessingFuture = dataProcessor.processAircraftData(aircraftData);
+                    aircraftProcessingFuture.get(); // Wait for completion
+
                     log.info("✅ Processed {} merged aircraft records from multiple sources", aircraftData.size());
                 } catch (Exception e) {
                     log.error("❌ Failed to process aircraft data: {}", e.getMessage(), e);
@@ -199,16 +204,28 @@ public class MultiSourceExternalApiService {
                 log.warn("⚠️ No aircraft data to process (empty list)");
             }
 
-            if (!vesselData.isEmpty()) {
+            // Ultra-detailed vessel processing debugging
+            log.info("🔍 VESSEL DEBUG: vesselData is null? {}", vesselData == null);
+            log.info("🔍 VESSEL DEBUG: vesselData size: {}", vesselData != null ? vesselData.size() : "NULL");
+            log.info("🔍 VESSEL DEBUG: vesselData.isEmpty(): {}", vesselData != null ? vesselData.isEmpty() : "NULL");
+
+            if (vesselData != null && !vesselData.isEmpty()) {
                 try {
                     log.info("🔄 Sending {} vessel records to processor...", vesselData.size());
-                    dataProcessor.processVesselData(vesselData);
+                    log.info("🔍 About to call dataProcessor.processVesselData()...");
+
+                    // CRITICAL FIX: Await the async processing!
+                    CompletableFuture<Void> vesselProcessingFuture = dataProcessor.processVesselData(vesselData);
+                    vesselProcessingFuture.get(); // Wait for completion
+
                     log.info("✅ Processed {} merged vessel records from multiple sources", vesselData.size());
                 } catch (Exception e) {
                     log.error("❌ Failed to process vessel data: {}", e.getMessage(), e);
+                    e.printStackTrace();
                 }
             } else {
-                log.warn("⚠️ No vessel data to process (empty list)");
+                log.warn("⚠️ No vessel data to process (vesselData={}, isEmpty={})",
+                        vesselData, vesselData != null ? vesselData.isEmpty() : "NULL");
             }
 
         } catch (Exception e) {
