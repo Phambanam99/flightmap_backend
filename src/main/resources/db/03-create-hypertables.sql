@@ -114,7 +114,10 @@ SELECT safe_create_hypertable(
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'flight_tracking') THEN
-        PERFORM create_tracking_indexes('flight_tracking');
+        -- Check if function exists before calling it
+        IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'create_tracking_indexes') THEN
+            PERFORM create_tracking_indexes('flight_tracking');
+        END IF;
         
         -- Additional specialized indexes for flight data
         CREATE INDEX IF NOT EXISTS idx_flight_tracking_hexident_time 
@@ -140,7 +143,10 @@ END $$;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ship_tracking') THEN
-        PERFORM create_tracking_indexes('ship_tracking');
+        -- Check if function exists before calling it
+        IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'create_tracking_indexes') THEN
+            PERFORM create_tracking_indexes('ship_tracking');
+        END IF;
         
         -- Additional specialized indexes for ship data
         CREATE INDEX IF NOT EXISTS idx_ship_tracking_mmsi_time 
@@ -166,7 +172,10 @@ END $$;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'tracking_points') THEN
-        PERFORM create_tracking_indexes('tracking_points');
+        -- Check if function exists before calling it
+        IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'create_tracking_indexes') THEN
+            PERFORM create_tracking_indexes('tracking_points');
+        END IF;
         
         -- Additional indexes for tracking points
         CREATE INDEX IF NOT EXISTS idx_tracking_points_data_quality 
@@ -380,61 +389,90 @@ SELECT safe_create_continuous_aggregate(
 -- ============================================================================
 
 -- Latest Positions View (for real-time display)
-CREATE OR REPLACE VIEW latest_positions AS
-SELECT DISTINCT ON (entity_type, entity_id)
-    entity_type,
-    entity_id,
-    entity_name,
-    latitude,
-    longitude,
-    altitude,
-    speed,
-    heading,
-    timestamp as last_update,
-    data_quality
-FROM tracking_points
-ORDER BY entity_type, entity_id, timestamp DESC;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'tracking_points') THEN
+        EXECUTE 'CREATE OR REPLACE VIEW latest_positions AS
+        SELECT DISTINCT ON (entity_type, entity_id)
+            entity_type,
+            entity_id,
+            entity_name,
+            latitude,
+            longitude,
+            altitude,
+            speed,
+            heading,
+            timestamp as last_update,
+            data_quality
+        FROM tracking_points
+        ORDER BY entity_type, entity_id, timestamp DESC';
+        
+        RAISE NOTICE 'Created latest_positions view successfully';
+    ELSE
+        RAISE NOTICE 'Table tracking_points does not exist, skipping latest_positions view creation';
+    END IF;
+END $$;
 
 -- Active Alerts View
-CREATE OR REPLACE VIEW active_alerts AS
-SELECT 
-    ae.id,
-    ae.entity_type,
-    ae.entity_id,
-    ae.entity_name,
-    ae.priority,
-    ae.alert_message,
-    ae.event_time,
-    ae.latitude,
-    ae.longitude,
-    ar.name as rule_name,
-    ar.rule_type
-FROM alert_event ae
-JOIN alert_rule ar ON ae.alert_rule_id = ar.id
-WHERE ae.status = 'ACTIVE'
-ORDER BY ae.event_time DESC;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alert_event') AND
+       EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alert_rule') THEN
+        EXECUTE 'CREATE OR REPLACE VIEW active_alerts AS
+        SELECT 
+            ae.id,
+            ae.entity_type,
+            ae.entity_id,
+            ae.entity_name,
+            ae.priority,
+            ae.alert_message,
+            ae.event_time,
+            ae.latitude,
+            ae.longitude,
+            ar.name as rule_name,
+            ar.rule_type
+        FROM alert_event ae
+        JOIN alert_rule ar ON ae.alert_rule_id = ar.id
+        WHERE ae.status = ''ACTIVE''
+        ORDER BY ae.event_time DESC';
+        
+        RAISE NOTICE 'Created active_alerts view successfully';
+    ELSE
+        RAISE NOTICE 'Tables alert_event or alert_rule do not exist, skipping active_alerts view creation';
+    END IF;
+END $$;
 
 -- System Health View
-CREATE OR REPLACE VIEW system_health AS
-SELECT 
-    ds.name as data_source,
-    ds.source_type,
-    ds.is_enabled,
-    ds.is_active,
-    ds.last_success_time,
-    ds.consecutive_failures,
-    ds.success_rate,
-    dss.status as last_status,
-    dss.check_time as last_check
-FROM data_source ds
-LEFT JOIN LATERAL (
-    SELECT status, check_time
-    FROM data_source_status
-    WHERE data_source_id = ds.id
-    ORDER BY check_time DESC
-    LIMIT 1
-) dss ON true
-ORDER BY ds.priority;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'data_source') AND
+       EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'data_source_status') THEN
+        EXECUTE 'CREATE OR REPLACE VIEW system_health AS
+        SELECT 
+            ds.name as data_source,
+            ds.source_type,
+            ds.is_enabled,
+            ds.is_active,
+            ds.last_success_time,
+            ds.consecutive_failures,
+            ds.success_rate,
+            dss.status as last_status,
+            dss.check_time as last_check
+        FROM data_source ds
+        LEFT JOIN LATERAL (
+            SELECT status, check_time
+            FROM data_source_status
+            WHERE data_source_id = ds.id
+            ORDER BY check_time DESC
+            LIMIT 1
+        ) dss ON true
+        ORDER BY ds.priority';
+        
+        RAISE NOTICE 'Created system_health view successfully';
+    ELSE
+        RAISE NOTICE 'Tables data_source or data_source_status do not exist, skipping system_health view creation';
+    END IF;
+END $$;
 
 -- ============================================================================
 -- COMPLETION MESSAGE
@@ -452,12 +490,12 @@ BEGIN
     RAISE NOTICE '  - alert_event (7 day chunks)';
     RAISE NOTICE '  - data_source_status (1 hour chunks)';
     RAISE NOTICE '';
-    RAISE NOTICE 'Continuous aggregates created:';
+    RAISE NOTICE 'Continuous aggregates (created when tables available):';
     RAISE NOTICE '  - aircraft_stats_5min';
     RAISE NOTICE '  - vessel_stats_10min';
     RAISE NOTICE '  - traffic_stats_hourly';
     RAISE NOTICE '';
-    RAISE NOTICE 'Utility views created:';
+    RAISE NOTICE 'Utility views (created when tables available):';
     RAISE NOTICE '  - latest_positions';
     RAISE NOTICE '  - active_alerts';
     RAISE NOTICE '  - system_health';
