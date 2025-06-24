@@ -214,7 +214,7 @@ public class RealTimeDataProcessor {
     // VESSEL DATA PROCESSING
     // ============================================================================
 
-    @Async
+   
     @Transactional
     public CompletableFuture<Void> processVesselData(List<VesselTrackingRequest> vesselData) {
         try {
@@ -244,14 +244,12 @@ public class RealTimeDataProcessor {
         }
     }
 
-    @Async
-    @Transactional
     private void processBatchVesselData(List<VesselTrackingRequest> batch) {
         for (VesselTrackingRequest request : batch) {
             try {
                 // Create or update ship
                 Ship ship = createOrUpdateShip(request);
-                  
+
                 // Create tracking record
                 ShipTracking tracking = createShipTracking(request, ship);
 
