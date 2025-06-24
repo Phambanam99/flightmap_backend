@@ -19,7 +19,7 @@ CREATE OR REPLACE FUNCTION safe_create_hypertable(
 BEGIN
     -- Check if table exists before creating hypertable
     IF EXISTS (SELECT 1 FROM information_schema.tables 
-               WHERE table_schema = 'public' AND table_name = $1) THEN
+               WHERE table_schema = 'public' AND information_schema.tables.table_name = $1) THEN
         
         -- Check if it's not already a hypertable
         IF NOT EXISTS (SELECT 1 FROM timescaledb_information.hypertables 
