@@ -455,7 +455,10 @@ BEGIN
             ds.is_active,
             ds.last_success_time,
             ds.consecutive_failures,
-            ds.success_rate,
+            CASE 
+                WHEN ds.total_requests = 0 THEN 0.0 
+                ELSE (ds.successful_requests::float / ds.total_requests::float * 100)
+            END as success_rate,
             dss.status as last_status,
             dss.check_time as last_check
         FROM data_source ds

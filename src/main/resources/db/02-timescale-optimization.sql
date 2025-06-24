@@ -88,25 +88,38 @@ $$ LANGUAGE plpgsql;
 -- Function to create optimized indexes for tracking data
 CREATE OR REPLACE FUNCTION create_tracking_indexes(table_name TEXT) RETURNS VOID AS $$
 BEGIN
-    -- Time-based indexes
+    -- Time-based indexes (common to all tracking tables)
     EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_time ON %s USING BTREE (timestamp DESC)', 
                    table_name, table_name);
     
-    -- Entity-based indexes
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_entity ON %s USING BTREE (entity_type, entity_id)', 
-                   table_name, table_name);
+    -- Coordinate indexes for fast bounding box queries (common to all tracking tables)
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = $1 AND column_name = 'latitude') THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_coordinates ON %s USING BTREE (latitude, longitude)', 
+                       table_name, table_name);
+    END IF;
     
-    -- Geospatial indexes
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_location ON %s USING GIST (location)', 
-                   table_name, table_name);
+    -- Geospatial indexes (only if location column exists)
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = $1 AND column_name = 'location') THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_location ON %s USING GIST (location)', 
+                       table_name, table_name);
+    END IF;
     
-    -- Coordinate indexes for fast bounding box queries
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_coordinates ON %s USING BTREE (latitude, longitude)', 
-                   table_name, table_name);
-    
-    -- Composite indexes for common queries
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_entity_time ON %s USING BTREE (entity_id, timestamp DESC)', 
-                   table_name, table_name);
+    -- Table-specific indexes
+    IF table_name = 'flight_tracking' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_hexident_time ON %s USING BTREE (hexident, timestamp DESC)', 
+                       table_name, table_name);
+    ELSIF table_name = 'ship_tracking' THEN
+        EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_mmsi_time ON %s USING BTREE (mmsi, timestamp DESC)', 
+                       table_name, table_name);
+    ELSIF table_name = 'tracking_points' THEN
+        -- Entity-based indexes (only for tracking_points table)
+        EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_entity ON %s USING BTREE (entity_type, entity_id)', 
+                       table_name, table_name);
+        EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%s_entity_time ON %s USING BTREE (entity_id, timestamp DESC)', 
+                       table_name, table_name);
+    END IF;
     
     RAISE NOTICE 'Indexes created for table: %', table_name;
 END;
@@ -199,6 +212,119 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
+-- PERFORMANCE METRICS FUNCTION
+-- ============================================================================
+
+-- Function to get comprehensive performance metrics
+CREATE OR REPLACE FUNCTION get_performance_metrics() RETURNS TABLE(
+    table_name TEXT,
+    total_size TEXT,
+    total_rows BIGINT,
+    recent_rows BIGINT,
+    compressed_chunks BIGINT,
+    total_chunks BIGINT
+) AS $$
+BEGIN
+    -- Flight tracking metrics
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'flight_tracking') THEN
+        RETURN QUERY
+        SELECT 
+            'flight_tracking'::TEXT,
+            pg_size_pretty(pg_total_relation_size('flight_tracking'))::TEXT,
+            (SELECT count(*) FROM flight_tracking),
+            (SELECT count(*) FROM flight_tracking WHERE timestamp > NOW() - INTERVAL '1 day'),
+            COALESCE((SELECT count(*) FROM timescaledb_information.chunks 
+                     WHERE hypertable_name = 'flight_tracking' AND is_compressed = true), 0),
+            COALESCE((SELECT count(*) FROM timescaledb_information.chunks 
+                     WHERE hypertable_name = 'flight_tracking'), 0);
+    END IF;
+    
+    -- Ship tracking metrics
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ship_tracking') THEN
+        RETURN QUERY
+        SELECT 
+            'ship_tracking'::TEXT,
+            pg_size_pretty(pg_total_relation_size('ship_tracking'))::TEXT,
+            (SELECT count(*) FROM ship_tracking),
+            (SELECT count(*) FROM ship_tracking WHERE timestamp > NOW() - INTERVAL '1 day'),
+            COALESCE((SELECT count(*) FROM timescaledb_information.chunks 
+                     WHERE hypertable_name = 'ship_tracking' AND is_compressed = true), 0),
+            COALESCE((SELECT count(*) FROM timescaledb_information.chunks 
+                     WHERE hypertable_name = 'ship_tracking'), 0);
+    END IF;
+    
+    -- Tracking points metrics
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'tracking_points') THEN
+        RETURN QUERY
+        SELECT 
+            'tracking_points'::TEXT,
+            pg_size_pretty(pg_total_relation_size('tracking_points'))::TEXT,
+            (SELECT count(*) FROM tracking_points),
+            (SELECT count(*) FROM tracking_points WHERE timestamp > NOW() - INTERVAL '1 day'),
+            COALESCE((SELECT count(*) FROM timescaledb_information.chunks 
+                     WHERE hypertable_name = 'tracking_points' AND is_compressed = true), 0),
+            COALESCE((SELECT count(*) FROM timescaledb_information.chunks 
+                     WHERE hypertable_name = 'tracking_points'), 0);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- SYSTEM HEALTH CHECK FUNCTION
+-- ============================================================================
+
+-- Function to check overall system health
+CREATE OR REPLACE FUNCTION check_system_health() RETURNS TABLE(
+    component TEXT,
+    status TEXT,
+    details TEXT
+) AS $$
+BEGIN
+    -- Database connectivity
+    RETURN QUERY SELECT 'Database'::TEXT, 'OK'::TEXT, 'PostgreSQL connection active'::TEXT;
+    
+    -- TimescaleDB extension
+    RETURN QUERY
+    SELECT 
+        'TimescaleDB'::TEXT,
+        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb') 
+             THEN 'OK' ELSE 'ERROR' END::TEXT,
+        CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb') 
+             THEN 'TimescaleDB extension loaded' 
+             ELSE 'TimescaleDB extension not found' END::TEXT;
+    
+    -- Hypertables status
+    RETURN QUERY
+    SELECT 
+        'Hypertables'::TEXT,
+        'INFO'::TEXT,
+        (SELECT count(*)::TEXT || ' hypertables active' 
+         FROM timescaledb_information.hypertables)::TEXT;
+         
+    -- Recent data status
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'flight_tracking') THEN
+        RETURN QUERY
+        SELECT 
+            'Flight Data'::TEXT,
+            CASE WHEN EXISTS (SELECT 1 FROM flight_tracking WHERE timestamp > NOW() - INTERVAL '1 hour')
+                 THEN 'OK' ELSE 'WARNING' END::TEXT,
+            (SELECT 'Last record: ' || COALESCE(max(timestamp)::TEXT, 'No data')
+             FROM flight_tracking)::TEXT;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ship_tracking') THEN
+        RETURN QUERY
+        SELECT 
+            'Ship Data'::TEXT,
+            CASE WHEN EXISTS (SELECT 1 FROM ship_tracking WHERE timestamp > NOW() - INTERVAL '1 hour')
+                 THEN 'OK' ELSE 'WARNING' END::TEXT,
+            (SELECT 'Last record: ' || COALESCE(max(timestamp)::TEXT, 'No data')
+             FROM ship_tracking)::TEXT;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
 -- COMPLETION MESSAGE
 -- ============================================================================
 
@@ -212,4 +338,6 @@ BEGIN
     RAISE NOTICE '  - analyze_tracking_performance()';
     RAISE NOTICE '  - get_chunk_info()';
     RAISE NOTICE '  - compress_old_chunks()';
+    RAISE NOTICE '  - get_performance_metrics()';
+    RAISE NOTICE '  - check_system_health()';
 END $$; 
