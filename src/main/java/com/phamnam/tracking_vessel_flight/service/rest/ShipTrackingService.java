@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.service.rest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.VoyageRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.ShipTrackingResponse;
+import com.phamnam.tracking_vessel_flight.dto.response.VoyageResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.ShipTracking;
 import com.phamnam.tracking_vessel_flight.models.User;
@@ -270,7 +271,12 @@ public class ShipTrackingService implements IShipTrackingService {
                 .shipId(ship.getId())
                 .build();
 
-        return voyageService.save(voyageRequest, userId);
+        // Save voyage and retrieve entity from repository
+        VoyageResponse voyageResponse = voyageService.save(voyageRequest, userId);
+
+        // Return the actual Voyage entity from the repository
+        return voyageRepository.findById(voyageResponse.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", voyageResponse.getId()));
     }
 
     /**

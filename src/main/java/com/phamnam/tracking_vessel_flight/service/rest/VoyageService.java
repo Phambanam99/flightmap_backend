@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.VoyageRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.VoyageResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Ship;
 import com.phamnam.tracking_vessel_flight.models.User;
@@ -13,11 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class VoyageService implements IVoyageService {
     @Autowired
     private VoyageRepository voyageRepository;
@@ -28,24 +31,26 @@ public class VoyageService implements IVoyageService {
     @Autowired
     private UserRepository userRepository;
 
-    @Override
-    public List<Voyage> getAll() {
-        return voyageRepository.findAll();
+    public List<VoyageResponse> getAll() {
+        List<Voyage> voyages = voyageRepository.findAll();
+        return voyages.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Page<Voyage> getAllPaginated(Pageable pageable) {
-        return voyageRepository.findAll(pageable);
+    public Page<VoyageResponse> getAllPaginated(Pageable pageable) {
+        Page<Voyage> voyages = voyageRepository.findAll(pageable);
+        return voyages.map(this::convertToResponse);
     }
 
-    @Override
-    public Voyage getVoyageById(Long id) {
-        return voyageRepository.findById(id)
+    public VoyageResponse getVoyageById(Long id) {
+        Voyage voyage = voyageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", id));
+        return convertToResponse(voyage);
     }
 
-    @Override
-    public Voyage save(VoyageRequest voyageRequest, Long userId) {
+    @Transactional
+    public VoyageResponse save(VoyageRequest voyageRequest, Long userId) {
         Ship ship = shipRepository.findById(voyageRequest.getShipId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ship", "id", voyageRequest.getShipId()));
 
@@ -66,18 +71,21 @@ public class VoyageService implements IVoyageService {
 
         voyage.setUpdatedBy(user);
 
-        return voyageRepository.save(voyage);
+        Voyage savedVoyage = voyageRepository.save(voyage);
+        return convertToResponse(savedVoyage);
     }
 
-    @Override
+    @Transactional
     public void deleteVoyage(Long id) {
-        Voyage voyage = getVoyageById(id);
+        Voyage voyage = voyageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", id));
         voyageRepository.delete(voyage);
     }
 
-    @Override
-    public Voyage updateVoyage(Long id, VoyageRequest voyageRequest, Long userId) {
-        Voyage voyage = getVoyageById(id);
+    @Transactional
+    public VoyageResponse updateVoyage(Long id, VoyageRequest voyageRequest, Long userId) {
+        Voyage voyage = voyageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", id));
         Ship ship = shipRepository.findById(voyageRequest.getShipId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ship", "id", voyageRequest.getShipId()));
 
@@ -95,16 +103,49 @@ public class VoyageService implements IVoyageService {
         voyage.setShip(ship);
         voyage.setUpdatedBy(user);
 
-        return voyageRepository.save(voyage);
+        Voyage updatedVoyage = voyageRepository.save(voyage);
+        return convertToResponse(updatedVoyage);
     }
 
-    @Override
-    public List<Voyage> getVoyagesByShipId(Long shipId) {
+    public List<VoyageResponse> getVoyagesByShipId(Long shipId) {
         Ship ship = shipRepository.findById(shipId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ship", "id", shipId));
 
-        return voyageRepository.findAll().stream()
+        List<Voyage> voyages = voyageRepository.findAll().stream()
                 .filter(voyage -> voyage.getShip().getId().equals(shipId))
                 .collect(Collectors.toList());
+
+        return voyages.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Convert Voyage entity to VoyageResponse DTO
+     */
+    private VoyageResponse convertToResponse(Voyage voyage) {
+        VoyageResponse.VoyageResponseBuilder builder = VoyageResponse.builder()
+                .id(voyage.getId())
+                .voyageNumber(voyage.getVoyageNumber())
+                .departureTime(voyage.getDepartureTime())
+                .arrivalTime(voyage.getArrivalTime())
+                .originPort(voyage.getDeparturePort())
+                .destinationPort(voyage.getArrivalPort())
+                .createdAt(voyage.getCreatedAt())
+                .updatedAt(voyage.getUpdatedAt());
+
+        // Safely access ship information
+        if (voyage.getShip() != null) {
+            builder.shipId(voyage.getShip().getId())
+                    .shipName(voyage.getShip().getName())
+                    .mmsi(voyage.getShip().getMmsi());
+        }
+
+        // Safely access user information
+        if (voyage.getUpdatedBy() != null) {
+            builder.updatedByUsername(voyage.getUpdatedBy().getUsername());
+        }
+
+        return builder.build();
     }
 }

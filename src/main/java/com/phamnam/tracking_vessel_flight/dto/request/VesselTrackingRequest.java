@@ -27,7 +27,7 @@ public class VesselTrackingRequest {
     private String eta;
     private LocalDateTime timestamp;
     private Double dataQuality;
-
+   private String source;
     // Additional fields for enhanced tracking
     private String cargoType;
     private Integer deadweight;

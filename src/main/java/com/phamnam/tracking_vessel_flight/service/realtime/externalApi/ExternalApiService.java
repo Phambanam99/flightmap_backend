@@ -301,6 +301,7 @@ public class ExternalApiService {
 
             vessels.elements().forEachRemaining(vessel -> {
                 VesselTrackingRequest vesselRequest = parseVesselFromMarineTraffic(vessel);
+                vesselRequest.setSource(DataSourceType.MARINE_TRAFFIC.getDisplayName());
                 if (vesselRequest != null) {
                     vesselList.add(vesselRequest);
                 }
@@ -315,6 +316,7 @@ public class ExternalApiService {
     }
 
     private VesselTrackingRequest parseVesselFromMarineTraffic(JsonNode data) {
+        System.out.println(data);
         try {
             return VesselTrackingRequest.builder()
                     .mmsi(getTextSafely(data, "MMSI"))
