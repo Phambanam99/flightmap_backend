@@ -214,7 +214,6 @@ public class RealTimeDataProcessor {
     // VESSEL DATA PROCESSING
     // ============================================================================
 
-   
     @Transactional
     public CompletableFuture<Void> processVesselData(List<VesselTrackingRequest> vesselData) {
         try {
@@ -249,14 +248,16 @@ public class RealTimeDataProcessor {
             try {
                 // Create or update ship
                 Ship ship = createOrUpdateShip(request);
-
+                log.debug("Processing vessel ship {}", ship);
                 // Create tracking record
                 ShipTracking tracking = createShipTracking(request, ship);
-
+                log.debug("Processing vessel tracking {}", tracking);
                 // Save tracking record to database
                 if (enablePersistence) {
-                    shipTrackingRepository.save(tracking);
-                    log.debug("✅ Saved vessel tracking for MMSI: {}", request.getMmsi());
+                    ShipTracking savedTracking = shipTrackingRepository.save(tracking);
+                    shipTrackingRepository.flush(); // Force immediate database write
+                    log.debug("✅ FORCE SAVED ship_tracking with ID: {} for MMSI: {}", savedTracking.getId(),
+                            request.getMmsi());
                 }
 
                 // Send to Kafka for real-time processing
@@ -297,7 +298,10 @@ public class RealTimeDataProcessor {
         ship.setLastSeen(request.getTimestamp());
 
         if (enablePersistence) {
-            return shipRepository.save(ship);
+            Ship savedShip = shipRepository.save(ship);
+            shipRepository.flush(); // Force immediate database write
+            log.debug("✅ FORCE SAVED ship with ID: {} for MMSI: {}", savedShip.getId(), request.getMmsi());
+            return savedShip;
         }
         return ship;
     }
@@ -338,9 +342,11 @@ public class RealTimeDataProcessor {
                     // Update voyage info and return existing
                     voyage.setLastSeen(request.getTimestamp());
                     if (enablePersistence) {
-                        return voyageRepository.save(voyage);
+                        Voyage savedVoyage = voyageRepository.save(voyage);
+                        voyageRepository.flush(); // Force immediate database write
+                        log.debug("✅ FORCE SAVED existing voyage with ID: {}", savedVoyage.getId());
+                        return savedVoyage;
                     }
-                    return voyage;
                 }
             }
         }
@@ -363,7 +369,10 @@ public class RealTimeDataProcessor {
                 .build();
 
         if (enablePersistence) {
-            return voyageRepository.save(newVoyage);
+            Voyage savedVoyage = voyageRepository.save(newVoyage);
+            voyageRepository.flush(); // Force immediate database write
+            log.debug("✅ FORCE SAVED new voyage with ID: {}", savedVoyage.getId());
+            return savedVoyage;
         }
         return newVoyage;
     }
