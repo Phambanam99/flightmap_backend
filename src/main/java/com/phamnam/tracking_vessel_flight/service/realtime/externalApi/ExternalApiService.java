@@ -107,7 +107,7 @@ public class ExternalApiService {
                     url, HttpMethod.GET, entity, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {
-                System.out.println(response.getBody());
+//                System.out.println(response.getBody());
                 List<AircraftTrackingRequest> aircraftData = parseFlightRadar24Response(response.getBody());
 
                 updateDataSourceStatus(dataSource, SourceStatus.HEALTHY,

@@ -24,8 +24,12 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.List;
@@ -119,14 +123,41 @@ public class KafkaConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
+    // Add common error handler
+    @Bean
+    public DefaultErrorHandler kafkaErrorHandler() {
+        return new DefaultErrorHandler((consumerRecord, exception) -> {
+            // Log the error and the problematic record
+            System.err.println("Error processing record: " + consumerRecord.value() +
+                    " from topic: " + consumerRecord.topic() +
+                    " partition: " + consumerRecord.partition() +
+                    " offset: " + consumerRecord.offset());
+            System.err.println("Error: " + exception.getMessage());
+
+            // Here you could send to dead letter queue if needed
+            // For now, we just log and continue
+        }, new FixedBackOff(1000L, 2)); // Retry 2 times with 1 second delay
+    }
+
     // Consumer Configuration
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
@@ -143,6 +174,7 @@ public class KafkaConfig {
         factory.setConcurrency(4); // Number of consumer threads
         factory.getContainerProperties().setPollTimeout(3000);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -154,11 +186,22 @@ public class KafkaConfig {
         // Create consumer factory for FlightTrackingRequestDTO
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
@@ -170,6 +213,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -181,9 +225,20 @@ public class KafkaConfig {
         // Create consumer factory for batch processing
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Batch size
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 1000);
@@ -196,6 +251,7 @@ public class KafkaConfig {
         factory.setConcurrency(1); // Single thread for batch processing
         factory.getContainerProperties().setPollTimeout(5000);
         factory.setBatchListener(true); // Enable batch processing
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -207,11 +263,22 @@ public class KafkaConfig {
         // Create consumer factory for ShipTrackingRequestDTO
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
@@ -224,6 +291,7 @@ public class KafkaConfig {
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -235,11 +303,22 @@ public class KafkaConfig {
         // Create consumer factory for AircraftTrackingRequest
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
@@ -252,6 +331,7 @@ public class KafkaConfig {
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -263,11 +343,22 @@ public class KafkaConfig {
         // Create consumer factory for ShipTrackingRequestDTO (for raw vessel data)
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
@@ -280,6 +371,7 @@ public class KafkaConfig {
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -291,11 +383,22 @@ public class KafkaConfig {
         // Create consumer factory for FlightTracking
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "com.phamnam.tracking_vessel_flight.models.FlightTracking");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
@@ -308,6 +411,7 @@ public class KafkaConfig {
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 
@@ -319,9 +423,20 @@ public class KafkaConfig {
         // Create consumer factory for batch ship tracking
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+
+        // Use ErrorHandlingDeserializer
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+
+        // Configure delegate deserializers
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+
+        // JsonDeserializer configuration
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        props.put("spring.json.use.type.headers", false);
+        props.put("spring.json.add.type.headers", false);
+
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Batch size
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 1000);
@@ -334,6 +449,7 @@ public class KafkaConfig {
         factory.setConcurrency(1); // Single thread for batch processing
         factory.getContainerProperties().setPollTimeout(5000);
         factory.setBatchListener(true); // Enable batch processing
+        factory.setCommonErrorHandler(kafkaErrorHandler());
         return factory;
     }
 

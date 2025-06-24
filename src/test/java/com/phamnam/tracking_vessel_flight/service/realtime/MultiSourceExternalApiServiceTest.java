@@ -118,7 +118,7 @@ class MultiSourceExternalApiServiceTest {
         // Act
         CompletableFuture<List<AircraftTrackingRequest>> result = multiSourceExternalApiService
                 .collectAllAircraftData();
-        System.out.println(result.join().size());
+//        System.out.println(result.join().size());
         // Assert
         assertNotNull(result);
         List<AircraftTrackingRequest> aircraftData = result.join();

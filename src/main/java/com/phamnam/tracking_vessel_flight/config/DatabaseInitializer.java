@@ -54,9 +54,9 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             userRepository.save(adminUser);
 
-            System.out.println("Admin user created successfully!");
+//            System.out.println("Admin user created successfully!");
         } else {
-            System.out.println("Admin user already exists, skipping initialization.");
+//            System.out.println("Admin user already exists, skipping initialization.");
         }
     }
 
