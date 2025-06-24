@@ -210,12 +210,9 @@ public class ShipTrackingService implements IShipTrackingService {
         LocalDateTime newTrackingTime = newTrackingData.getTimestamp();
 
         Duration timeDifference = Duration.between(lastTrackingTime, newTrackingTime);
-        if (timeDifference.compareTo(MAX_INACTIVITY) >= 0) {
-            return true;
-        }
+        return timeDifference.compareTo(MAX_INACTIVITY) >= 0;
 
         // Otherwise, use the existing voyage
-        return false;
     }
 
     /**

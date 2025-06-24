@@ -5,8 +5,8 @@ services:
     container_name: postgres
     environment:
       POSTGRES_DB: ship_tracking_db
-      POSTGRES_USER: your_username
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
     ports:
       - "5432:5432"
     volumes:

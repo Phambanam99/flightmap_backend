@@ -186,8 +186,8 @@ public class DataFusionService {
         AircraftTrackingRequest fused = fusedBuilder.build();
         aircraftCache.put(hexident, new AircraftDataCache(fused, LocalDateTime.now()));
 
-        log.debug("Fused aircraft data for {} from {} sources with quality {}",
-                hexident, dataPoints.size(), qualityScore);
+//        log.debug("Fused aircraft data for {} from {} sources with quality {}",
+//                hexident, dataPoints.size(), qualityScore);
 
         return fused;
     }
@@ -241,7 +241,7 @@ public class DataFusionService {
         List<VesselDataPoint> recentPoints = dataPoints.stream()
                 .filter(p -> ChronoUnit.SECONDS.between(p.timestamp, LocalDateTime.now()) < 60)
                 .filter(p -> p.data.getLatitude() != null && p.data.getLongitude() != null)
-                .collect(Collectors.toList());
+                .toList();
 
         if (recentPoints.size() > 1) {
             double avgLat = recentPoints.stream()
@@ -263,8 +263,8 @@ public class DataFusionService {
         VesselTrackingRequest fused = fusedBuilder.build();
         vesselCache.put(mmsi, new VesselDataCache(fused, LocalDateTime.now()));
 
-        log.debug("Fused vessel data for {} from {} sources with quality {}",
-                mmsi, dataPoints.size(), qualityScore);
+//        log.debug("Fused vessel data for {} from {} sources with quality {}",
+//                mmsi, dataPoints.size(), qualityScore);
 
         return fused;
     }

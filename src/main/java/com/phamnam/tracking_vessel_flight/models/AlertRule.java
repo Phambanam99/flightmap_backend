@@ -207,14 +207,10 @@ public class AlertRule extends BaseEntity {
             java.time.LocalTime currentTime = now.toLocalTime();
             if (timeWindowStart.isAfter(timeWindowEnd)) {
                 // Crosses midnight
-                if (!(currentTime.isAfter(timeWindowStart) || currentTime.isBefore(timeWindowEnd))) {
-                    return false;
-                }
+                return currentTime.isAfter(timeWindowStart) || currentTime.isBefore(timeWindowEnd);
             } else {
                 // Same day
-                if (!(currentTime.isAfter(timeWindowStart) && currentTime.isBefore(timeWindowEnd))) {
-                    return false;
-                }
+                return currentTime.isAfter(timeWindowStart) && currentTime.isBefore(timeWindowEnd);
             }
         }
 

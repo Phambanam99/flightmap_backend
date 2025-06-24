@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -119,7 +120,7 @@ public class AdsbExchangeApiService {
             String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
                     minLatitude, maxLatitude, minLongitude, maxLongitude);
             return String.format("%s?bounds=%s", adsbExchangeBaseUrl,
-                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+                    java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
             log.warn("Failed to encode bounds JSON for ADS-B Exchange URL: {}", e.getMessage());

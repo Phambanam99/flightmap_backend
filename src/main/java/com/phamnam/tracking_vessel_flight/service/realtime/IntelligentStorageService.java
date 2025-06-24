@@ -160,11 +160,7 @@ public class IntelligentStorageService {
             }
 
             // Check speed change
-            if (hasSignificantSpeedChange(previous.getGroundSpeed(), current.getGroundSpeed())) {
-                return true;
-            }
-
-            return false;
+            return hasSignificantSpeedChange(previous.getGroundSpeed(), current.getGroundSpeed());
 
         } catch (Exception e) {
             logger.error("Error checking save criteria for flight: {}", e.getMessage());
@@ -203,11 +199,7 @@ public class IntelligentStorageService {
             }
 
             // Check course change
-            if (hasSignificantCourseChange(previous.getCourse(), current.getCourse())) {
-                return true;
-            }
-
-            return false;
+            return hasSignificantCourseChange(previous.getCourse(), current.getCourse());
 
         } catch (Exception e) {
             logger.error("Error checking save criteria for ship: {}", e.getMessage());

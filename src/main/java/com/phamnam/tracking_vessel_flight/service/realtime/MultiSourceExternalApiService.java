@@ -108,6 +108,7 @@ public class MultiSourceExternalApiService {
                 List<VesselTrackingRequest> data = safeGetAndStoreVessel(source, future);
                 if (!data.isEmpty()) {
                     dataBySource.put(source, data);
+                    log.info("Collected {} vessel from {}", data.size(), source);
                 }
             });
 

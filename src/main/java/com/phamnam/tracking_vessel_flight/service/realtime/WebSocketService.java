@@ -60,7 +60,7 @@ public class WebSocketService {
             messagingTemplate.convertAndSend(
                     "/topic/aircraft/" + flightTracking.getHexident(), update);
 
-            log.debug("Broadcasted aircraft update for {}", flightTracking.getHexident());
+//            log.debug("Broadcasted aircraft update for {}", flightTracking.getHexident());
 
         } catch (Exception e) {
             log.error("Failed to broadcast aircraft update", e);

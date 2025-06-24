@@ -21,6 +21,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -107,6 +108,7 @@ public class ExternalApiService {
                     url, HttpMethod.GET, entity, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {
+                System.out.println(response.getBody());
                 List<AircraftTrackingRequest> aircraftData = parseFlightRadar24Response(response.getBody());
 
                 updateDataSourceStatus(dataSource, SourceStatus.HEALTHY,
@@ -142,7 +144,7 @@ public class ExternalApiService {
             String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
                     minLatitude, maxLatitude, minLongitude, maxLongitude);
             return String.format("%s?bounds=%s", flightradar24BaseUrl,
-                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+                    java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
             return flightradar24BaseUrl;
@@ -276,7 +278,7 @@ public class ExternalApiService {
             String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
                     minLatitude, maxLatitude, minLongitude, maxLongitude);
             return String.format("%s?bounds=%s", marineTrafficBaseUrl,
-                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+                    java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
             return marineTrafficBaseUrl;
@@ -567,7 +569,7 @@ public class ExternalApiService {
     private Boolean getArrayElementBooleanSafely(JsonNode array, int index) {
         if (array.isArray() && array.size() > index) {
             JsonNode element = array.get(index);
-            return (element != null && !element.isNull()) ? element.asBoolean() : false;
+            return element != null && !element.isNull() && element.asBoolean();
         }
         return false;
     }

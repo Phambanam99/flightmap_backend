@@ -111,7 +111,7 @@ const config = {
       errorRate: 0.02
     },
     adsbexchange: {
-      updateInterval: 35000, // 35 seconds
+      updateInterval: 30000, // 35 seconds
       quality: 0.88,
       priority: 2,
       coverage: 'community',
@@ -121,7 +121,7 @@ const config = {
     
     // Vessel Sources
     marinetraffic: {
-      updateInterval: 60000, // 60 seconds
+      updateInterval: 30000, // 60 seconds
       quality: 0.92,
       priority: 1,
       coverage: 'global',
@@ -129,7 +129,7 @@ const config = {
       errorRate: 0.03
     },
     vesselfinder: {
-      updateInterval: 70000, // 70 seconds
+      updateInterval: 30000, // 70 seconds
       quality: 0.87,
       priority: 2,
       coverage: 'commercial',
@@ -137,7 +137,7 @@ const config = {
       errorRate: 0.06
     },
     chinaports: {
-      updateInterval: 90000, // 90 seconds
+      updateInterval: 30000, // 90 seconds
       quality: 0.85,
       priority: 3,
       coverage: 'china_sea',
@@ -151,7 +151,7 @@ const config = {
       }
     },
     marinetrafficv2: {
-      updateInterval: 80000, // 80 seconds
+      updateInterval: 30000, // 80 seconds
       quality: 0.89,
       priority: 4,
       coverage: 'extended',

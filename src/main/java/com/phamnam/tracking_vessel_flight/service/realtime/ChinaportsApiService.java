@@ -19,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -120,7 +121,7 @@ public class ChinaportsApiService {
             String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
                     8.5, 23.5, 102.0, 109.5); // Use main bounds instead of China-specific
             return String.format("%s?bounds=%s", chinaportsBaseUrl,
-                    java.net.URLEncoder.encode(boundsJson, "UTF-8"));
+                    java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to simple URL if encoding fails
             log.warn("Failed to encode bounds JSON for Chinaports URL: {}", e.getMessage());

@@ -62,7 +62,7 @@ public class RawAircraftData {
     private String validationErrors;
     
     // Retention policy
-    private Integer retentionDays = 30;
+    private final Integer retentionDays = 30;
 }
 ```
 
