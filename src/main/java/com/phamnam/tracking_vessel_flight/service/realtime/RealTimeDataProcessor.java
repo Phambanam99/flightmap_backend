@@ -249,9 +249,22 @@ public class RealTimeDataProcessor {
                 // Create or update ship
                 Ship ship = createOrUpdateShip(request);
                 log.debug("Processing vessel ship {}", ship);
+
+                // Validate that ship has a valid ID
+                if (ship == null) {
+                    log.error("Ship is null for MMSI: {}, skipping vessel record", request.getMmsi());
+                    continue;
+                }
+
+                if (ship.getId() == null) {
+                    log.error("Ship ID is null for MMSI: {}, skipping vessel record", request.getMmsi());
+                    continue;
+                }
+
                 // Create tracking record
                 ShipTracking tracking = createShipTracking(request, ship);
                 log.debug("Processing vessel tracking {}", tracking);
+
                 // Save tracking record to database
                 if (enablePersistence) {
                     ShipTracking savedTracking = shipTrackingRepository.save(tracking);
@@ -277,33 +290,74 @@ public class RealTimeDataProcessor {
     }
 
     private Ship createOrUpdateShip(VesselTrackingRequest request) {
-        Ship ship = shipRepository.findByMmsi(request.getMmsi())
-                .orElse(Ship.builder()
-                        .mmsi(request.getMmsi())
-                        .build());
+        // Use synchronized block to prevent race conditions for the same MMSI
+        synchronized (("ship_" + request.getMmsi()).intern()) {
+            try {
+                // Try to find existing ship first
+                Optional<Ship> existingShip = shipRepository.findByMmsi(request.getMmsi());
 
-        // Update ship information if available
-        if (request.getVesselName() != null) {
-            ship.setName(request.getVesselName());
-        }
-        if (request.getVesselType() != null) {
-            ship.setShipType(request.getVesselType());
-        }
-        if (request.getImo() != null) {
-            ship.setImo(request.getImo());
-        }
-        if (request.getCallsign() != null) {
-            ship.setCallsign(request.getCallsign());
-        }
-        ship.setLastSeen(request.getTimestamp());
+                Ship ship;
+                if (existingShip.isPresent()) {
+                    ship = existingShip.get();
+                    log.debug("Found existing ship with ID: {} for MMSI: {}", ship.getId(), request.getMmsi());
+                } else {
+                    // Create new ship
+                    ship = Ship.builder()
+                            .mmsi(request.getMmsi())
+                            .build();
+                    log.debug("Creating new ship for MMSI: {}", request.getMmsi());
+                }
 
-        if (enablePersistence) {
-            Ship savedShip = shipRepository.save(ship);
-            shipRepository.flush(); // Force immediate database write
-            log.debug("✅ FORCE SAVED ship with ID: {} for MMSI: {}", savedShip.getId(), request.getMmsi());
-            return savedShip;
+                // Update ship information if available
+                if (request.getVesselName() != null) {
+                    ship.setName(request.getVesselName());
+                }
+                if (request.getVesselType() != null) {
+                    ship.setShipType(request.getVesselType());
+                }
+                if (request.getImo() != null) {
+                    ship.setImo(request.getImo());
+                }
+                if (request.getCallsign() != null) {
+                    ship.setCallsign(request.getCallsign());
+                }
+                ship.setLastSeen(request.getTimestamp());
+
+                if (enablePersistence) {
+                    try {
+                        Ship savedShip = shipRepository.save(ship);
+                        shipRepository.flush(); // Force immediate database write
+
+                        // Verify the ship was saved with a valid ID
+                        if (savedShip.getId() == null) {
+                            log.error("Ship saved but ID is null for MMSI: {}", request.getMmsi());
+                            // Try to fetch it from database again
+                            return shipRepository.findByMmsi(request.getMmsi())
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "Ship not found after save for MMSI: " + request.getMmsi()));
+                        }
+
+                        log.debug("✅ FORCE SAVED ship with ID: {} for MMSI: {}", savedShip.getId(), request.getMmsi());
+                        return savedShip;
+
+                    } catch (Exception e) {
+                        log.warn("Failed to save ship for MMSI: {}, attempting to fetch existing: {}",
+                                request.getMmsi(), e.getMessage());
+
+                        // If save failed due to constraint violation, try to fetch the existing ship
+                        return shipRepository.findByMmsi(request.getMmsi())
+                                .orElseThrow(() -> new RuntimeException(
+                                        "Cannot create or find ship for MMSI: " + request.getMmsi(), e));
+                    }
+                }
+                return ship;
+
+            } catch (Exception e) {
+                log.error("Critical error creating/updating ship for MMSI: {}: {}", request.getMmsi(), e.getMessage(),
+                        e);
+                throw new RuntimeException("Failed to create or update ship for MMSI: " + request.getMmsi(), e);
+            }
         }
-        return ship;
     }
 
     private ShipTracking createShipTracking(VesselTrackingRequest request, Ship ship) {
@@ -329,52 +383,85 @@ public class RealTimeDataProcessor {
      * Get or create a voyage for ship tracking
      */
     private Voyage getOrCreateVoyageForShip(Ship ship, VesselTrackingRequest request) {
-        // Try to find an active voyage for this ship
-        if (ship.getId() != null) {
-            Optional<Voyage> activeVoyage = voyageRepository.findLatestVoyageByShipId(ship.getId());
-            if (activeVoyage.isPresent()) {
-                Voyage voyage = activeVoyage.get();
-                // Check if voyage is still active (no arrival time or recent)
-                if (voyage.getArrivalTime() == null ||
-                        voyage.getLastSeen() != null &&
-                                voyage.getLastSeen().isAfter(LocalDateTime.now().minusHours(2))) {
+        // Validate ship parameter
+        if (ship == null || ship.getId() == null) {
+            throw new IllegalArgumentException("Ship must not be null and must have a valid ID");
+        }
 
-                    // Update voyage info and return existing
-                    voyage.setLastSeen(request.getTimestamp());
-                    if (enablePersistence) {
-                        Voyage savedVoyage = voyageRepository.save(voyage);
-                        voyageRepository.flush(); // Force immediate database write
-                        log.debug("✅ FORCE SAVED existing voyage with ID: {}", savedVoyage.getId());
-                        return savedVoyage;
+        // Use synchronized block to prevent race conditions for the same ship
+        synchronized (("voyage_" + ship.getId()).intern()) {
+            try {
+                // Try to find an active voyage for this ship
+                Optional<Voyage> activeVoyage = voyageRepository.findLatestVoyageByShipId(ship.getId());
+                if (activeVoyage.isPresent()) {
+                    Voyage voyage = activeVoyage.get();
+                    // Check if voyage is still active (no arrival time or recent)
+                    if (voyage.getArrivalTime() == null ||
+                            voyage.getLastSeen() != null &&
+                                    voyage.getLastSeen().isAfter(LocalDateTime.now().minusHours(2))) {
+
+                        // Update voyage info and return existing
+                        voyage.setLastSeen(request.getTimestamp());
+                        if (enablePersistence) {
+                            try {
+                                Voyage savedVoyage = voyageRepository.save(voyage);
+                                voyageRepository.flush(); // Force immediate database write
+                                log.debug("✅ FORCE SAVED existing voyage with ID: {}", savedVoyage.getId());
+                                return savedVoyage;
+                            } catch (Exception e) {
+                                log.warn("Failed to update existing voyage for ship ID: {}: {}", ship.getId(),
+                                        e.getMessage());
+                                return voyage; // Return unsaved voyage if update fails
+                            }
+                        }
+                        return voyage;
                     }
                 }
+
+                // Create new voyage if no active voyage found
+                Voyage newVoyage = Voyage.builder()
+                        .ship(ship)
+                        .voyageNumber("AUTO-" + System.currentTimeMillis())
+                        .departureTime(request.getTimestamp())
+                        .departurePort("Unknown")
+                        .arrivalPort(request.getDestination() != null ? request.getDestination() : "Unknown")
+                        .status(Voyage.VoyageStatus.UNDERWAY)
+                        .voyagePhase(Voyage.VoyagePhase.OPEN_SEA)
+                        .firstSeen(request.getTimestamp())
+                        .lastSeen(request.getTimestamp())
+                        .currentSpeed(request.getSpeed())
+                        .currentHeading(request.getHeading() != null ? request.getHeading().doubleValue() : null)
+                        .navigationStatus(request.getNavigationStatus())
+                        .destinationEta(request.getTimestamp().plusDays(1)) // Estimate 1 day
+                        .build();
+
+                if (enablePersistence) {
+                    try {
+                        Voyage savedVoyage = voyageRepository.save(newVoyage);
+                        voyageRepository.flush(); // Force immediate database write
+
+                        // Verify the voyage was saved with a valid ID
+                        if (savedVoyage.getId() == null) {
+                            log.error("Voyage saved but ID is null for ship ID: {}", ship.getId());
+                            return newVoyage; // Return unsaved voyage
+                        }
+
+                        log.debug("✅ FORCE SAVED new voyage with ID: {}", savedVoyage.getId());
+                        return savedVoyage;
+
+                    } catch (Exception e) {
+                        log.warn("Failed to save new voyage for ship ID: {}: {}", ship.getId(), e.getMessage());
+                        return newVoyage; // Return unsaved voyage if save fails
+                    }
+                }
+                return newVoyage;
+
+            } catch (Exception e) {
+                log.error("Critical error creating/updating voyage for ship ID: {}: {}", ship.getId(), e.getMessage(),
+                        e);
+                throw new RuntimeException("Failed to create or update voyage for ship ID: " + ship.getId(), e);
             }
         }
-
-        // Create new voyage if no active voyage found
-        Voyage newVoyage = Voyage.builder()
-                .ship(ship)
-                .voyageNumber("AUTO-" + System.currentTimeMillis())
-                .departureTime(request.getTimestamp())
-                .departurePort("Unknown")
-                .arrivalPort(request.getDestination() != null ? request.getDestination() : "Unknown")
-                .status(Voyage.VoyageStatus.UNDERWAY)
-                .voyagePhase(Voyage.VoyagePhase.OPEN_SEA)
-                .firstSeen(request.getTimestamp())
-                .lastSeen(request.getTimestamp())
-                .currentSpeed(request.getSpeed())
-                .currentHeading(request.getHeading() != null ? request.getHeading().doubleValue() : null)
-                .navigationStatus(request.getNavigationStatus())
-                .destinationEta(request.getTimestamp().plusDays(1)) // Estimate 1 day
-                .build();
-
-        if (enablePersistence) {
-            Voyage savedVoyage = voyageRepository.save(newVoyage);
-            voyageRepository.flush(); // Force immediate database write
-            log.debug("✅ FORCE SAVED new voyage with ID: {}", savedVoyage.getId());
-            return savedVoyage;
-        }
-        return newVoyage;
     }
 
     // ============================================================================
