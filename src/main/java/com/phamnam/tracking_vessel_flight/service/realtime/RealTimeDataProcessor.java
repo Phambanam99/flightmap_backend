@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -214,7 +215,6 @@ public class RealTimeDataProcessor {
     // VESSEL DATA PROCESSING
     // ============================================================================
 
-    @Transactional
     public CompletableFuture<Void> processVesselData(List<VesselTrackingRequest> vesselData) {
         try {
             // Filter out duplicate/stale data
@@ -226,21 +226,55 @@ public class RealTimeDataProcessor {
                 return CompletableFuture.completedFuture(null);
             }
 
-            // Process in batches
-            for (int i = 0; i < filteredData.size(); i += batchSize) {
-                int endIndex = Math.min(i + batchSize, filteredData.size());
-                List<VesselTrackingRequest> batch = filteredData.subList(i, endIndex);
-
-                processBatchVesselData(batch);
+            // Process each vessel record in its own transaction to prevent rollback issues
+            int successCount = 0;
+            for (VesselTrackingRequest request : filteredData) {
+                try {
+                    processVesselRecordWithTransaction(request);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("Failed to process vessel record for MMSI {}: {}", request.getMmsi(), e.getMessage());
+                }
             }
 
-            log.debug("Successfully processed {} vessel records", filteredData.size());
+            log.debug("Successfully processed {}/{} vessel records", successCount, filteredData.size());
             return CompletableFuture.completedFuture(null);
 
         } catch (Exception e) {
             log.error("Error processing vessel data", e);
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void processVesselRecordWithTransaction(VesselTrackingRequest request) {
+        // Create or update ship
+        Ship ship = createOrUpdateShip(request);
+        log.debug("Processing vessel ship {}", ship);
+
+        // Validate that ship has a valid ID
+        if (ship == null || ship.getId() == null) {
+            throw new IllegalStateException("Ship is null or has null ID for MMSI: " + request.getMmsi());
+        }
+
+        // Create tracking record
+        ShipTracking tracking = createShipTracking(request, ship);
+        log.debug("Processing vessel tracking {}", tracking);
+
+        // Save tracking record to database
+        if (enablePersistence) {
+            ShipTracking savedTracking = shipTrackingRepository.save(tracking);
+            log.debug("✅ SAVED ship_tracking with ID: {} for MMSI: {}", savedTracking.getId(), request.getMmsi());
+        }
+
+        // Send to Kafka for real-time processing
+        if (enableKafka) {
+            kafkaProducer.publishRawVesselData(request.getMmsi(), request);
+            kafkaProducer.publishProcessedVesselData(tracking.getMmsi(), tracking);
+        }
+
+        // Update cache
+        lastVesselUpdate.put(request.getMmsi(), request.getTimestamp());
     }
 
     private void processBatchVesselData(List<VesselTrackingRequest> batch) {
@@ -326,7 +360,6 @@ public class RealTimeDataProcessor {
                 if (enablePersistence) {
                     try {
                         Ship savedShip = shipRepository.save(ship);
-                        shipRepository.flush(); // Force immediate database write
 
                         // Verify the ship was saved with a valid ID
                         if (savedShip.getId() == null) {
@@ -337,7 +370,7 @@ public class RealTimeDataProcessor {
                                             "Ship not found after save for MMSI: " + request.getMmsi()));
                         }
 
-                        log.debug("✅ FORCE SAVED ship with ID: {} for MMSI: {}", savedShip.getId(), request.getMmsi());
+                        log.debug("✅ SAVED ship with ID: {} for MMSI: {}", savedShip.getId(), request.getMmsi());
                         return savedShip;
 
                     } catch (Exception e) {
@@ -405,8 +438,7 @@ public class RealTimeDataProcessor {
                         if (enablePersistence) {
                             try {
                                 Voyage savedVoyage = voyageRepository.save(voyage);
-                                voyageRepository.flush(); // Force immediate database write
-                                log.debug("✅ FORCE SAVED existing voyage with ID: {}", savedVoyage.getId());
+                                log.debug("✅ SAVED existing voyage with ID: {}", savedVoyage.getId());
                                 return savedVoyage;
                             } catch (Exception e) {
                                 log.warn("Failed to update existing voyage for ship ID: {}: {}", ship.getId(),
@@ -438,7 +470,6 @@ public class RealTimeDataProcessor {
                 if (enablePersistence) {
                     try {
                         Voyage savedVoyage = voyageRepository.save(newVoyage);
-                        voyageRepository.flush(); // Force immediate database write
 
                         // Verify the voyage was saved with a valid ID
                         if (savedVoyage.getId() == null) {
@@ -446,7 +477,7 @@ public class RealTimeDataProcessor {
                             return newVoyage; // Return unsaved voyage
                         }
 
-                        log.debug("✅ FORCE SAVED new voyage with ID: {}", savedVoyage.getId());
+                        log.debug("✅ SAVED new voyage with ID: {}", savedVoyage.getId());
                         return savedVoyage;
 
                     } catch (Exception e) {
