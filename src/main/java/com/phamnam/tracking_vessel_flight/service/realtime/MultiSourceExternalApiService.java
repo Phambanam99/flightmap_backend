@@ -151,9 +151,10 @@ public class MultiSourceExternalApiService {
      * Scheduled task to collect and process data from all sources
      */
     @Scheduled(fixedRate = 30000) // Every 30 seconds
-    @Async
+    @Async("scheduledTaskExecutor")
     public void collectAndProcessMultiSourceData() {
-        log.info("🚀 Starting multi-source data collection...");
+        String threadName = Thread.currentThread().getName();
+        log.info("🚀 Starting multi-source data collection on thread: {}", threadName);
 
         try {
             // Collect from all sources in parallel
@@ -229,10 +230,11 @@ public class MultiSourceExternalApiService {
             }
 
         } catch (Exception e) {
-            log.error("❌ Critical error during multi-source data collection: {}", e.getMessage(), e);
+            log.error("❌ Critical error during multi-source data collection on thread {}: {}",
+                    Thread.currentThread().getName(), e.getMessage(), e);
         }
 
-        log.debug("🏁 Multi-source data collection completed");
+        log.info("🏁 Multi-source data collection completed on thread: {}", Thread.currentThread().getName());
     }
 
     /**

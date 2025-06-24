@@ -130,15 +130,15 @@ public class KafkaConfig {
             // Log the error and the problematic record with more details
             Object value = consumerRecord.value();
             String valueStr = value != null ? value.toString() : "null";
-
-            System.err.println("🚨 Kafka Error Handler - Failed to process record:");
-            System.err.println("  Topic: " + consumerRecord.topic());
-            System.err.println("  Partition: " + consumerRecord.partition());
-            System.err.println("  Offset: " + consumerRecord.offset());
-            System.err.println("  Key: " + consumerRecord.key());
-            System.err.println("  Value: " + valueStr);
-            System.err.println("  Error: " + exception.getMessage());
-            System.err.println("  Exception Type: " + exception.getClass().getSimpleName());
+//
+//            System.err.println("🚨 Kafka Error Handler - Failed to process record:");
+//            System.err.println("  Topic: " + consumerRecord.topic());
+//            System.err.println("  Partition: " + consumerRecord.partition());
+//            System.err.println("  Offset: " + consumerRecord.offset());
+//            System.err.println("  Key: " + consumerRecord.key());
+//            System.err.println("  Value: " + valueStr);
+//            System.err.println("  Error: " + exception.getMessage());
+//            System.err.println("  Exception Type: " + exception.getClass().getSimpleName());
 
             // TODO: Send to dead letter queue for further analysis
             // This should be implemented for production systems
