@@ -4,6 +4,7 @@ import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.FlightResponse;
+import com.phamnam.tracking_vessel_flight.dto.response.FlightTrackingResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Flight;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
@@ -31,9 +32,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@Transactional(readOnly = true)
 public class FlightTrackingService implements IFlightTrackingService {
     @Autowired
     private FlightTrackingRepository flightTrackingRepository;
@@ -56,26 +59,36 @@ public class FlightTrackingService implements IFlightTrackingService {
     // Maximum time a flight can be inactive (for example, 2 hours)
     private static final Duration MAX_FLIGHT_INACTIVITY = Duration.ofHours(2);
 
-    public List<FlightTracking> getAll() {
-        return flightTrackingRepository.findAll();
+    public List<FlightTrackingResponse> getAll() {
+        List<FlightTracking> trackings = flightTrackingRepository.findAll();
+        return trackings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    public Page<FlightTracking> getAllPaginated(Pageable pageable) {
-        return flightTrackingRepository.findAll(pageable);
+    public Page<FlightTrackingResponse> getAllPaginated(Pageable pageable) {
+        Page<FlightTracking> trackings = flightTrackingRepository.findAll(pageable);
+        return trackings.map(this::convertToResponse);
     }
 
-    public FlightTracking getById(Long id) {
-        return flightTrackingRepository.findById(id)
+    public FlightTrackingResponse getById(Long id) {
+        FlightTracking tracking = flightTrackingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("FlightTracking", "id", id));
+        return convertToResponse(tracking);
     }
 
-    public List<FlightTracking> findWithinRadius(double longitude, double latitude, double radiusInMeters) {
-        return flightTrackingRepository.findWithinRadius(longitude, latitude, radiusInMeters);
+    public List<FlightTrackingResponse> findWithinRadius(double longitude, double latitude, double radiusInMeters) {
+        List<FlightTracking> trackings = flightTrackingRepository.findWithinRadius(longitude, latitude, radiusInMeters);
+        return trackings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    public Page<FlightTracking> findWithinRadius(double longitude, double latitude, double radiusInMeters,
+    public Page<FlightTrackingResponse> findWithinRadius(double longitude, double latitude, double radiusInMeters,
             Pageable pageable) {
-        return flightTrackingRepository.findWithinRadiusPaginated(longitude, latitude, radiusInMeters, pageable);
+        Page<FlightTracking> trackings = flightTrackingRepository.findWithinRadiusPaginated(longitude, latitude,
+                radiusInMeters, pageable);
+        return trackings.map(this::convertToResponse);
     }
 
     // public FlightTracking save(FlightTrackingRequestDTO request, Long userId) {
@@ -133,8 +146,10 @@ public class FlightTrackingService implements IFlightTrackingService {
     // return flightTrackingRepository.save(tracking);
     // }
 
-    public FlightTracking update(Long id, FlightTrackingRequest request, Long userId) {
-        FlightTracking tracking = getById(id);
+    @Transactional
+    public FlightTrackingResponse update(Long id, FlightTrackingRequest request, Long userId) {
+        FlightTracking tracking = flightTrackingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FlightTracking", "id", id));
         Flight flight = null;
 
         User user = null;
@@ -190,11 +205,14 @@ public class FlightTrackingService implements IFlightTrackingService {
         tracking.setUpdatedAt(LocalDateTime.now());
         tracking.setUpdatedBy(user);
 
-        return flightTrackingRepository.save(tracking);
+        FlightTracking updatedTracking = flightTrackingRepository.save(tracking);
+        return convertToResponse(updatedTracking);
     }
 
+    @Transactional
     public void delete(Long id) {
-        FlightTracking tracking = getById(id);
+        FlightTracking tracking = flightTrackingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FlightTracking", "id", id));
         flightTrackingRepository.delete(tracking);
     }
 
@@ -204,16 +222,22 @@ public class FlightTrackingService implements IFlightTrackingService {
      * @param flightId the ID of the flight to get tracking data for
      * @return list of tracking data for the flight
      */
-    public List<FlightTracking> getByFlightId(Long flightId) {
-        // Verify flight exists first
-        flightRepository.findById(flightId)
+    public List<FlightTrackingResponse> getByFlightId(Long flightId) {
+        Flight flight = flightRepository.findById(flightId)
                 .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", flightId));
 
-        return flightTrackingRepository.findByFlight_id(flightId);
+        List<FlightTracking> trackings = flightTrackingRepository.findByFlight_id(flightId);
+        return trackings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    public Page<FlightTracking> getByFlightId(Long flightId, Pageable pageable) {
-        return flightTrackingRepository.findByFlight_id(flightId, pageable);
+    public Page<FlightTrackingResponse> getByFlightId(Long flightId, Pageable pageable) {
+        Flight flight = flightRepository.findById(flightId)
+                .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", flightId));
+
+        Page<FlightTracking> trackings = flightTrackingRepository.findByFlight_id(flightId, pageable);
+        return trackings.map(this::convertToResponse);
     }
 
     /**
@@ -228,7 +252,7 @@ public class FlightTrackingService implements IFlightTrackingService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public FlightTracking processNewTrackingData(FlightTrackingRequestDTO trackingData, Long userId) {
+    public FlightTrackingResponse processNewTrackingData(FlightTrackingRequestDTO trackingData, Long userId) {
         // Validate required fields
         if (trackingData == null) {
             throw new IllegalArgumentException("Tracking data cannot be null");
@@ -340,7 +364,7 @@ public class FlightTrackingService implements IFlightTrackingService {
             throw e;
         }
 
-        return tracking;
+        return convertToResponse(tracking);
     }
 
     /**
@@ -513,5 +537,54 @@ public class FlightTrackingService implements IFlightTrackingService {
                 .flightNumber("dummy")
                 .build();
         return flight;
+    }
+
+    /**
+     * Convert FlightTracking entity to FlightTrackingResponse DTO
+     */
+    private FlightTrackingResponse convertToResponse(FlightTracking tracking) {
+        FlightTrackingResponse.FlightTrackingResponseBuilder builder = FlightTrackingResponse.builder()
+                .id(tracking.getTrackingId())
+                .altitude(tracking.getAltitude())
+                .altitudeType(tracking.getAltitudeType())
+                .targetAlt(tracking.getTargetAlt())
+                .callsign(tracking.getCallsign())
+                .speed(tracking.getSpeed())
+                .speedType(tracking.getSpeedType())
+                .verticalSpeed(tracking.getVerticalSpeed())
+                .squawk(tracking.getSquawk())
+                .distance(tracking.getDistance())
+                .bearing(tracking.getBearing())
+                .unixTime(tracking.getUnixTime())
+                .updateTime(tracking.getUpdateTime())
+                .landingUnixTimes(
+                        tracking.getLandingUnixTimes() != null ? tracking.getLandingUnixTimes().toString() : null)
+                .landingTimes(tracking.getLandingTimes() != null ? tracking.getLandingTimes().toString() : null)
+                .createdAt(tracking.getCreatedAt())
+                .updatedAt(tracking.getUpdatedAt());
+
+        // Handle location/coordinates safely
+        if (tracking.getLocation() != null) {
+            builder.latitude(tracking.getLocation().getY())
+                    .longitude(tracking.getLocation().getX());
+        }
+
+        // Safely access flight information
+        if (tracking.getFlight() != null) {
+            builder.flightId(tracking.getFlight().getId());
+
+            // Safely access aircraft information through flight
+            if (tracking.getFlight().getAircraft() != null) {
+                builder.aircraftRegistration(tracking.getFlight().getAircraft().getRegister())
+                        .aircraftModel(tracking.getFlight().getAircraft().getType());
+            }
+        }
+
+        // Safely access user information
+        if (tracking.getUpdatedBy() != null) {
+            builder.updatedByUsername(tracking.getUpdatedBy().getUsername());
+        }
+
+        return builder.build();
     }
 }
