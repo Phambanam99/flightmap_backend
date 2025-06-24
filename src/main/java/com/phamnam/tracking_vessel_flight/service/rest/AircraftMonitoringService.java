@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftMonitoringRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.AircraftMonitoringResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Aircraft;
 import com.phamnam.tracking_vessel_flight.models.AircraftMonitoring;
@@ -15,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class AircraftMonitoringService implements IAircraftMonitoringService {
 
     @Autowired
@@ -25,34 +28,40 @@ public class AircraftMonitoringService implements IAircraftMonitoringService {
     @Autowired
     private AircraftRepository aircraftRepository;
 
-    @Override
-    public List<AircraftMonitoring> getAll() {
-        return aircraftMonitoringRepository.findAll();
+    public List<AircraftMonitoringResponse> getAll() {
+        List<AircraftMonitoring> monitorings = aircraftMonitoringRepository.findAll();
+        return monitorings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Page<AircraftMonitoring> getAllPaginated(Pageable pageable) {
-        return aircraftMonitoringRepository.findAll(pageable);
+    public Page<AircraftMonitoringResponse> getAllPaginated(Pageable pageable) {
+        Page<AircraftMonitoring> monitorings = aircraftMonitoringRepository.findAll(pageable);
+        return monitorings.map(this::convertToResponse);
     }
 
-    @Override
-    public AircraftMonitoring getById(Long id) {
-        return aircraftMonitoringRepository.findById(id)
+    public AircraftMonitoringResponse getById(Long id) {
+        AircraftMonitoring monitoring = aircraftMonitoringRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("AircraftMonitoring", "id", id));
+        return convertToResponse(monitoring);
     }
 
-    @Override
-    public List<AircraftMonitoring> getByUserId(Long userId) {
-        return aircraftMonitoringRepository.findByUserId(userId);
+    public List<AircraftMonitoringResponse> getByUserId(Long userId) {
+        List<AircraftMonitoring> monitorings = aircraftMonitoringRepository.findByUserId(userId);
+        return monitorings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public List<AircraftMonitoring> getByAircraftId(Long aircraftId) {
-        return aircraftMonitoringRepository.findByAircraft_Id(aircraftId);
+    public List<AircraftMonitoringResponse> getByAircraftId(Long aircraftId) {
+        List<AircraftMonitoring> monitorings = aircraftMonitoringRepository.findByAircraft_Id(aircraftId);
+        return monitorings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public AircraftMonitoring save(AircraftMonitoringRequest request) {
+    @Transactional
+    public AircraftMonitoringResponse save(AircraftMonitoringRequest request) {
         Aircraft aircraft = aircraftRepository.findById(request.getAircraftId())
                 .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", request.getAircraftId()));
 
@@ -62,18 +71,38 @@ public class AircraftMonitoringService implements IAircraftMonitoringService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return aircraftMonitoringRepository.save(monitoring);
+        AircraftMonitoring savedMonitoring = aircraftMonitoringRepository.save(monitoring);
+        return convertToResponse(savedMonitoring);
     }
 
-    @Override
+    @Transactional
     public void delete(Long id) {
-        AircraftMonitoring monitoring = getById(id);
+        AircraftMonitoring monitoring = aircraftMonitoringRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("AircraftMonitoring", "id", id));
         aircraftMonitoringRepository.delete(monitoring);
     }
 
-    @Override
     @Transactional
     public void deleteByUserIdAndAircraftId(Long userId, Long aircraftId) {
         aircraftMonitoringRepository.deleteByUserIdAndAircraft_Id(userId, aircraftId);
+    }
+
+    /**
+     * Convert AircraftMonitoring entity to AircraftMonitoringResponse DTO
+     */
+    private AircraftMonitoringResponse convertToResponse(AircraftMonitoring monitoring) {
+        AircraftMonitoringResponse.AircraftMonitoringResponseBuilder builder = AircraftMonitoringResponse.builder()
+                .id(monitoring.getId())
+                .isActive(true) // Default active status
+                .createdAt(monitoring.getCreatedAt());
+
+        // Safely access aircraft information
+        if (monitoring.getAircraft() != null) {
+            builder.aircraftId(monitoring.getAircraft().getId())
+                    .aircraftRegistration(monitoring.getAircraft().getRegister())
+                    .hexident(monitoring.getAircraft().getHexident());
+        }
+
+        return builder.build();
     }
 }

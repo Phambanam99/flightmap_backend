@@ -1,24 +1,24 @@
 package com.phamnam.tracking_vessel_flight.service.rest.interfaces;
 
 import com.phamnam.tracking_vessel_flight.dto.request.ShipMonitoringRequest;
-import com.phamnam.tracking_vessel_flight.models.ShipMonitoring;
+import com.phamnam.tracking_vessel_flight.dto.response.ShipMonitoringResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 public interface IShipMonitoringService {
-    List<ShipMonitoring> getAll();
+    List<ShipMonitoringResponse> getAll();
 
-    Page<ShipMonitoring> getAllPaginated(Pageable pageable);
+    Page<ShipMonitoringResponse> getAllPaginated(Pageable pageable);
 
-    ShipMonitoring getById(Long id);
+    ShipMonitoringResponse getById(Long id);
 
-    List<ShipMonitoring> getByUserId(Long userId);
+    List<ShipMonitoringResponse> getByUserId(Long userId);
 
-    List<ShipMonitoring> getByShipId(Long shipId);
+    List<ShipMonitoringResponse> getByShipId(Long shipId);
 
-    ShipMonitoring save(ShipMonitoringRequest request);
+    ShipMonitoringResponse save(ShipMonitoringRequest request);
 
     void delete(Long id);
 

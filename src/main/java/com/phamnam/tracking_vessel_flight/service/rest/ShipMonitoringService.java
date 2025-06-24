@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.ShipMonitoringRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.ShipMonitoringResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Ship;
 import com.phamnam.tracking_vessel_flight.models.ShipMonitoring;
@@ -15,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ShipMonitoringService implements IShipMonitoringService {
 
     @Autowired
@@ -25,34 +28,40 @@ public class ShipMonitoringService implements IShipMonitoringService {
     @Autowired
     private ShipRepository shipRepository;
 
-    @Override
-    public List<ShipMonitoring> getAll() {
-        return shipMonitoringRepository.findAll();
+    public List<ShipMonitoringResponse> getAll() {
+        List<ShipMonitoring> monitorings = shipMonitoringRepository.findAll();
+        return monitorings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Page<ShipMonitoring> getAllPaginated(Pageable pageable) {
-        return shipMonitoringRepository.findAll(pageable);
+    public Page<ShipMonitoringResponse> getAllPaginated(Pageable pageable) {
+        Page<ShipMonitoring> monitorings = shipMonitoringRepository.findAll(pageable);
+        return monitorings.map(this::convertToResponse);
     }
 
-    @Override
-    public ShipMonitoring getById(Long id) {
-        return shipMonitoringRepository.findById(id)
+    public ShipMonitoringResponse getById(Long id) {
+        ShipMonitoring monitoring = shipMonitoringRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ShipMonitoring", "id", id));
+        return convertToResponse(monitoring);
     }
 
-    @Override
-    public List<ShipMonitoring> getByUserId(Long userId) {
-        return shipMonitoringRepository.findByUserId(userId);
+    public List<ShipMonitoringResponse> getByUserId(Long userId) {
+        List<ShipMonitoring> monitorings = shipMonitoringRepository.findByUserId(userId);
+        return monitorings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public List<ShipMonitoring> getByShipId(Long shipId) {
-        return shipMonitoringRepository.findByShip_Id(shipId);
+    public List<ShipMonitoringResponse> getByShipId(Long shipId) {
+        List<ShipMonitoring> monitorings = shipMonitoringRepository.findByShip_Id(shipId);
+        return monitorings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public ShipMonitoring save(ShipMonitoringRequest request) {
+    @Transactional
+    public ShipMonitoringResponse save(ShipMonitoringRequest request) {
         Ship ship = shipRepository.findById(request.getShipId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ship", "id", request.getShipId()));
 
@@ -62,18 +71,39 @@ public class ShipMonitoringService implements IShipMonitoringService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return shipMonitoringRepository.save(monitoring);
+        ShipMonitoring savedMonitoring = shipMonitoringRepository.save(monitoring);
+        return convertToResponse(savedMonitoring);
     }
 
-    @Override
+    @Transactional
     public void delete(Long id) {
-        ShipMonitoring monitoring = getById(id);
+        ShipMonitoring monitoring = shipMonitoringRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ShipMonitoring", "id", id));
         shipMonitoringRepository.delete(monitoring);
     }
 
-    @Override
     @Transactional
     public void deleteByUserIdAndShipId(Long userId, Long shipId) {
         shipMonitoringRepository.deleteByUserIdAndShip_Id(userId, shipId);
+    }
+
+    /**
+     * Convert ShipMonitoring entity to ShipMonitoringResponse DTO
+     */
+    private ShipMonitoringResponse convertToResponse(ShipMonitoring monitoring) {
+        ShipMonitoringResponse.ShipMonitoringResponseBuilder builder = ShipMonitoringResponse.builder()
+                .id(monitoring.getId())
+                .isActive(true) // Default active status
+                .createdAt(monitoring.getCreatedAt());
+
+        // Safely access ship information
+        if (monitoring.getShip() != null) {
+            builder.shipId(monitoring.getShip().getId())
+                    .shipName(monitoring.getShip().getName())
+                    .mmsi(monitoring.getShip().getMmsi())
+                    .imo(monitoring.getShip().getImo());
+        }
+
+        return builder.build();
     }
 }
