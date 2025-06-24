@@ -46,7 +46,7 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "500", description = "Internal server error")
         })
         @GetMapping("/paginated")
-        public ResponseEntity<MyApiResponse<PageResponse<FlightTracking>>> getAllFlightTrackingsPaginated(
+        public ResponseEntity<MyApiResponse<PageResponse<FlightTrackingRequest>>> getAllFlightTrackingsPaginated(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(defaultValue = "id") String sortBy,
@@ -56,7 +56,7 @@ public class FlightTrackingController {
                                 : Sort.Direction.ASC;
 
                 Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-                Page<FlightTracking> trackingPage = flightTrackingService.getAllPaginated(pageable);
+                Page<FlightTrackingRequest> trackingPage = flightTrackingService.getAllPaginated(pageable);
 
                 return ResponseEntity.ok(MyApiResponse.success(
                                 PageResponse.fromPage(trackingPage),

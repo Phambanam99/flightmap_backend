@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.AircraftResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Aircraft;
 import com.phamnam.tracking_vessel_flight.repository.AircraftRepository;
@@ -9,40 +10,47 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class AircraftService implements IAircraftService {
 
     @Autowired
     private AircraftRepository aircraftRepository;
 
-    @Override
-    public List<Aircraft> getAll() {
-        return aircraftRepository.findAll();
+    public List<AircraftResponse> getAll() {
+        List<Aircraft> aircraft = aircraftRepository.findAll();
+        return aircraft.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Page<Aircraft> getAllPaginated(Pageable pageable) {
-        return aircraftRepository.findAll(pageable);
+    public Page<AircraftResponse> getAllPaginated(Pageable pageable) {
+        Page<Aircraft> aircraft = aircraftRepository.findAll(pageable);
+        return aircraft.map(this::convertToResponse);
     }
 
-    @Override
-    public Aircraft getAircraftById(Long id) {
-        return aircraftRepository.findById(id)
+    public AircraftResponse getAircraftById(Long id) {
+        Aircraft aircraft = aircraftRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Aircraft not found with id: " + id));
+        return convertToResponse(aircraft);
     }
 
-    @Override
-    public Aircraft save(AircraftRequest aircraftRequest, Long userId) {
+    @Transactional
+    public AircraftResponse save(AircraftRequest aircraftRequest, Long userId) {
         Aircraft aircraft = mapToEntity(aircraftRequest);
-        return aircraftRepository.save(aircraft);
+        Aircraft savedAircraft = aircraftRepository.save(aircraft);
+        return convertToResponse(savedAircraft);
     }
 
-    @Override
-    public Aircraft updateAircraft(Long id, AircraftRequest aircraftRequest, Long userId) {
-        Aircraft aircraft = getAircraftById(id);
+    @Transactional
+    public AircraftResponse updateAircraft(Long id, AircraftRequest aircraftRequest, Long userId) {
+        Aircraft aircraft = aircraftRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Aircraft not found with id: " + id));
 
         aircraft.setHexident(aircraftRequest.getHexident());
         aircraft.setRegister(aircraftRequest.getRegister());
@@ -60,19 +68,52 @@ public class AircraftService implements IAircraftService {
         aircraft.setSource(aircraftRequest.getSource());
         aircraft.setItemType(aircraftRequest.getItemType());
 
-        return aircraftRepository.save(aircraft);
+        Aircraft updatedAircraft = aircraftRepository.save(aircraft);
+        return convertToResponse(updatedAircraft);
     }
 
-    @Override
+    @Transactional
     public void deleteAircraft(Long id) {
-        Aircraft aircraft = getAircraftById(id);
+        Aircraft aircraft = aircraftRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Aircraft not found with id: " + id));
         aircraftRepository.delete(aircraft);
     }
 
-    @Override
-    public Aircraft findByHexident(String hexident) {
-        return aircraftRepository.findByHexident(hexident)
+    public AircraftResponse findByHexident(String hexident) {
+        Aircraft aircraft = aircraftRepository.findByHexident(hexident)
                 .orElseThrow(() -> new ResourceNotFoundException("Aircraft not found with hexident: " + hexident));
+        return convertToResponse(aircraft);
+    }
+
+    /**
+     * Convert Aircraft entity to AircraftResponse DTO
+     */
+    private AircraftResponse convertToResponse(Aircraft aircraft) {
+        AircraftResponse.AircraftResponseBuilder builder = AircraftResponse.builder()
+                .id(aircraft.getId())
+                .hexident(aircraft.getHexident())
+                .registration(aircraft.getRegister())
+                .aircraftType(aircraft.getType())
+                .model(aircraft.getType()) // Using type as model
+                .manufacturer(aircraft.getManufacture())
+                .operator(aircraft.getOperator())
+                .country(aircraft.getCountry())
+                .createdAt(aircraft.getCreatedAt())
+                .updatedAt(aircraft.getUpdatedAt());
+
+        // Safely access user information
+        if (aircraft.getUpdatedBy() != null) {
+            builder.updatedByUsername(aircraft.getUpdatedBy().getUsername());
+        }
+
+        // Count active flights (simplified - just count total flights for now)
+        if (aircraft.getFlights() != null) {
+            builder.activeFlightCount(aircraft.getFlights().size());
+        } else {
+            builder.activeFlightCount(0);
+        }
+
+        return builder.build();
     }
 
     private Aircraft mapToEntity(AircraftRequest request) {

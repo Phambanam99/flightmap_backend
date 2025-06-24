@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.FlightRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.FlightResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Aircraft;
 import com.phamnam.tracking_vessel_flight.models.Flight;
@@ -13,10 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class FlightService implements IFlightService {
 
     @Autowired
@@ -28,29 +32,33 @@ public class FlightService implements IFlightService {
     @Autowired
     private UserRepository userRepository;
 
-    @Override
-    public List<Flight> getAll() {
-        return flightRepository.findAll();
+    public List<FlightResponse> getAll() {
+        List<Flight> flights = flightRepository.findAll();
+        return flights.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Page<Flight> getAllPaginated(Pageable pageable) {
-        return flightRepository.findAll(pageable);
+    public Page<FlightResponse> getAllPaginated(Pageable pageable) {
+        Page<Flight> flights = flightRepository.findAll(pageable);
+        return flights.map(this::convertToResponse);
     }
 
-    @Override
-    public Flight getFlightById(Long id) {
-        return flightRepository.findById(id)
+    public FlightResponse getFlightById(Long id) {
+        Flight flight = flightRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", id));
+        return convertToResponse(flight);
     }
 
-    @Override
-    public List<Flight> getFlightsByAircraftId(Long aircraftId) {
-        return flightRepository.findByAircraft_id(aircraftId);
+    public List<FlightResponse> getFlightsByAircraftId(Long aircraftId) {
+        List<Flight> flights = flightRepository.findByAircraft_id(aircraftId);
+        return flights.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Flight save(FlightRequest flightRequest, Long userId) {
+    @Transactional
+    public FlightResponse save(FlightRequest flightRequest, Long userId) {
         Aircraft aircraft = aircraftRepository.findById(flightRequest.getAircraftId())
                 .orElseThrow(() -> new ResourceNotFoundException("Aircraft", "id", flightRequest.getAircraftId()));
 
@@ -71,13 +79,15 @@ public class FlightService implements IFlightService {
                 .build();
 
         flight.setUpdatedBy(user);
+        Flight savedFlight = flightRepository.save(flight);
 
-        return flightRepository.save(flight);
+        return convertToResponse(savedFlight);
     }
 
-    @Override
-    public Flight updateFlight(Long id, FlightRequest flightRequest, Long userId) {
-        Flight flight = getFlightById(id);
+    @Transactional
+    public FlightResponse updateFlight(Long id, FlightRequest flightRequest, Long userId) {
+        Flight flight = flightRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", id));
 
         User user = null;
         if (userId != null) {
@@ -104,8 +114,7 @@ public class FlightService implements IFlightService {
         }
 
         if (flightRequest.getStatus() != null) {
-            // TODO: Convert String to FlightStatus enum
-            // flight.setStatus(flightRequest.getStatus());
+            flight.setStatus(convertStringToFlightStatus(flightRequest.getStatus()));
         }
 
         if (flightRequest.getOriginAirport() != null) {
@@ -117,14 +126,47 @@ public class FlightService implements IFlightService {
         }
 
         flight.setUpdatedBy(user);
+        Flight updatedFlight = flightRepository.save(flight);
 
-        return flightRepository.save(flight);
+        return convertToResponse(updatedFlight);
     }
 
-    @Override
+    @Transactional
     public void deleteFlight(Long id) {
-        Flight flight = getFlightById(id);
+        Flight flight = flightRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Flight", "id", id));
         flightRepository.delete(flight);
+    }
+
+    /**
+     * Convert Flight entity to FlightResponse DTO
+     */
+    private FlightResponse convertToResponse(Flight flight) {
+        FlightResponse.FlightResponseBuilder builder = FlightResponse.builder()
+                .id(flight.getId())
+                .callsign(flight.getCallsign())
+                .departureTime(flight.getDepartureTime())
+                .arrivalTime(flight.getArrivalTime())
+                .status(flight.getStatus() != null ? flight.getStatus().toString() : null)
+                .originAirport(flight.getOriginAirport())
+                .destinationAirport(flight.getDestinationAirport())
+                .createdAt(flight.getCreatedAt())
+                .updatedAt(flight.getUpdatedAt());
+
+        // Safely access aircraft information
+        if (flight.getAircraft() != null) {
+            builder.aircraftId(flight.getAircraft().getId())
+                    .aircraftName(flight.getAircraft().getRegister())
+                    .aircraftRegistration(flight.getAircraft().getRegister())
+                    .aircraftModel(flight.getAircraft().getType());
+        }
+
+        // Safely access user information
+        if (flight.getUpdatedBy() != null) {
+            builder.updatedByUsername(flight.getUpdatedBy().getUsername());
+        }
+
+        return builder.build();
     }
 
     /**
