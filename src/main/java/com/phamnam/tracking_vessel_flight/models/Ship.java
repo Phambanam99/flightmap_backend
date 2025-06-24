@@ -10,6 +10,7 @@ import java.util.List;
 @Table(name = "ship")
 @Data
 @EqualsAndHashCode(callSuper = false)
+@ToString(exclude = { "voyages", "monitoringData" })
 @Getter
 @Setter
 @AllArgsConstructor

@@ -18,6 +18,7 @@ import java.util.List;
 })
 @Data
 @EqualsAndHashCode(callSuper = false)
+@ToString(exclude = { "aircraft", "trackings" })
 @Getter
 @Setter
 @AllArgsConstructor
@@ -218,7 +219,7 @@ public class Flight extends BaseEntity {
         SCHEDULED, // Flight is scheduled
         DELAYED, // Flight is delayed
         DEPARTED,
-        BOARDING,// Flight has departed
+        BOARDING, // Flight has departed
         IN_AIR, // Flight is airborne
         APPROACHING, // Flight is approaching destination
         LANDED, // Flight has landed

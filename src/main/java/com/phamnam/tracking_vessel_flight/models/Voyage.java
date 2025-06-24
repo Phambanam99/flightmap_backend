@@ -16,6 +16,7 @@ import java.util.List;
 })
 @Data
 @EqualsAndHashCode(callSuper = false)
+@ToString(exclude = { "ship", "trackings" })
 @Getter
 @Setter
 @AllArgsConstructor

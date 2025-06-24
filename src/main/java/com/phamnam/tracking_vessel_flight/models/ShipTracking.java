@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 })
 @Data
 @EqualsAndHashCode(callSuper = false)
+@ToString(exclude = { "voyage" })
 @Getter
 @Setter
 @AllArgsConstructor
