@@ -4,6 +4,7 @@ import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
 import com.phamnam.tracking_vessel_flight.dto.response.PageResponse;
+import com.phamnam.tracking_vessel_flight.dto.response.FlightTrackingResponse;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +37,7 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "500", description = "Internal server error")
         })
         @GetMapping
-        public ResponseEntity<MyApiResponse<List<FlightTracking>>> getAllFlightTrackings() {
+        public ResponseEntity<MyApiResponse<List<FlightTrackingResponse>>> getAll() {
                 return ResponseEntity.ok(MyApiResponse.success(flightTrackingService.getAll()));
         }
 
@@ -46,7 +47,7 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "500", description = "Internal server error")
         })
         @GetMapping("/paginated")
-        public ResponseEntity<MyApiResponse<PageResponse<FlightTracking>>> getAllFlightTrackingsPaginated(
+        public ResponseEntity<MyApiResponse<PageResponse<FlightTrackingResponse>>> getAllPaginated(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(defaultValue = "id") String sortBy,
@@ -56,7 +57,7 @@ public class FlightTrackingController {
                                 : Sort.Direction.ASC;
 
                 Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-                Page<FlightTracking> trackingPage = flightTrackingService.getAllPaginated(pageable);
+                Page<FlightTrackingResponse> trackingPage = flightTrackingService.getAllPaginated(pageable);
 
                 return ResponseEntity.ok(MyApiResponse.success(
                                 PageResponse.fromPage(trackingPage),
@@ -69,7 +70,7 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "404", description = "Flight tracking not found")
         })
         @GetMapping("/{id}")
-        public ResponseEntity<MyApiResponse<FlightTracking>> getFlightTrackingById(@PathVariable Long id) {
+        public ResponseEntity<MyApiResponse<FlightTrackingResponse>> getById(@PathVariable Long id) {
                 return ResponseEntity.ok(MyApiResponse.success(flightTrackingService.getById(id)));
         }
 
@@ -78,8 +79,8 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "200", description = "Successfully retrieved flights within radius"),
                         @ApiResponse(responseCode = "400", description = "Invalid parameters")
         })
-        @GetMapping("/radius")
-        public ResponseEntity<MyApiResponse<List<FlightTracking>>> findWithinRadius(
+        @GetMapping("/within-radius")
+        public ResponseEntity<MyApiResponse<List<FlightTrackingResponse>>> findWithinRadius(
                         @RequestParam double longitude,
                         @RequestParam double latitude,
                         @RequestParam double radiusInMeters) {
@@ -92,16 +93,21 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "200", description = "Successfully retrieved flights within radius"),
                         @ApiResponse(responseCode = "400", description = "Invalid parameters")
         })
-        @GetMapping("/radius/paginated")
-        public ResponseEntity<MyApiResponse<PageResponse<FlightTracking>>> findWithinRadiusPaginated(
+        @GetMapping("/within-radius/paginated")
+        public ResponseEntity<MyApiResponse<PageResponse<FlightTrackingResponse>>> findWithinRadiusPaginated(
                         @RequestParam double longitude,
                         @RequestParam double latitude,
                         @RequestParam double radiusInMeters,
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size) {
+                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(defaultValue = "id") String sortBy,
+                        @RequestParam(defaultValue = "asc") String direction) {
 
-                Pageable pageable = PageRequest.of(page, size);
-                Page<FlightTracking> trackingPage = flightTrackingService.findWithinRadius(
+                Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction) ? Sort.Direction.DESC
+                                : Sort.Direction.ASC;
+
+                Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+                Page<FlightTrackingResponse> trackingPage = flightTrackingService.findWithinRadius(
                                 longitude, latitude, radiusInMeters, pageable);
 
                 return ResponseEntity.ok(MyApiResponse.success(
@@ -114,13 +120,13 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "201", description = "Flight tracking created successfully"),
                         @ApiResponse(responseCode = "400", description = "Invalid input data")
         })
-        @PostMapping
-        public ResponseEntity<MyApiResponse<FlightTracking>> createFlightTracking(
+        @PostMapping("/process")
+        public ResponseEntity<MyApiResponse<FlightTrackingResponse>> processNewTrackingData(
                         @Valid @RequestBody FlightTrackingRequestDTO request,
                         @RequestParam(required = false) Long userId) {
-                FlightTracking savedTracking = flightTrackingService.processNewTrackingData(request, userId);
+                FlightTrackingResponse savedTracking = flightTrackingService.processNewTrackingData(request, userId);
                 return new ResponseEntity<>(
-                                MyApiResponse.success(savedTracking, "Flight tracking created successfully"),
+                                MyApiResponse.success(savedTracking, "Flight tracking data processed successfully"),
                                 HttpStatus.CREATED);
         }
 
@@ -131,11 +137,11 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "400", description = "Invalid input data")
         })
         @PutMapping("/{id}")
-        public ResponseEntity<MyApiResponse<FlightTracking>> updateFlightTracking(
+        public ResponseEntity<MyApiResponse<FlightTrackingResponse>> updateFlightTracking(
                         @PathVariable Long id,
                         @Valid @RequestBody FlightTrackingRequest request,
                         @RequestParam(required = false) Long userId) {
-                FlightTracking updatedTracking = flightTrackingService.update(id, request, userId);
+                FlightTrackingResponse updatedTracking = flightTrackingService.update(id, request, userId);
                 return ResponseEntity
                                 .ok(MyApiResponse.success(updatedTracking, "Flight tracking updated successfully"));
         }
@@ -157,9 +163,11 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "404", description = "Flight not found")
         })
         @GetMapping("/flight/{flightId}")
-        public ResponseEntity<MyApiResponse<List<FlightTracking>>> getTrackingByFlightId(@PathVariable Long flightId) {
-                List<FlightTracking> trackingData = flightTrackingService.getByFlightId(flightId);
-                return ResponseEntity.ok(MyApiResponse.success(trackingData, "Tracking data retrieved successfully"));
+        public ResponseEntity<MyApiResponse<List<FlightTrackingResponse>>> getTrackingByFlightId(
+                        @PathVariable Long flightId) {
+                List<FlightTrackingResponse> trackingData = flightTrackingService.getByFlightId(flightId);
+                return ResponseEntity.ok(MyApiResponse.success(trackingData,
+                                "Flight tracking data for flight " + flightId + " retrieved successfully"));
         }
 
         @Operation(summary = "Get tracking data by flight ID with pagination", description = "Retrieves paginated tracking records for a specific flight")
@@ -168,40 +176,32 @@ public class FlightTrackingController {
                         @ApiResponse(responseCode = "404", description = "Flight not found")
         })
         @GetMapping("/flight/{flightId}/paginated")
-        public ResponseEntity<MyApiResponse<PageResponse<FlightTracking>>> getTrackingByFlightIdPaginated(
+        public ResponseEntity<MyApiResponse<PageResponse<FlightTrackingResponse>>> getTrackingByFlightIdPaginated(
                         @PathVariable Long flightId,
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
-                        @RequestParam(defaultValue = "timestamp") String sortBy,
-                        @RequestParam(defaultValue = "desc") String direction) {
+                        @RequestParam(defaultValue = "id") String sortBy,
+                        @RequestParam(defaultValue = "asc") String direction) {
 
                 Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction) ? Sort.Direction.DESC
                                 : Sort.Direction.ASC;
 
                 Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-                Page<FlightTracking> trackingPage = flightTrackingService.getByFlightId(flightId, pageable);
+                Page<FlightTrackingResponse> trackingPage = flightTrackingService.getByFlightId(flightId, pageable);
 
                 return ResponseEntity.ok(MyApiResponse.success(
                                 PageResponse.fromPage(trackingPage),
-                                "Tracking data for flight retrieved successfully"));
+                                "Flight tracking data for flight " + flightId + " retrieved successfully"));
         }
 
-        @Operation(summary = "Process new flight tracking data", description = "Processes new tracking data for an aircraft, creates flight if needed")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "201", description = "Flight tracking processed successfully"),
-                        @ApiResponse(responseCode = "400", description = "Invalid input data"),
-                        @ApiResponse(responseCode = "404", description = "Aircraft not found")
-        })
-        @PostMapping("/process/")
-        public ResponseEntity<MyApiResponse<FlightTracking>> processNewTrackingData(
+        @PostMapping("/raw")
+        public ResponseEntity<MyApiResponse<FlightTrackingResponse>> createTrackingFromRawData(
                         @Valid @RequestBody FlightTrackingRequestDTO request,
                         @RequestParam(required = false) Long userId) {
-
-                FlightTracking savedTracking = flightTrackingService.processNewTrackingData(
+                FlightTrackingResponse savedTracking = flightTrackingService.processNewTrackingData(
                                 request, userId);
-
                 return new ResponseEntity<>(
-                                MyApiResponse.success(savedTracking, "Flight tracking data processed successfully"),
+                                MyApiResponse.success(savedTracking, "Raw flight tracking data processed successfully"),
                                 HttpStatus.CREATED);
         }
 }

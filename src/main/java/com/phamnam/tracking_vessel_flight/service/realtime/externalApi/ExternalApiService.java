@@ -302,9 +302,7 @@ public class ExternalApiService {
             vessels.elements().forEachRemaining(vessel -> {
                 VesselTrackingRequest vesselRequest = parseVesselFromMarineTraffic(vessel);
                 vesselRequest.setSource(DataSourceType.MARINE_TRAFFIC.getDisplayName());
-                if (vesselRequest != null) {
-                    vesselList.add(vesselRequest);
-                }
+                vesselList.add(vesselRequest);
             });
 
             log.debug("Parsed {} vessels from MarineTraffic response", vesselList.size());
