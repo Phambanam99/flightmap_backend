@@ -89,6 +89,24 @@ public class TrackingKafkaProducer {
     private CompletableFuture<SendResult<String, Object>> sendMessage(String topic, String key, Object data,
             String dataType) {
         try {
+            // Validate input data before sending
+            if (data == null) {
+                log.warn("⚠️ Attempted to send null data to topic: {} with key: {}. Skipping send operation.",
+                        topic, key);
+                CompletableFuture<SendResult<String, Object>> skippedFuture = new CompletableFuture<>();
+                skippedFuture.completeExceptionally(
+                        new IllegalArgumentException("Cannot send null data to Kafka topic: " + topic));
+                return skippedFuture;
+            }
+
+            if (key == null || key.trim().isEmpty()) {
+                log.warn("⚠️ Attempted to send data with null/empty key to topic: {}. Skipping send operation.", topic);
+                CompletableFuture<SendResult<String, Object>> skippedFuture = new CompletableFuture<>();
+                skippedFuture.completeExceptionally(
+                        new IllegalArgumentException("Cannot send data with null/empty key to Kafka topic: " + topic));
+                return skippedFuture;
+            }
+
             log.debug("Publishing {} to topic: {} with key: {}", dataType, topic, key);
 
             CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(topic, key, data);

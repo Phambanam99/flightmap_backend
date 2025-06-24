@@ -45,6 +45,54 @@ public class TrackingKafkaConsumer {
     @Value("${raw.data.storage.enabled:false}")
     private boolean rawStorageEnabled;
 
+    /**
+     * Utility method to validate if JsonNode data is valid for processing
+     * 
+     * @param data           The JsonNode data to validate
+     * @param key            The message key
+     * @param topic          The topic name
+     * @param acknowledgment The acknowledgment object
+     * @return true if data is valid, false if processing should be skipped
+     */
+    private boolean isValidJsonData(JsonNode data, String key, String topic, Acknowledgment acknowledgment) {
+        // Check for null or empty data
+        if (data == null || data.isNull()) {
+            log.warn("⚠️ Received null or empty data for key: {} from topic: {}. Skipping processing.", key, topic);
+            acknowledgment.acknowledge();
+            return false;
+        }
+
+        // Check for null or empty key
+        if (key == null || key.trim().isEmpty()) {
+            log.warn("⚠️ Received data with null or empty key from topic: {}. Skipping processing.", topic);
+            acknowledgment.acknowledge();
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Utility method to handle errors consistently across all consumers
+     * 
+     * @param exception      The exception that occurred
+     * @param key            The message key
+     * @param topic          The topic name
+     * @param acknowledgment The acknowledgment object
+     * @param consumerType   The type of consumer for logging
+     */
+    private void handleConsumerError(Exception exception, String key, String topic,
+            Acknowledgment acknowledgment, String consumerType) {
+        log.error("❌ Error processing {} data with key: {} from topic: {} - Error: {}",
+                consumerType, key, topic, exception.getMessage(), exception);
+
+        // TODO: Send to dead letter queue for failed processing
+        // This would be useful for debugging and replay scenarios
+
+        // Acknowledge to prevent reprocessing of corrupted data
+        acknowledgment.acknowledge();
+    }
+
     // Raw Aircraft Data Consumer
     @KafkaListener(topics = "${app.kafka.topics.raw-aircraft-data}", groupId = "raw-aircraft-consumer-group", containerFactory = "rawAircraftKafkaListenerContainerFactory")
     public void consumeRawAircraftData(
@@ -200,6 +248,11 @@ public class TrackingKafkaConsumer {
         try {
             log.debug("Received processed vessel data from topic: {}, key: {}", topic, key);
 
+            // Validate data using utility method
+            if (!isValidJsonData(data, key, topic, acknowledgment)) {
+                return;
+            }
+
             // Convert JsonNode to ShipTrackingRequestDTO for service processing
             ShipTrackingRequestDTO trackingRequest = objectMapper.treeToValue(data, ShipTrackingRequestDTO.class);
 
@@ -231,7 +284,7 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing processed vessel data with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "processed vessel");
         }
     }
 
@@ -246,6 +299,11 @@ public class TrackingKafkaConsumer {
         try {
             log.debug("Received realtime position from topic: {}, key: {}", topic, key);
 
+            // Validate data using utility method
+            if (!isValidJsonData(data, key, topic, acknowledgment)) {
+                return;
+            }
+
             // ✅ Broadcast to all WebSocket clients
             webSocketService.broadcastSystemStatus(Map.of("type", "position-update", "entityId", key, "data", data));
             log.debug("📡 Broadcasted realtime position for entity: {}", key);
@@ -253,7 +311,7 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing realtime position with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "realtime position");
         }
     }
 
@@ -268,6 +326,11 @@ public class TrackingKafkaConsumer {
         try {
             log.info("🚨 Received alert from topic: {}, key: {}", topic, key);
 
+            // Validate data using utility method
+            if (!isValidJsonData(alertData, key, topic, acknowledgment)) {
+                return;
+            }
+
             // ✅ Process alert - save to database and trigger notifications
             // TODO: Implement alert processing service
             log.info("🚨 Processing alert: {}", key);
@@ -279,7 +342,7 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing alert with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "alert");
         }
     }
 

@@ -127,15 +127,22 @@ public class KafkaConfig {
     @Bean
     public DefaultErrorHandler kafkaErrorHandler() {
         return new DefaultErrorHandler((consumerRecord, exception) -> {
-            // Log the error and the problematic record
-            System.err.println("Error processing record: " + consumerRecord.value() +
-                    " from topic: " + consumerRecord.topic() +
-                    " partition: " + consumerRecord.partition() +
-                    " offset: " + consumerRecord.offset());
-            System.err.println("Error: " + exception.getMessage());
+            // Log the error and the problematic record with more details
+            Object value = consumerRecord.value();
+            String valueStr = value != null ? value.toString() : "null";
 
-            // Here you could send to dead letter queue if needed
-            // For now, we just log and continue
+            System.err.println("🚨 Kafka Error Handler - Failed to process record:");
+            System.err.println("  Topic: " + consumerRecord.topic());
+            System.err.println("  Partition: " + consumerRecord.partition());
+            System.err.println("  Offset: " + consumerRecord.offset());
+            System.err.println("  Key: " + consumerRecord.key());
+            System.err.println("  Value: " + valueStr);
+            System.err.println("  Error: " + exception.getMessage());
+            System.err.println("  Exception Type: " + exception.getClass().getSimpleName());
+
+            // TODO: Send to dead letter queue for further analysis
+            // This should be implemented for production systems
+
         }, new FixedBackOff(1000L, 2)); // Retry 2 times with 1 second delay
     }
 

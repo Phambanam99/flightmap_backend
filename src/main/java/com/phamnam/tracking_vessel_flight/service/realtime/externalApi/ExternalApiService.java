@@ -286,6 +286,7 @@ public class ExternalApiService {
 
     private List<VesselTrackingRequest> parseMarineTrafficResponse(String responseBody) {
         try {
+            System.out.println(responseBody);
             JsonNode root = objectMapper.readTree(responseBody);
 
             // Handle mock API response format: {"data": {"data": [vessels], "meta": {...}}}
