@@ -1,6 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.UserRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.UserResponse;
 import com.phamnam.tracking_vessel_flight.exception.BadRequestException;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.User;
@@ -11,10 +12,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService implements IUserService {
 
     @Autowired
@@ -23,8 +27,8 @@ public class UserService implements IUserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Override
-    public User createUser(UserRequest userRequest) {
+    @Transactional
+    public UserResponse createUser(UserRequest userRequest) {
         // Check if username or email already exists
         if (userRepository.existsByUsername(userRequest.getUsername())) {
             throw new BadRequestException("Username already exists");
@@ -41,33 +45,36 @@ public class UserService implements IUserService {
                 .role(userRequest.getRole())
                 .build();
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        return convertToResponse(savedUser);
     }
 
-    @Override
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        return convertToResponse(user);
     }
 
-    @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponse> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        return users.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
     public long count() {
         return userRepository.count();
     }
 
-    @Override
-    public Page<User> getAllPaginated(Pageable pageable) {
-        return userRepository.findAll(pageable);
+    public Page<UserResponse> getAllPaginated(Pageable pageable) {
+        Page<User> users = userRepository.findAll(pageable);
+        return users.map(this::convertToResponse);
     }
 
-    @Override
-    public User updateUser(Long id, UserRequest userRequest) {
-        User user = getUserById(id);
+    @Transactional
+    public UserResponse updateUser(Long id, UserRequest userRequest) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
         // Check if the updated username already exists for another user
         if (!user.getUsername().equals(userRequest.getUsername()) &&
@@ -90,12 +97,27 @@ public class UserService implements IUserService {
             user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
         }
 
-        return userRepository.save(user);
+        User updatedUser = userRepository.save(user);
+        return convertToResponse(updatedUser);
     }
 
-    @Override
+    @Transactional
     public void deleteUser(Long id) {
-        User user = getUserById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
         userRepository.delete(user);
+    }
+
+    /**
+     * Convert User entity to UserResponse DTO
+     */
+    private UserResponse convertToResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getUserId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .enabled(user.isEnabled()) // Using isEnabled() from UserDetails
+                .build();
     }
 }
