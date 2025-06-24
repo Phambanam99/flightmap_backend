@@ -273,7 +273,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         }
 
         aircraftId = aircraft.getId();
-        System.out.println("aricraftId " + aircraftId);
+//        System.out.println("aricraftId " + aircraftId);
 
         // Get user for audit if needed
         User user = null;

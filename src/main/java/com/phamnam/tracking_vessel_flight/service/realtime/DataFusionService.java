@@ -82,7 +82,13 @@ public class DataFusionService {
     public List<VesselTrackingRequest> mergeVesselData(
             Map<String, List<VesselTrackingRequest>> dataBySource) {
 
+        log.info("🔄 Starting vessel data fusion...");
+        log.info("📊 Input data: {} sources with total {} records",
+                dataBySource.size(),
+                dataBySource.values().stream().mapToInt(List::size).sum());
+
         if (!fusionEnabled) {
+            log.info("⚡ Fusion disabled, returning all data concatenated");
             return dataBySource.values().stream()
                     .flatMap(List::stream)
                     .collect(Collectors.toList());
@@ -95,6 +101,8 @@ public class DataFusionService {
             String source = entry.getKey();
             List<VesselTrackingRequest> dataList = entry.getValue();
 
+            log.debug("📋 Processing {} records from source: {}", dataList.size(), source);
+
             for (VesselTrackingRequest data : dataList) {
                 String mmsi = data.getMmsi();
                 groupedData.computeIfAbsent(mmsi, k -> new ArrayList<>())
@@ -102,14 +110,33 @@ public class DataFusionService {
             }
         }
 
+        log.info("🔗 Grouped data by MMSI: {} unique vessels", groupedData.size());
+
         // Merge data for each vessel
         List<VesselTrackingRequest> mergedData = new ArrayList<>();
+        int filteredByQuality = 0;
+        int duplicatesSkipped = 0;
+
         for (Map.Entry<String, List<VesselDataPoint>> entry : groupedData.entrySet()) {
-            VesselTrackingRequest merged = fusionVesselData(entry.getKey(), entry.getValue());
-            if (merged != null && merged.getDataQuality() >= qualityThreshold) {
+            String mmsi = entry.getKey();
+            VesselTrackingRequest merged = fusionVesselData(mmsi, entry.getValue());
+
+            if (merged == null) {
+                duplicatesSkipped++;
+                log.debug("⏭️ Skipped vessel {} - duplicate or null", mmsi);
+            } else if (merged.getDataQuality() < qualityThreshold) {
+                filteredByQuality++;
+                log.warn("⚠️ Filtered vessel {} - quality {} < threshold {}",
+                        mmsi, merged.getDataQuality(), qualityThreshold);
+            } else {
                 mergedData.add(merged);
+                log.debug("✅ Merged vessel {} with quality {}", mmsi, merged.getDataQuality());
             }
         }
+
+        log.info("✅ Fusion completed: {} vessels output, {} filtered by quality, {} duplicates skipped",
+                mergedData.size(), filteredByQuality, duplicatesSkipped);
+        log.info("🎯 Quality threshold: {}, Deduplication: {}", qualityThreshold, deduplicationEnabled);
 
         return mergedData;
     }
@@ -186,8 +213,8 @@ public class DataFusionService {
         AircraftTrackingRequest fused = fusedBuilder.build();
         aircraftCache.put(hexident, new AircraftDataCache(fused, LocalDateTime.now()));
 
-//        log.debug("Fused aircraft data for {} from {} sources with quality {}",
-//                hexident, dataPoints.size(), qualityScore);
+        // log.debug("Fused aircraft data for {} from {} sources with quality {}",
+        // hexident, dataPoints.size(), qualityScore);
 
         return fused;
     }
@@ -197,14 +224,19 @@ public class DataFusionService {
      */
     private VesselTrackingRequest fusionVesselData(String mmsi, List<VesselDataPoint> dataPoints) {
         if (dataPoints.isEmpty()) {
+            log.debug("❌ No data points for vessel {}", mmsi);
             return null;
         }
+
+        log.debug("🔧 Fusing vessel {} with {} data points from sources: {}",
+                mmsi, dataPoints.size(),
+                dataPoints.stream().map(p -> p.source).collect(Collectors.toList()));
 
         // Check cache for deduplication
         if (deduplicationEnabled) {
             VesselDataCache cached = vesselCache.get(mmsi);
             if (cached != null && isDuplicate(cached, dataPoints)) {
-                log.debug("Duplicate vessel data detected for {}, skipping", mmsi);
+                log.debug("⏭️ Duplicate vessel data detected for {}, skipping", mmsi);
                 return null;
             }
         }
@@ -263,8 +295,9 @@ public class DataFusionService {
         VesselTrackingRequest fused = fusedBuilder.build();
         vesselCache.put(mmsi, new VesselDataCache(fused, LocalDateTime.now()));
 
-//        log.debug("Fused vessel data for {} from {} sources with quality {}",
-//                mmsi, dataPoints.size(), qualityScore);
+        log.debug("✅ Fused vessel {} from {} sources with quality {} (base: {}, threshold: {})",
+                mmsi, dataPoints.size(), qualityScore,
+                dataPoints.get(0).data.getDataQuality(), qualityThreshold);
 
         return fused;
     }

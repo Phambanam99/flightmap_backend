@@ -1,4 +1,4 @@
-package com.phamnam.tracking_vessel_flight.service.realtime;
+package com.phamnam.tracking_vessel_flight.service.realtime.externalApi;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,7 +26,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor

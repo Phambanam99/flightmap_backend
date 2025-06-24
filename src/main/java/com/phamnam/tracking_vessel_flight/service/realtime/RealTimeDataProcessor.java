@@ -249,7 +249,7 @@ public class RealTimeDataProcessor {
             try {
                 // Create or update ship
                 Ship ship = createOrUpdateShip(request);
-
+                  
                 // Create tracking record
                 ShipTracking tracking = createShipTracking(request, ship);
 

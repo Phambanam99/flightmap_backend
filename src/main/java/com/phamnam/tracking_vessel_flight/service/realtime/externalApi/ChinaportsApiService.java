@@ -1,4 +1,4 @@
-package com.phamnam.tracking_vessel_flight.service.realtime;
+package com.phamnam.tracking_vessel_flight.service.realtime.externalApi;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -2,6 +2,7 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -10,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -40,7 +40,8 @@ public class MultiSourceExternalApiService {
         futures.put("flightradar24", externalApiService.fetchAircraftData().orTimeout(10, TimeUnit.SECONDS));
         futures.put("adsbexchange", adsbExchangeApiService.fetchAircraftData().orTimeout(10, TimeUnit.SECONDS));
         // khi can them nguan
-        //futures.put("anotherApi", anotherApiService.fetchAircraftData().orTimeout(10, TimeUnit.SECONDS));
+        // futures.put("anotherApi", anotherApiService.fetchAircraftData().orTimeout(10,
+        // TimeUnit.SECONDS));
         // Chờ tất cả hoàn thành
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
                 futures.values().toArray(new CompletableFuture[0]));
@@ -62,7 +63,9 @@ public class MultiSourceExternalApiService {
             return dataFusionService.mergeAircraftData(dataBySource);
         });
     }
-    private List<AircraftTrackingRequest> safeGetAndStore(String source, CompletableFuture<List<AircraftTrackingRequest>> future) {
+
+    private List<AircraftTrackingRequest> safeGetAndStore(String source,
+            CompletableFuture<List<AircraftTrackingRequest>> future) {
         try {
             long startTime = System.currentTimeMillis();
             List<AircraftTrackingRequest> data = future.join();
@@ -119,7 +122,9 @@ public class MultiSourceExternalApiService {
             return dataFusionService.mergeVesselData(dataBySource);
         });
     }
-    private List<VesselTrackingRequest> safeGetAndStoreVessel(String source, CompletableFuture<List<VesselTrackingRequest>> future) {
+
+    private List<VesselTrackingRequest> safeGetAndStoreVessel(String source,
+            CompletableFuture<List<VesselTrackingRequest>> future) {
         try {
             long startTime = System.currentTimeMillis();
             List<VesselTrackingRequest> data = future.join();
@@ -141,41 +146,76 @@ public class MultiSourceExternalApiService {
         return Collections.emptyList();
     }
 
-
     /**
      * Scheduled task to collect and process data from all sources
      */
     @Scheduled(fixedRate = 30000) // Every 30 seconds
     @Async
     public void collectAndProcessMultiSourceData() {
-        log.debug("Starting multi-source data collection...");
+        log.info("🚀 Starting multi-source data collection...");
 
         try {
             // Collect from all sources in parallel
             CompletableFuture<List<AircraftTrackingRequest>> aircraftFuture = collectAllAircraftData();
             CompletableFuture<List<VesselTrackingRequest>> vesselFuture = collectAllVesselData();
 
+            log.debug("⏳ Waiting for both aircraft and vessel futures to complete...");
+
             // Wait for both to complete
             CompletableFuture.allOf(aircraftFuture, vesselFuture).join();
 
+            log.debug("✅ Both futures completed, getting results...");
+
             // Process the merged results
-            List<AircraftTrackingRequest> aircraftData = aircraftFuture.get();
-            List<VesselTrackingRequest> vesselData = vesselFuture.get();
+            List<AircraftTrackingRequest> aircraftData;
+            List<VesselTrackingRequest> vesselData;
+
+            try {
+                aircraftData = aircraftFuture.get();
+                log.info("📄 Retrieved {} aircraft data after merge", aircraftData != null ? aircraftData.size() : 0);
+            } catch (Exception e) {
+                log.error("❌ Failed to get aircraft data: {}", e.getMessage(), e);
+                aircraftData = Collections.emptyList();
+            }
+
+            try {
+                vesselData = vesselFuture.get();
+                log.info("🚢 Retrieved {} vessel data after merge", vesselData != null ? vesselData.size() : 0);
+            } catch (Exception e) {
+                log.error("❌ Failed to get vessel data: {}", e.getMessage(), e);
+                vesselData = Collections.emptyList();
+            }
 
             // Send to real-time processor
             if (!aircraftData.isEmpty()) {
-                dataProcessor.processAircraftData(aircraftData);
-                log.info("Processed {} merged aircraft records from multiple sources", aircraftData.size());
+                try {
+                    log.info("🔄 Sending {} aircraft records to processor...", aircraftData.size());
+                    dataProcessor.processAircraftData(aircraftData);
+                    log.info("✅ Processed {} merged aircraft records from multiple sources", aircraftData.size());
+                } catch (Exception e) {
+                    log.error("❌ Failed to process aircraft data: {}", e.getMessage(), e);
+                }
+            } else {
+                log.warn("⚠️ No aircraft data to process (empty list)");
             }
 
             if (!vesselData.isEmpty()) {
-                dataProcessor.processVesselData(vesselData);
-                log.info("Processed {} merged vessel records from multiple sources", vesselData.size());
+                try {
+                    log.info("🔄 Sending {} vessel records to processor...", vesselData.size());
+                    dataProcessor.processVesselData(vesselData);
+                    log.info("✅ Processed {} merged vessel records from multiple sources", vesselData.size());
+                } catch (Exception e) {
+                    log.error("❌ Failed to process vessel data: {}", e.getMessage(), e);
+                }
+            } else {
+                log.warn("⚠️ No vessel data to process (empty list)");
             }
 
         } catch (Exception e) {
-            log.error("Error during multi-source data collection", e);
+            log.error("❌ Critical error during multi-source data collection: {}", e.getMessage(), e);
         }
+
+        log.debug("🏁 Multi-source data collection completed");
     }
 
     /**

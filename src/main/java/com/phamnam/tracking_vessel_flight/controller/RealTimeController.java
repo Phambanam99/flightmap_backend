@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.controller;
 import com.phamnam.tracking_vessel_flight.models.AlertRule;
 import com.phamnam.tracking_vessel_flight.models.enums.EntityType;
 import com.phamnam.tracking_vessel_flight.service.realtime.*;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.ExternalApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

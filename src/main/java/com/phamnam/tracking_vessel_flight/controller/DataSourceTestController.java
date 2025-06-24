@@ -1,8 +1,8 @@
 package com.phamnam.tracking_vessel_flight.controller;
 
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
-import com.phamnam.tracking_vessel_flight.service.realtime.ChinaportsApiService;
-import com.phamnam.tracking_vessel_flight.service.realtime.MarineTrafficV2ApiService;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.ChinaportsApiService;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.MarineTrafficV2ApiService;
 import com.phamnam.tracking_vessel_flight.service.realtime.MultiSourceExternalApiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

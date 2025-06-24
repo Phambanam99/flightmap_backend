@@ -2,6 +2,7 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -117,7 +118,7 @@ class MultiSourceExternalApiServiceTest {
         // Act
         CompletableFuture<List<AircraftTrackingRequest>> result = multiSourceExternalApiService
                 .collectAllAircraftData();
-
+        System.out.println(result.join().size());
         // Assert
         assertNotNull(result);
         List<AircraftTrackingRequest> aircraftData = result.join();
