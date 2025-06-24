@@ -137,14 +137,42 @@ public class MarineTrafficV2ApiService {
     private List<VesselTrackingRequest> parseMarineTrafficV2Response(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode vessels = root.get("data"); // Assuming similar structure to V1
+
+            // Handle wrapper structure: response.success -> response.data ->
+            // response.data.data.positions
+            JsonNode vessels = null;
+
+            // Try direct structure first: root.data.positions
+            JsonNode dataNode = root.get("data");
+            if (dataNode != null) {
+                if (dataNode.isArray()) {
+                    // Direct array structure
+                    vessels = dataNode;
+                } else {
+                    // Nested structure: data.data.positions or data.positions
+                    JsonNode innerData = dataNode.get("data");
+                    if (innerData != null) {
+                        vessels = innerData.get("positions");
+                    } else {
+                        vessels = dataNode.get("positions");
+                    }
+                }
+            }
+
+            // Fallback: try direct vessels array
+            if (vessels == null || !vessels.isArray()) {
+                vessels = root.get("vessels");
+            }
+
+            // Final fallback: try positions at root level
+            if (vessels == null || !vessels.isArray()) {
+                vessels = root.get("positions");
+            }
 
             if (vessels == null || !vessels.isArray()) {
-                // Try alternative structure
-                vessels = root.get("vessels");
-                if (vessels == null || !vessels.isArray()) {
-                    return List.of();
-                }
+                log.warn("MarineTraffic V2 response does not contain valid vessel array. Root fields available: {}",
+                        root.fieldNames().hasNext() ? "multiple fields found" : "empty response");
+                return List.of();
             }
 
             java.util.List<VesselTrackingRequest> vesselList = new java.util.ArrayList<>();
@@ -156,6 +184,7 @@ public class MarineTrafficV2ApiService {
                 }
             });
 
+            log.debug("Successfully parsed {} vessels from MarineTraffic V2 response", vesselList.size());
             return vesselList;
         } catch (Exception e) {
             log.error("Failed to parse MarineTraffic V2 response", e);
