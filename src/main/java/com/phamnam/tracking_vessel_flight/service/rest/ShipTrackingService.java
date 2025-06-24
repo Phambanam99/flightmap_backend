@@ -2,6 +2,7 @@ package com.phamnam.tracking_vessel_flight.service.rest;
 
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.VoyageRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.ShipTrackingResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.ShipTracking;
 import com.phamnam.tracking_vessel_flight.models.User;
@@ -22,8 +23,10 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ShipTrackingService implements IShipTrackingService {
     @Autowired
     private ShipTrackingRepository shipTrackingRepository;
@@ -43,24 +46,26 @@ public class ShipTrackingService implements IShipTrackingService {
     // Thời gian tối đa giữa 2 tracking để coi là cùng 1 chuyến (ví dụ: 2 tiếng)
     private static final Duration MAX_INACTIVITY = Duration.ofHours(2);
 
-    @Override
-    public List<ShipTracking> getAll() {
-        return shipTrackingRepository.findAll();
+    public List<ShipTrackingResponse> getAll() {
+        List<ShipTracking> trackings = shipTrackingRepository.findAll();
+        return trackings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
-    @Override
-    public Page<ShipTracking> getAllPaginated(Pageable pageable) {
-        return shipTrackingRepository.findAll(pageable);
+    public Page<ShipTrackingResponse> getAllPaginated(Pageable pageable) {
+        Page<ShipTracking> trackings = shipTrackingRepository.findAll(pageable);
+        return trackings.map(this::convertToResponse);
     }
 
-    @Override
-    public ShipTracking getShipTrackingById(Long id) {
-        return shipTrackingRepository.findById(id)
+    public ShipTrackingResponse getShipTrackingById(Long id) {
+        ShipTracking tracking = shipTrackingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("ShipTracking", "id", id));
+        return convertToResponse(tracking);
     }
 
-    @Override
-    public ShipTracking save(ShipTrackingRequest shipTrackingRequest, Long userId) {
+    @Transactional
+    public ShipTrackingResponse save(ShipTrackingRequest shipTrackingRequest, Long userId) {
         Voyage voyage = voyageRepository.findById(shipTrackingRequest.getVoyageId())
                 .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", shipTrackingRequest.getVoyageId()));
 
@@ -82,19 +87,22 @@ public class ShipTrackingService implements IShipTrackingService {
                 .build();
 
         shipTracking.setUpdatedBy(user);
+        ShipTracking savedTracking = shipTrackingRepository.save(shipTracking);
 
-        return shipTrackingRepository.save(shipTracking);
+        return convertToResponse(savedTracking);
     }
 
-    @Override
+    @Transactional
     public void deleteShipTracking(Long id) {
-        ShipTracking shipTracking = getShipTrackingById(id);
+        ShipTracking shipTracking = shipTrackingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ShipTracking", "id", id));
         shipTrackingRepository.delete(shipTracking);
     }
 
-    @Override
-    public ShipTracking updateShipTracking(Long id, ShipTrackingRequest shipTrackingRequest, Long userId) {
-        ShipTracking shipTracking = getShipTrackingById(id);
+    @Transactional
+    public ShipTrackingResponse updateShipTracking(Long id, ShipTrackingRequest shipTrackingRequest, Long userId) {
+        ShipTracking shipTracking = shipTrackingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ShipTracking", "id", id));
         Voyage voyage = voyageRepository.findById(shipTrackingRequest.getVoyageId())
                 .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", shipTrackingRequest.getVoyageId()));
 
@@ -113,16 +121,19 @@ public class ShipTrackingService implements IShipTrackingService {
         shipTracking.setVoyage(voyage);
         shipTracking.setUpdatedBy(user);
 
-        return shipTrackingRepository.save(shipTracking);
+        ShipTracking updatedTracking = shipTrackingRepository.save(shipTracking);
+        return convertToResponse(updatedTracking);
     }
 
-    @Override
-    public List<ShipTracking> getTrackingsByVoyageId(Long voyageId) {
+    public List<ShipTrackingResponse> getTrackingsByVoyageId(Long voyageId) {
         Voyage voyage = voyageRepository.findById(voyageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Voyage", "id", voyageId));
 
         // Use the repository method instead of stream filtering
-        return shipTrackingRepository.findByVoyageIdOrderByTimestampDesc(voyageId);
+        List<ShipTracking> trackings = shipTrackingRepository.findByVoyageIdOrderByTimestampDesc(voyageId);
+        return trackings.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -136,10 +147,10 @@ public class ShipTrackingService implements IShipTrackingService {
      * @param shipId       The ID of the ship being tracked
      * @param trackingData The new tracking data (lat, long, speed, etc.)
      * @param userId       The user ID for audit purposes (optional)
-     * @return The saved ShipTracking entity
+     * @return The saved ShipTracking entity (converted to DTO)
      */
     @Transactional
-    public ShipTracking processNewTrackingData(Long shipId, ShipTrackingRequest trackingData, Long userId) {
+    public ShipTrackingResponse processNewTrackingData(Long shipId, ShipTrackingRequest trackingData, Long userId) {
         // Find the ship
         Ship ship = shipRepository.findById(shipId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ship", "id", shipId));
@@ -181,8 +192,9 @@ public class ShipTrackingService implements IShipTrackingService {
                 .build();
 
         shipTracking.setUpdatedBy(user);
+        ShipTracking savedTracking = shipTrackingRepository.save(shipTracking);
 
-        return shipTrackingRepository.save(shipTracking);
+        return convertToResponse(savedTracking);
     }
 
     /**
@@ -259,5 +271,40 @@ public class ShipTrackingService implements IShipTrackingService {
                 .build();
 
         return voyageService.save(voyageRequest, userId);
+    }
+
+    /**
+     * Convert ShipTracking entity to ShipTrackingResponse DTO
+     */
+    private ShipTrackingResponse convertToResponse(ShipTracking tracking) {
+        ShipTrackingResponse.ShipTrackingResponseBuilder builder = ShipTrackingResponse.builder()
+                .id(tracking.getId())
+                .mmsi(tracking.getMmsi())
+                .latitude(tracking.getLatitude())
+                .longitude(tracking.getLongitude())
+                .speed(tracking.getSpeed() != null ? tracking.getSpeed().floatValue() : null)
+                .course(tracking.getCourse() != null ? tracking.getCourse().floatValue() : null)
+                .draught(tracking.getDraught() != null ? tracking.getDraught().floatValue() : null)
+                .timestamp(tracking.getTimestamp())
+                .createdAt(tracking.getCreatedAt());
+
+        // Safely access voyage information
+        if (tracking.getVoyage() != null) {
+            builder.voyageId(tracking.getVoyage().getId())
+                    .voyageNumber(tracking.getVoyage().getVoyageNumber());
+
+            // Safely access ship information through voyage
+            if (tracking.getVoyage().getShip() != null) {
+                builder.shipName(tracking.getVoyage().getShip().getName())
+                        .imo(tracking.getVoyage().getShip().getImo());
+            }
+        }
+
+        // Safely access user information
+        if (tracking.getUpdatedBy() != null) {
+            builder.updatedByUsername(tracking.getUpdatedBy().getUsername());
+        }
+
+        return builder.build();
     }
 }
