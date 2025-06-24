@@ -240,7 +240,7 @@ public class TrackingKafkaConsumer {
     // Processed Vessel Data Consumer
     @KafkaListener(topics = "${app.kafka.topics.processed-vessel-data}", groupId = "processed-vessel-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeProcessedVesselData(
-            @Payload JsonNode data,
+            @Payload(required = false) JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
@@ -291,7 +291,7 @@ public class TrackingKafkaConsumer {
     // Real-time Positions Consumer (for WebSocket broadcasting)
     @KafkaListener(topics = "${app.kafka.topics.realtime-positions}", groupId = "realtime-positions-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeRealtimePositions(
-            @Payload JsonNode data,
+            @Payload(required = false) JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
@@ -318,7 +318,7 @@ public class TrackingKafkaConsumer {
     // Alerts Consumer
     @KafkaListener(topics = "${app.kafka.topics.alerts}", groupId = "alerts-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeAlerts(
-            @Payload JsonNode alertData,
+            @Payload(required = false) JsonNode alertData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
@@ -349,13 +349,18 @@ public class TrackingKafkaConsumer {
     // Notifications Consumer
     @KafkaListener(topics = "${app.kafka.topics.notifications}", groupId = "notifications-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeNotifications(
-            @Payload JsonNode notificationData,
+            @Payload(required = false) JsonNode notificationData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
 
         try {
             log.debug("📧 Received notification from topic: {}, key: {}", topic, key);
+
+            // Validate data using utility method
+            if (!isValidJsonData(notificationData, key, topic, acknowledgment)) {
+                return;
+            }
 
             // ✅ Process notification - send email, SMS, push notification, etc.
             // TODO: Implement notification service
@@ -364,20 +369,25 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing notification with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "notification");
         }
     }
 
     // Dead Letter Queue Consumer
     @KafkaListener(topics = "${app.kafka.topics.dead-letter}", groupId = "dead-letter-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeDeadLetterMessages(
-            @Payload JsonNode data,
+            @Payload(required = false) JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
 
         try {
             log.warn("💀 Received dead letter message from topic: {}, key: {}", topic, key);
+
+            // Validate data using utility method
+            if (!isValidJsonData(data, key, topic, acknowledgment)) {
+                return;
+            }
 
             // ✅ Log dead letter message for analysis
             // TODO: Implement dead letter analysis service
@@ -386,20 +396,25 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing dead letter message with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "dead letter");
         }
     }
 
     // Data Quality Issues Consumer
     @KafkaListener(topics = "${app.kafka.topics.data-quality-issues}", groupId = "data-quality-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeDataQualityIssues(
-            @Payload JsonNode data,
+            @Payload(required = false) JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
 
         try {
             log.warn("⚠️ Received data quality issue from topic: {}, key: {}", topic, key);
+
+            // Validate data using utility method
+            if (!isValidJsonData(data, key, topic, acknowledgment)) {
+                return;
+            }
 
             // ✅ Process data quality issue - log and potentially alert administrators
             // TODO: Implement data quality monitoring service
@@ -408,20 +423,25 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing data quality issue with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "data quality");
         }
     }
 
     // Historical Data Consumer (for batch processing)
     @KafkaListener(topics = "${app.kafka.topics.historical-data}", groupId = "historical-data-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeHistoricalData(
-            @Payload JsonNode data,
+            @Payload(required = false) JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
 
         try {
             log.debug("📊 Received historical data from topic: {}, key: {}", topic, key);
+
+            // Validate data using utility method
+            if (!isValidJsonData(data, key, topic, acknowledgment)) {
+                return;
+            }
 
             // ✅ Process historical data for analytics
             // TODO: Implement analytics service
@@ -430,20 +450,25 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing historical data with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "historical data");
         }
     }
 
     // WebSocket Updates Consumer (for internal distribution)
     @KafkaListener(topics = "${app.kafka.topics.websocket-updates}", groupId = "websocket-updates-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeWebSocketUpdates(
-            @Payload JsonNode data,
+            @Payload(required = false) JsonNode data,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
 
         try {
             log.debug("🔌 Received websocket update from topic: {}, key: {}", topic, key);
+
+            // Validate data using utility method
+            if (!isValidJsonData(data, key, topic, acknowledgment)) {
+                return;
+            }
 
             // ✅ Distribute WebSocket update to connected clients
             webSocketService.broadcastSystemStatus(Map.of("type", "websocket-update", "sessionId", key, "data", data));
@@ -452,7 +477,7 @@ public class TrackingKafkaConsumer {
             acknowledgment.acknowledge();
 
         } catch (Exception e) {
-            log.error("❌ Error processing websocket update with key: {}", key, e);
+            handleConsumerError(e, key, topic, acknowledgment, "websocket update");
         }
     }
 }
