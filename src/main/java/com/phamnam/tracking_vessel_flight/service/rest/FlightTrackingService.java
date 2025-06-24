@@ -529,14 +529,15 @@ public class FlightTrackingService implements IFlightTrackingService {
                 .destinationAirport("Unknown")
                 .build();
 
-        // Save the new flight
+        // Save the new flight using FlightService
         FlightResponse flightResponse = flightService.save(flightRequest, userId);
-        // For now, create a dummy Flight entity - this method needs refactoring
-        Flight flight = Flight.builder()
-                .id(flightResponse.getId())
-                .flightNumber("dummy")
-                .build();
-        return flight;
+
+        // Retrieve the actual saved entity from database with all constraints satisfied
+        Flight savedFlight = flightRepository.findById(flightResponse.getId())
+                .orElseThrow(() -> new RuntimeException(
+                        "Failed to retrieve saved flight with ID: " + flightResponse.getId()));
+
+        return savedFlight;
     }
 
     /**
