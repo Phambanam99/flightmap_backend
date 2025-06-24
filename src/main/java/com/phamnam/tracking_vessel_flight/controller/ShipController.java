@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.controller;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipRequest;
 import com.phamnam.tracking_vessel_flight.dto.response.MyApiResponse;
 import com.phamnam.tracking_vessel_flight.dto.response.PageResponse;
+import com.phamnam.tracking_vessel_flight.dto.response.ShipResponse;
 import com.phamnam.tracking_vessel_flight.models.Ship;
 import com.phamnam.tracking_vessel_flight.service.rest.ShipService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +35,7 @@ public class ShipController {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @GetMapping
-    public ResponseEntity<MyApiResponse<List<Ship>>> getAllShips() {
+    public ResponseEntity<MyApiResponse<List<ShipResponse>>> getAllShips() {
         return ResponseEntity.ok(MyApiResponse.success(shipService.getAll()));
     }
 
@@ -44,7 +45,7 @@ public class ShipController {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @GetMapping("/paginated")
-    public ResponseEntity<MyApiResponse<PageResponse<Ship>>> getAllShipsPaginated(
+    public ResponseEntity<MyApiResponse<PageResponse<ShipResponse>>> getAllShipsPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -54,8 +55,7 @@ public class ShipController {
                 : Sort.Direction.ASC;
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-
-        Page<Ship> shipPage = shipService.getAllPaginated(pageable);
+        Page<ShipResponse> shipPage = shipService.getAllPaginated(pageable);
 
         return ResponseEntity.ok(MyApiResponse.success(
                 PageResponse.fromPage(shipPage),
@@ -68,7 +68,7 @@ public class ShipController {
             @ApiResponse(responseCode = "404", description = "Ship not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<MyApiResponse<Ship>> getShipById(@PathVariable Long id) {
+    public ResponseEntity<MyApiResponse<ShipResponse>> getShipById(@PathVariable Long id) {
         return ResponseEntity.ok(MyApiResponse.success(shipService.getShipById(id)));
     }
 
@@ -78,10 +78,10 @@ public class ShipController {
             @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
     @PostMapping
-    public ResponseEntity<MyApiResponse<Ship>> createShip(
+    public ResponseEntity<MyApiResponse<ShipResponse>> createShip(
             @Valid @RequestBody ShipRequest shipRequest,
             @RequestParam(required = false) Long userId) {
-        Ship savedShip = shipService.save(shipRequest, userId);
+        ShipResponse savedShip = shipService.save(shipRequest, userId);
         return new ResponseEntity<>(
                 MyApiResponse.success(savedShip, "Ship created successfully"),
                 HttpStatus.CREATED);
@@ -94,11 +94,11 @@ public class ShipController {
             @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<MyApiResponse<Ship>> updateShip(
+    public ResponseEntity<MyApiResponse<ShipResponse>> updateShip(
             @PathVariable Long id,
             @Valid @RequestBody ShipRequest shipRequest,
             @RequestParam(required = false) Long userId) {
-        Ship updatedShip = shipService.updateShip(id, shipRequest, userId);
+        ShipResponse updatedShip = shipService.updateShip(id, shipRequest, userId);
         return ResponseEntity.ok(MyApiResponse.success(updatedShip, "Ship updated successfully"));
     }
 

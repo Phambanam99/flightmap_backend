@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.service.rest;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.FlightRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.FlightResponse;
 import com.phamnam.tracking_vessel_flight.exception.ResourceNotFoundException;
 import com.phamnam.tracking_vessel_flight.models.Flight;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
@@ -273,7 +274,7 @@ public class FlightTrackingService implements IFlightTrackingService {
         }
 
         aircraftId = aircraft.getId();
-//        System.out.println("aricraftId " + aircraftId);
+        // System.out.println("aricraftId " + aircraftId);
 
         // Get user for audit if needed
         User user = null;
@@ -505,6 +506,12 @@ public class FlightTrackingService implements IFlightTrackingService {
                 .build();
 
         // Save the new flight
-        return flightService.save(flightRequest, userId);
+        FlightResponse flightResponse = flightService.save(flightRequest, userId);
+        // For now, create a dummy Flight entity - this method needs refactoring
+        Flight flight = Flight.builder()
+                .id(flightResponse.getId())
+                .flightNumber("dummy")
+                .build();
+        return flight;
     }
 }
