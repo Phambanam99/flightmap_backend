@@ -30,14 +30,14 @@ import java.util.zip.GZIPOutputStream;
 @Slf4j
 public class RawDataCompressionService {
 
-    @Value("${raw.data.compression.enabled:false}")
+    @Value("${raw.data.compression.enabled:true}")
     private boolean compressionEnabled;
+
+    @Value("${raw.data.compression.threshold-bytes:1024}")
+    private int compressionThresholdBytes;
 
     @Value("${raw.data.compression.algorithm:gzip}")
     private String compressionAlgorithm;
-
-    @Value("${raw.data.compression.threshold-size:1024}")
-    private int compressionThresholdBytes;
 
     @Value("${raw.data.compression.auto-compress-after-hours:24}")
     private int autoCompressAfterHours;
@@ -53,44 +53,25 @@ public class RawDataCompressionService {
     private final AtomicLong compressionErrors = new AtomicLong(0);
 
     /**
-     * Compress JSON data if compression is enabled and data exceeds threshold
+     * Compress JSON data if enabled and above threshold
      */
     public String compressJsonData(String jsonData) {
         if (!compressionEnabled || jsonData == null || jsonData.isEmpty()) {
             return jsonData;
         }
 
-        byte[] originalBytes = jsonData.getBytes(StandardCharsets.UTF_8);
-
-        // Only compress if data size exceeds threshold
-        if (originalBytes.length < compressionThresholdBytes) {
-            log.trace("Data size {} bytes below threshold {}, skipping compression",
-                    originalBytes.length, compressionThresholdBytes);
+        // Only compress if data is above threshold
+        if (jsonData.getBytes(StandardCharsets.UTF_8).length < compressionThresholdBytes) {
             return jsonData;
         }
 
         try {
-            byte[] compressedBytes = compressBytes(originalBytes);
-            String compressedData = Base64.getEncoder().encodeToString(compressedBytes);
-
-            // Add compression metadata
-            String result = "COMPRESSED:" + compressionAlgorithm + ":" + compressedData;
-
-            // Update statistics
-            totalCompressedRecords.incrementAndGet();
-            totalOriginalSize.addAndGet(originalBytes.length);
-            totalCompressedSize.addAndGet(compressedBytes.length);
-
-            double compressionRatio = (double) compressedBytes.length / originalBytes.length;
-            log.trace("Compressed {} bytes to {} bytes (ratio: {:.2f})",
-                    originalBytes.length, compressedBytes.length, compressionRatio);
-
-            return result;
-
-        } catch (IOException e) {
-            compressionErrors.incrementAndGet();
-            log.error("Failed to compress data: {}", e.getMessage());
-            return jsonData; // Return original data on compression failure
+            byte[] compressed = compressString(jsonData);
+            String encoded = Base64.getEncoder().encodeToString(compressed);
+            return "COMPRESSED:" + encoded;
+        } catch (Exception e) {
+            log.warn("Failed to compress JSON data: {}", e.getMessage());
+            return jsonData; // Return original if compression fails
         }
     }
 
@@ -99,33 +80,46 @@ public class RawDataCompressionService {
      */
     public String decompressJsonData(String data) {
         if (data == null || !data.startsWith("COMPRESSED:")) {
-            return data; // Not compressed data
+            return data;
         }
 
         try {
-            String[] parts = data.split(":", 3);
-            if (parts.length != 3) {
-                log.warn("Invalid compressed data format: {}", data.substring(0, Math.min(data.length(), 50)));
-                return data;
-            }
-
-            String algorithm = parts[1];
-            String compressedData = parts[2];
-
-            if (!algorithm.equals(compressionAlgorithm)) {
-                log.warn("Unsupported compression algorithm: {}", algorithm);
-                return data;
-            }
-
-            byte[] compressedBytes = Base64.getDecoder().decode(compressedData);
-            byte[] decompressedBytes = decompressBytes(compressedBytes);
-
-            return new String(decompressedBytes, StandardCharsets.UTF_8);
-
+            String encoded = data.substring("COMPRESSED:".length());
+            byte[] compressed = Base64.getDecoder().decode(encoded);
+            return decompressString(compressed);
         } catch (Exception e) {
-            log.error("Failed to decompress data: {}", e.getMessage());
-            return data; // Return original data on decompression failure
+            log.warn("Failed to decompress JSON data: {}", e.getMessage());
+            return data; // Return original if decompression fails
         }
+    }
+
+    private byte[] compressString(String data) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(bos)) {
+            gzip.write(data.getBytes(StandardCharsets.UTF_8));
+        }
+        return bos.toByteArray();
+    }
+
+    private String decompressString(byte[] compressed) throws IOException {
+        try (java.util.zip.GZIPInputStream gzipInputStream = new java.util.zip.GZIPInputStream(
+                new java.io.ByteArrayInputStream(compressed))) {
+            return new String(gzipInputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /**
+     * Check if compression is enabled
+     */
+    public boolean isCompressionEnabled() {
+        return compressionEnabled;
+    }
+
+    /**
+     * Get compression threshold
+     */
+    public int getCompressionThreshold() {
+        return compressionThresholdBytes;
     }
 
     /**

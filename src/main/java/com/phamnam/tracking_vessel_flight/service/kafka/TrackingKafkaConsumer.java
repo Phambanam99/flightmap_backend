@@ -45,7 +45,7 @@ public class TrackingKafkaConsumer {
     private final ShipTrackingService shipTrackingService;
     private final TrackingKafkaProducer kafkaProducer;
 
-    @Value("${raw.data.storage.enabled:false}")
+    @Value("${raw.data.storage.enabled:true}")
     private boolean rawStorageEnabled;
 
     /**
