@@ -73,9 +73,11 @@ public class AdsbExchangeApiService {
         DataSource dataSource = getOrCreateDataSource(DataSourceType.ADS_B.getDisplayName(), DataSourceType.ADS_B);
 
         try {
-            log.debug("Fetching aircraft data from ADS-B Exchange API...");
+            log.info("🔄 Fetching aircraft data from ADS-B Exchange API...");
 
             String url = buildAdsbExchangeUrl();
+            log.info("🌐 ADS-B Exchange URL: {}", url);
+
             HttpHeaders headers = createHeaders(adsbExchangeApiKey);
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
@@ -83,12 +85,15 @@ public class AdsbExchangeApiService {
                     url, HttpMethod.GET, entity, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {
+                log.info("✅ ADS-B Exchange API response received, body length: {}",
+                        response.getBody() != null ? response.getBody().length() : 0);
+
                 List<AircraftTrackingRequest> aircraftData = parseAdsbExchangeResponse(response.getBody());
 
                 updateDataSourceStatus(dataSource, SourceStatus.HEALTHY,
                         "Successfully fetched " + aircraftData.size() + " aircraft");
 
-                log.info("Successfully fetched {} aircraft from ADS-B Exchange", aircraftData.size());
+                log.info("✈️ Successfully fetched {} aircraft from ADS-B Exchange", aircraftData.size());
                 return CompletableFuture.completedFuture(aircraftData);
             } else {
                 throw new RuntimeException("Unexpected response status: " + response.getStatusCode());
@@ -133,11 +138,16 @@ public class AdsbExchangeApiService {
      */
     private List<AircraftTrackingRequest> parseAdsbExchangeResponse(String responseBody) {
         try {
+            log.info("🔍 Parsing ADS-B Exchange response, length: {}",
+                    responseBody != null ? responseBody.length() : 0);
+
             JsonNode root = objectMapper.readTree(responseBody);
+            log.info("📝 Root JSON parsed successfully");
 
             // Handle mock API response format: {"data": {"ac": [...]}}
             JsonNode dataWrapper = root.path("data");
             if (!dataWrapper.isMissingNode()) {
+                log.info("🎯 Found data wrapper, extracting...");
                 root = dataWrapper; // Use data wrapper as new root
             }
 
@@ -147,10 +157,13 @@ public class AdsbExchangeApiService {
                 // Try alternative structure
                 aircraft = root.get("ac");
                 if (aircraft == null || !aircraft.isArray()) {
-                    log.debug("No aircraft array found in ADS-B Exchange response");
+                    log.warn("❌ No aircraft array found in ADS-B Exchange response. Root has fields: {}",
+                            root.fieldNames().hasNext() ? "yes" : "none");
                     return List.of();
                 }
             }
+
+            log.info("📊 Found aircraft array with {} elements", aircraft.size());
 
             java.util.List<AircraftTrackingRequest> aircraftList = new java.util.ArrayList<>();
 
@@ -161,9 +174,10 @@ public class AdsbExchangeApiService {
                 }
             });
 
+            log.info("✅ Successfully parsed {} aircraft from ADS-B Exchange", aircraftList.size());
             return aircraftList;
         } catch (Exception e) {
-            log.error("Failed to parse ADS-B Exchange response", e);
+            log.error("❌ Failed to parse ADS-B Exchange response", e);
             return List.of();
         }
     }
