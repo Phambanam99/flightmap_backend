@@ -23,8 +23,8 @@ class MockApiService {
   generateInitialData() {
     console.log('🎭 Generating initial mock data...');
     
-    // Generate 50 flights for Vietnam area
-    for (let i = 0; i < 50000; i++) {
+    // Generate flights for Vietnam area
+    for (let i = 0; i < 300; i++) {
       const flight = this.movementSimulator.createNewFlight();
       const hexident = this.generateHexIdent();
       
@@ -33,8 +33,8 @@ class MockApiService {
       this.flightData.set(hexident, this.convertToFlightRadar24Format(flight, hexident));
     }
     
-    // Generate 30 ships for Vietnam coastal area
-    for (let i = 0; i < 30000; i++) {
+    // Generate ships for Vietnam coastal area
+    for (let i = 0; i < 3000; i++) {
       const ship = this.movementSimulator.createNewVessel();
       const mmsi = this.generateMMSI();
       
@@ -90,7 +90,7 @@ class MockApiService {
     });
     
     // Add new flights to replace removed ones
-    while (this.flightData.size < 50000) {
+    while (this.flightData.size < 300) {
       const newFlight = this.movementSimulator.createNewFlight();
       const hexident = this.generateHexIdent();
       this.flightIdMap.set(hexident, newFlight.Id);
@@ -124,7 +124,7 @@ class MockApiService {
     });
     
     // Add new ships to replace removed ones
-    while (this.shipData.size < 30000) {
+    while (this.shipData.size < 3000) {
       const newShip = this.movementSimulator.createNewVessel();
       const mmsi = this.generateMMSI();
       this.shipIdMap.set(mmsi, newShip.voyageId);
