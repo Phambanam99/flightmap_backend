@@ -80,7 +80,7 @@ public class ExternalApiService {
     // AIRCRAFT DATA RETRIEVAL
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<AircraftTrackingRequest>> fetchAircraftData() {
         if (!flightradar24Enabled) {
             log.debug("FlightRadar24 API is disabled");
@@ -107,7 +107,7 @@ public class ExternalApiService {
                     url, HttpMethod.GET, entity, String.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {
-//                System.out.println(response.getBody());
+                // System.out.println(response.getBody());
                 List<AircraftTrackingRequest> aircraftData = parseFlightRadar24Response(response.getBody());
 
                 updateDataSourceStatus(dataSource, SourceStatus.HEALTHY,
@@ -215,7 +215,7 @@ public class ExternalApiService {
     // VESSEL DATA RETRIEVAL
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<VesselTrackingRequest>> fetchVesselData() {
         if (!marineTrafficEnabled) {
             log.debug("MarineTraffic API is disabled");
@@ -286,7 +286,7 @@ public class ExternalApiService {
 
     private List<VesselTrackingRequest> parseMarineTrafficResponse(String responseBody) {
         try {
-//            System.out.println(responseBody);
+            // System.out.println(responseBody);
             JsonNode root = objectMapper.readTree(responseBody);
 
             // Handle mock API response format: {"data": {"data": [vessels], "meta": {...}}}
@@ -315,7 +315,7 @@ public class ExternalApiService {
     }
 
     private VesselTrackingRequest parseVesselFromMarineTraffic(JsonNode data) {
-//        System.out.println(data);
+        // System.out.println(data);
         try {
             return VesselTrackingRequest.builder()
                     .mmsi(getTextSafely(data, "MMSI"))

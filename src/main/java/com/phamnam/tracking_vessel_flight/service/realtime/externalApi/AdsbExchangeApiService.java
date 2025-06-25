@@ -63,7 +63,7 @@ public class AdsbExchangeApiService {
     /**
      * Fetch aircraft data from ADS-B Exchange API
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<AircraftTrackingRequest>> fetchAircraftData() {
         if (!adsbExchangeEnabled) {
             log.debug("ADS-B Exchange API is disabled");

@@ -63,7 +63,7 @@ public class ChinaportsApiService {
     /**
      * Fetch vessel data from Chinaports API
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<VesselTrackingRequest>> fetchVesselData() {
         if (!chinaportsEnabled) {
             log.debug("Chinaports API is disabled");

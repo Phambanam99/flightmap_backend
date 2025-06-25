@@ -32,7 +32,7 @@ public class WebSocketService {
     // AIRCRAFT POSITION UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastAircraftUpdate(FlightTracking flightTracking) {
         try {
             // Use HashMap to allow null values
@@ -60,7 +60,8 @@ public class WebSocketService {
             messagingTemplate.convertAndSend(
                     "/topic/aircraft/" + flightTracking.getHexident(), update);
 
-//            log.debug("Broadcasted aircraft update for {}", flightTracking.getHexident());
+            // log.debug("Broadcasted aircraft update for {}",
+            // flightTracking.getHexident());
 
         } catch (Exception e) {
             log.error("Failed to broadcast aircraft update", e);
@@ -71,7 +72,7 @@ public class WebSocketService {
     // VESSEL POSITION UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastVesselUpdate(ShipTracking shipTracking) {
         try {
             // Use HashMap to allow null values
@@ -110,7 +111,7 @@ public class WebSocketService {
     // ALERT NOTIFICATIONS
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastAlert(AlertEvent alertEvent) {
         try {
             // Use HashMap to allow null values
@@ -151,7 +152,7 @@ public class WebSocketService {
     // SYSTEM STATUS UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastSystemStatus(Map<String, Object> status) {
         try {
             Map<String, Object> statusUpdate = Map.of(
@@ -171,7 +172,7 @@ public class WebSocketService {
     // STATISTICS UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastStatistics(Map<String, Object> statistics) {
         try {
             Map<String, Object> statsUpdate = Map.of(
@@ -239,7 +240,7 @@ public class WebSocketService {
     // BATCH UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastBatchAircraftUpdates(java.util.List<FlightTracking> flightTrackings) {
         if (flightTrackings.isEmpty())
             return;
@@ -273,7 +274,7 @@ public class WebSocketService {
         }
     }
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastBatchVesselUpdates(java.util.List<ShipTracking> shipTrackings) {
         if (shipTrackings.isEmpty())
             return;
@@ -311,7 +312,7 @@ public class WebSocketService {
     // GEOGRAPHIC AREA UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void broadcastAreaUpdate(String areaId, java.util.List<Map<String, Object>> entities) {
         try {
             Map<String, Object> areaUpdate = Map.of(
@@ -333,7 +334,7 @@ public class WebSocketService {
     // USER-SPECIFIC UPDATES
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     public void sendPersonalUpdate(String userId, String type, Object data) {
         try {
             Map<String, Object> update = Map.of(

@@ -63,7 +63,7 @@ public class VesselFinderApiService {
     /**
      * Fetch vessel data from VesselFinder API
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<VesselTrackingRequest>> fetchVesselData() {
         if (!vesselFinderEnabled) {
             log.debug("VesselFinder API is disabled");

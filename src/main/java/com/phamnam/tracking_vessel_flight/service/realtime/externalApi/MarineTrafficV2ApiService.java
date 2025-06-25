@@ -63,7 +63,7 @@ public class MarineTrafficV2ApiService {
     /**
      * Fetch vessel data from MarineTraffic V2 API
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<VesselTrackingRequest>> fetchVesselData() {
         if (!marineTrafficV2Enabled) {
             log.debug("MarineTraffic V2 API is disabled");

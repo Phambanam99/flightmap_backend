@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -12,7 +13,7 @@ import java.util.concurrent.Executor;
 @Configuration
 @EnableAsync
 @Slf4j
-public class AsyncConfig {
+public class AsyncConfig implements AsyncConfigurer {
 
     /**
      * Task executor for @Async methods, especially for @Scheduled + @Async methods
@@ -83,5 +84,14 @@ public class AsyncConfig {
                 executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity());
 
         return executor;
+    }
+
+    /**
+     * Default executor for @Async methods without explicit executor name
+     * This implements AsyncConfigurer to resolve WebSocket executor conflicts
+     */
+    @Override
+    public Executor getAsyncExecutor() {
+        return taskExecutor();
     }
 }

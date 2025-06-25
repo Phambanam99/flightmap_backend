@@ -29,6 +29,10 @@ public class RawDataStorageService {
     private final RawVesselDataRepository rawVesselDataRepository;
     private final ObjectMapper objectMapper;
 
+    // Injected filtering and optimization services
+    private final RawDataFilteringService filteringService;
+    private final RawDataCompressionService compressionService;
+
     @Value("${raw.data.storage.enabled:true}")
     private boolean storageEnabled;
 
@@ -50,7 +54,7 @@ public class RawDataStorageService {
     /**
      * Store raw aircraft data from external source
      */
-    @Async
+    @Async("taskExecutor")
     @Transactional
     public CompletableFuture<Void> storeRawAircraftData(String dataSource,
             List<AircraftTrackingRequest> aircraftData,
@@ -61,14 +65,17 @@ public class RawDataStorageService {
         }
 
         try {
+            // Apply filtering and compression
             List<RawAircraftData> rawDataList = aircraftData.stream()
+                    .filter(aircraft -> filteringService.shouldStoreAircraftRawData(aircraft))
                     .map(aircraft -> convertToRawAircraftData(aircraft, dataSource, apiEndpoint, responseTimeMs))
                     .filter(data -> data != null)
                     .toList();
 
             rawAircraftDataRepository.saveAll(rawDataList);
 
-            log.debug("Stored {} raw aircraft records from source: {}", rawDataList.size(), dataSource);
+            log.debug("Stored {} raw aircraft records from source: {} (filtered from {} total)",
+                    rawDataList.size(), dataSource, aircraftData.size());
             return CompletableFuture.completedFuture(null);
 
         } catch (Exception e) {
@@ -80,7 +87,7 @@ public class RawDataStorageService {
     /**
      * Store raw vessel data from external source
      */
-    @Async
+    @Async("taskExecutor")
     @Transactional
     public CompletableFuture<Void> storeRawVesselData(String dataSource,
             List<VesselTrackingRequest> vesselData,
@@ -91,14 +98,17 @@ public class RawDataStorageService {
         }
 
         try {
+            // Apply filtering and compression
             List<RawVesselData> rawDataList = vesselData.stream()
+                    .filter(vessel -> filteringService.shouldStoreVesselRawData(vessel))
                     .map(vessel -> convertToRawVesselData(vessel, dataSource, apiEndpoint, responseTimeMs))
                     .filter(data -> data != null)
                     .toList();
 
             rawVesselDataRepository.saveAll(rawDataList);
 
-            log.debug("Stored {} raw vessel records from source: {}", rawDataList.size(), dataSource);
+            log.debug("Stored {} raw vessel records from source: {} (filtered from {} total)",
+                    rawDataList.size(), dataSource, vesselData.size());
             return CompletableFuture.completedFuture(null);
 
         } catch (Exception e) {
@@ -136,7 +146,7 @@ public class RawDataStorageService {
                     .originalTimestamp(aircraft.getTimestamp())
                     .receivedAt(LocalDateTime.now())
                     .apiEndpoint(apiEndpoint)
-                    .rawJson(convertToJson(aircraft))
+                    .rawJson(compressionService.compressJsonData(convertToJson(aircraft)))
                     .isValid(validateAircraftData(aircraft))
                     .retentionDays(retentionDays)
                     .build();
@@ -186,7 +196,7 @@ public class RawDataStorageService {
                     .originalTimestamp(vessel.getTimestamp())
                     .receivedAt(LocalDateTime.now())
                     .apiEndpoint(apiEndpoint)
-                    .rawJson(convertToJson(vessel))
+                    .rawJson(compressionService.compressJsonData(convertToJson(vessel)))
                     .isValid(validateVesselData(vessel))
                     .dangerousCargo(vessel.getDangerousCargo())
                     .securityAlert(vessel.getSecurityAlert())
@@ -235,7 +245,7 @@ public class RawDataStorageService {
     /**
      * Link fusion result back to raw data
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<Void> linkFusionResult(String identifier,
             Long fusionResultId,
             boolean isAircraft,

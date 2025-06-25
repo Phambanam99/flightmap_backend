@@ -95,7 +95,7 @@ public class RealTimeDataProcessor {
     // AIRCRAFT DATA PROCESSING
     // ============================================================================
 
-    @Async
+    @Async("taskExecutor")
     @Transactional
     public CompletableFuture<Void> processAircraftData(List<AircraftTrackingRequest> aircraftData) {
         try {

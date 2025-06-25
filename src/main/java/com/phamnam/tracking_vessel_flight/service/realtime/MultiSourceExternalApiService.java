@@ -34,7 +34,7 @@ public class MultiSourceExternalApiService {
     /**
      * Collect aircraft data from all available sources
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<AircraftTrackingRequest>> collectAllAircraftData() {
         Map<String, CompletableFuture<List<AircraftTrackingRequest>>> futures = new HashMap<>();
 
@@ -92,7 +92,7 @@ public class MultiSourceExternalApiService {
     /**
      * Collect vessel data from all available sources
      */
-    @Async
+    @Async("taskExecutor")
     public CompletableFuture<List<VesselTrackingRequest>> collectAllVesselData() {
         Map<String, CompletableFuture<List<VesselTrackingRequest>>> futures = new HashMap<>();
 
