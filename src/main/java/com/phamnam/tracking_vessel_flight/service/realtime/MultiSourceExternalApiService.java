@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +31,28 @@ public class MultiSourceExternalApiService {
     private final MarineTrafficV2ApiService marineTrafficV2ApiService;
     private final AdsbExchangeApiService adsbExchangeApiService;
     private final VesselFinderApiService vesselFinderApiService;
+
+    // Poll interval configurations
+    @Value("${external.api.data-collection.poll-interval:30000}")
+    private long dataCollectionPollInterval;
+
+    @Value("${external.api.flightradar24.poll-interval:30000}")
+    private long flightradar24PollInterval;
+
+    @Value("${external.api.adsbexchange.poll-interval:30000}")
+    private long adsbexchangePollInterval;
+
+    @Value("${external.api.marinetraffic.poll-interval:60000}")
+    private long marinetrafficPollInterval;
+
+    @Value("${external.api.vesselfinder.poll-interval:60000}")
+    private long vesselfinderPollInterval;
+
+    @Value("${external.api.chinaports.poll-interval:60000}")
+    private long chinaportsPollInterval;
+
+    @Value("${external.api.marinetrafficv2.poll-interval:45000}")
+    private long marinetrafficv2PollInterval;
 
     /**
      * Collect aircraft data from all available sources
@@ -113,7 +136,7 @@ public class MultiSourceExternalApiService {
                 List<VesselTrackingRequest> data = safeGetAndStoreVessel(source, future);
                 if (!data.isEmpty()) {
                     dataBySource.put(source, data);
-                    log.info("Collected {} vessel from {}", data.size(), source);
+                    log.info("Collected {} vessels from {}", data.size(), source);
                 }
             });
 
@@ -153,8 +176,7 @@ public class MultiSourceExternalApiService {
      * Use fixedDelay to ensure previous execution completes before starting next
      * one
      */
-    @Scheduled(fixedDelay = 30000, initialDelay = 5000) // Every 3 minutes after previous completion, start after 5
-                                                        // seconds
+    @Scheduled(fixedDelayString = "${external.api.data-collection.poll-interval:30000}", initialDelay = 5000)
     @Async("scheduledTaskExecutor")
     public void collectAndProcessMultiSourceData() {
         String threadName = Thread.currentThread().getName();
@@ -271,6 +293,37 @@ public class MultiSourceExternalApiService {
         ));
 
         return status;
+    }
+
+    /**
+     * Get poll interval configurations
+     */
+    public Map<String, Object> getPollIntervalStatus() {
+        return Map.of(
+                "dataCollectionInterval", dataCollectionPollInterval,
+                "flightradar24Interval", flightradar24PollInterval,
+                "adsbexchangeInterval", adsbexchangePollInterval,
+                "marinetrafficInterval", marinetrafficPollInterval,
+                "vesselfinderInterval", vesselfinderPollInterval,
+                "chinaportsInterval", chinaportsPollInterval,
+                "marinetrafficv2Interval", marinetrafficv2PollInterval,
+                "unit", "milliseconds");
+    }
+
+    /**
+     * Log current configuration status
+     */
+    public void logConfigurationStatus() {
+        log.info("⚙️ MultiSource External API Configuration:");
+        log.info("  📊 Data Collection Interval: {}ms", dataCollectionPollInterval);
+        log.info("  ✈️ Aircraft Sources:");
+        log.info("    - FlightRadar24: {}ms", flightradar24PollInterval);
+        log.info("    - ADS-B Exchange: {}ms", adsbexchangePollInterval);
+        log.info("  🚢 Vessel Sources:");
+        log.info("    - MarineTraffic: {}ms", marinetrafficPollInterval);
+        log.info("    - VesselFinder: {}ms", vesselfinderPollInterval);
+        log.info("    - Chinaports: {}ms", chinaportsPollInterval);
+        log.info("    - MarineTrafficV2: {}ms", marinetrafficv2PollInterval);
     }
 
     /**

@@ -16,6 +16,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,9 @@ public class ColdStorageServiceImpl implements ColdStorageService {
 
     @Value("${tracking.data.warm-storage.ttl-days:30}")
     private int warmStorageTtlDays;
+
+    @Value("${tracking.data.hot-storage.ttl-hours:24}")
+    private int hotStorageTtlHours;
 
     @Override
     @Transactional
@@ -82,7 +86,8 @@ public class ColdStorageServiceImpl implements ColdStorageService {
     }
 
     @Override
-    public List<FlightTracking> queryFlightTrackingHistory(Long flightId, LocalDateTime startTime, LocalDateTime endTime) {
+    public List<FlightTracking> queryFlightTrackingHistory(Long flightId, LocalDateTime startTime,
+            LocalDateTime endTime) {
         String sql = "SELECT * FROM flight_tracking_archive " +
                 "WHERE flight_id = ? AND update_time BETWEEN ? AND ? " +
                 "ORDER BY update_time ASC";
@@ -95,12 +100,12 @@ public class ColdStorageServiceImpl implements ColdStorageService {
                     // ...
                     return tracking;
                 },
-                flightId, Timestamp.valueOf(startTime), Timestamp.valueOf(endTime)
-        );
+                flightId, Timestamp.valueOf(startTime), Timestamp.valueOf(endTime));
     }
 
     @Override
-    public List<ShipTracking> queryVesselTrackingHistory(Long vesselId, LocalDateTime startTime, LocalDateTime endTime) {
+    public List<ShipTracking> queryVesselTrackingHistory(Long vesselId, LocalDateTime startTime,
+            LocalDateTime endTime) {
         // Triển khai tương tự như queryFlightTrackingHistory
         return new ArrayList<>();
     }
@@ -111,7 +116,6 @@ public class ColdStorageServiceImpl implements ColdStorageService {
     public void performDataArchiving() {
 
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(warmStorageTtlDays);
-
 
         log.info("Starting scheduled data archiving process for data older than {}", cutoffDate);
 
@@ -138,5 +142,53 @@ public class ColdStorageServiceImpl implements ColdStorageService {
         }
 
         // Làm tương tự cho vessel tracking nếu cần
+    }
+
+    /**
+     * Move data from hot storage to warm storage based on TTL
+     * Hot storage: Fast access (Redis/memory) for recent data
+     * Warm storage: Database for older but still accessible data
+     */
+    @Override
+    @Transactional
+    @Scheduled(cron = "0 */30 * * * ?") // Every 30 minutes
+    public void moveFromHotToWarmStorage() {
+        LocalDateTime hotStorageCutoff = LocalDateTime.now().minusHours(hotStorageTtlHours);
+
+        log.info("🔄 Moving data from hot to warm storage for data older than {} hours", hotStorageTtlHours);
+
+        try {
+            // Move flight tracking data that's older than hot storage TTL
+            List<FlightTracking> hotFlightData = flightTrackingRepository
+                    .findByUpdateTimeBefore(hotStorageCutoff);
+
+            if (!hotFlightData.isEmpty()) {
+                log.info("📦 Moving {} flight tracking records from hot to warm storage", hotFlightData.size());
+                // This could involve moving from Redis to Database or reorganizing storage
+                // tiers
+                // For now, we just log as the data is already in TimescaleDB
+            }
+
+        } catch (Exception e) {
+            log.error("❌ Error moving data from hot to warm storage: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get hot storage statistics
+     */
+    public Map<String, Object> getHotStorageStats() {
+        LocalDateTime hotStorageCutoff = LocalDateTime.now().minusHours(hotStorageTtlHours);
+
+        long hotDataCount = flightTrackingRepository.countByLastSeenAfter(hotStorageCutoff);
+        long warmDataCount = flightTrackingRepository
+                .findByUpdateTimeBefore(hotStorageCutoff.minusDays(warmStorageTtlDays)).size();
+
+        return Map.of(
+                "hotStorageTtlHours", hotStorageTtlHours,
+                "warmStorageTtlDays", warmStorageTtlDays,
+                "hotDataCount", hotDataCount,
+                "warmDataCount", warmDataCount,
+                "cutoffTime", hotStorageCutoff);
     }
 }

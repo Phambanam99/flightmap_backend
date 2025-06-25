@@ -101,6 +101,13 @@ public class KafkaConfig {
     @Value("${app.kafka.topics.websocket-updates}")
     private String websocketUpdatesTopic;
 
+    // Legacy topic configurations for backward compatibility
+    @Value("${app.kafka.aircraft-topic}")
+    private String legacyAircraftTopic;
+
+    @Value("${app.kafka.ship-topic}")
+    private String legacyShipTopic;
+
     // Producer Configuration
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
@@ -623,5 +630,16 @@ public class KafkaConfig {
     @Bean("websocketUpdatesTopicName")
     public String websocketUpdatesTopicName() {
         return websocketUpdatesTopic;
+    }
+
+    // Legacy topic name beans for backward compatibility
+    @Bean("legacyAircraftTopicName")
+    public String legacyAircraftTopicName() {
+        return legacyAircraftTopic;
+    }
+
+    @Bean("legacyShipTopicName")
+    public String legacyShipTopicName() {
+        return legacyShipTopic;
     }
 }

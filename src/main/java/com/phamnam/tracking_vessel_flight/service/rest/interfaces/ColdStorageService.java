@@ -32,4 +32,9 @@ public interface ColdStorageService {
      * Thực hiện ETL job để chuyển dữ liệu từ warm storage sang cold storage
      */
     void performDataArchiving();
+
+    /**
+     * Move data from hot storage to warm storage based on TTL
+     */
+    void moveFromHotToWarmStorage();
 }
