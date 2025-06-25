@@ -237,8 +237,8 @@ public class RawDataOptimizationController {
     /**
      * Get health status of raw data optimization
      */
-    @GetMapping("/health")
-    @Operation(summary = "Get health status", description = "Get health status of raw data optimization services")
+    @GetMapping("/optimization/health")
+    @Operation(summary = "Get optimization health status", description = "Get health status of raw data optimization services")
     public ResponseEntity<MyApiResponse<Map<String, Object>>> getHealthStatus() {
         try {
             Map<String, Object> health = Map.of(
