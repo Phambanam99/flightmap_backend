@@ -153,8 +153,8 @@ public class MultiSourceExternalApiService {
      * Use fixedDelay to ensure previous execution completes before starting next
      * one
      */
-    @Scheduled(fixedDelay = 180000, initialDelay = 5000) // Every 3 minutes after previous completion, start after 5
-                                                         // seconds
+    @Scheduled(fixedDelay = 30000, initialDelay = 5000) // Every 3 minutes after previous completion, start after 5
+                                                        // seconds
     @Async("scheduledTaskExecutor")
     public void collectAndProcessMultiSourceData() {
         String threadName = Thread.currentThread().getName();
