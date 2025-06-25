@@ -2,18 +2,24 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.phamnam.tracking_vessel_flight.models.RawAircraftData;
+import com.phamnam.tracking_vessel_flight.models.RawVesselData;
+import com.phamnam.tracking_vessel_flight.repository.RawAircraftDataRepository;
+import com.phamnam.tracking_vessel_flight.repository.RawVesselDataRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,6 +43,8 @@ public class RawDataCompressionService {
     private int autoCompressAfterHours;
 
     private final ObjectMapper objectMapper;
+    private final RawAircraftDataRepository rawAircraftDataRepository;
+    private final RawVesselDataRepository rawVesselDataRepository;
 
     // Statistics
     private final AtomicLong totalCompressedRecords = new AtomicLong(0);
@@ -227,14 +235,109 @@ public class RawDataCompressionService {
         log.info("Would compress raw data older than {} (cutoff: {})",
                 autoCompressAfterHours + " hours", compressionCutoff);
 
-        // TODO: Implement actual database compression logic
-        // Example:
-        // 1. Find uncompressed records older than cutoff
-        // 2. Compress their rawJson field
-        // 3. Update records with compressed data
-        // 4. Update compression metadata
+        // Implement actual database compression logic
+        compressOldRawDataRecords(compressionCutoff);
 
         log.info("✅ Auto-compression check completed");
+    }
+
+    /**
+     * Compress old raw data records in database
+     */
+    @Transactional
+    private void compressOldRawDataRecords(LocalDateTime cutoff) {
+        try {
+            // Find uncompressed aircraft data older than cutoff
+            List<RawAircraftData> oldAircraftData = rawAircraftDataRepository
+                    .findByReceivedAtBefore(cutoff);
+
+            // Find uncompressed vessel data older than cutoff
+            List<RawVesselData> oldVesselData = rawVesselDataRepository
+                    .findByReceivedAtBefore(cutoff);
+
+            int aircraftCompressed = compressAircraftDataBatch(oldAircraftData);
+            int vesselCompressed = compressVesselDataBatch(oldVesselData);
+
+            log.info("📦 Compressed {} aircraft and {} vessel records older than {}",
+                    aircraftCompressed, vesselCompressed, cutoff);
+
+        } catch (Exception e) {
+            log.error("❌ Failed to compress old raw data: {}", e.getMessage(), e);
+            compressionErrors.incrementAndGet();
+        }
+    }
+
+    /**
+     * Compress aircraft data in batch
+     */
+    private int compressAircraftDataBatch(List<RawAircraftData> dataList) {
+        int compressedCount = 0;
+
+        for (RawAircraftData data : dataList) {
+            try {
+                if (data.getRawJson() != null && !data.getRawJson().startsWith("COMPRESSED:")) {
+                    String originalJson = data.getRawJson();
+                    int originalSize = originalJson.getBytes(StandardCharsets.UTF_8).length;
+
+                    if (originalSize >= compressionThresholdBytes) {
+                        String compressedJson = compressJsonData(originalJson);
+                        data.setRawJson(compressedJson);
+
+                        rawAircraftDataRepository.save(data);
+
+                        int compressedSize = compressedJson.getBytes(StandardCharsets.UTF_8).length;
+                        updateCompressionStats(originalSize, compressedSize);
+                        compressedCount++;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to compress aircraft data {}: {}", data.getId(), e.getMessage());
+                compressionErrors.incrementAndGet();
+            }
+        }
+
+        return compressedCount;
+    }
+
+    /**
+     * Compress vessel data in batch
+     */
+    private int compressVesselDataBatch(List<RawVesselData> dataList) {
+        int compressedCount = 0;
+
+        for (RawVesselData data : dataList) {
+            try {
+                if (data.getRawJson() != null && !data.getRawJson().startsWith("COMPRESSED:")) {
+                    String originalJson = data.getRawJson();
+                    int originalSize = originalJson.getBytes(StandardCharsets.UTF_8).length;
+
+                    if (originalSize >= compressionThresholdBytes) {
+                        String compressedJson = compressJsonData(originalJson);
+                        data.setRawJson(compressedJson);
+
+                        rawVesselDataRepository.save(data);
+
+                        int compressedSize = compressedJson.getBytes(StandardCharsets.UTF_8).length;
+                        updateCompressionStats(originalSize, compressedSize);
+                        compressedCount++;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to compress vessel data {}: {}", data.getId(), e.getMessage());
+                compressionErrors.incrementAndGet();
+            }
+        }
+
+        return compressedCount;
+    }
+
+    /**
+     * Update compression statistics
+     */
+    private void updateCompressionStats(int originalSize, int compressedSize) {
+        totalCompressedRecords.incrementAndGet();
+        totalOriginalSize.addAndGet(originalSize);
+        totalCompressedSize.addAndGet(compressedSize);
     }
 
     /**

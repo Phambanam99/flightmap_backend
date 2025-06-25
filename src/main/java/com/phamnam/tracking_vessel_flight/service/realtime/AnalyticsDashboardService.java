@@ -216,13 +216,63 @@ public class AnalyticsDashboardService {
     }
 
     private List<Map<String, Object>> getPopularRoutes() {
-        // Simplified route analysis
-        return List.of(); // Placeholder - would require route detection algorithm
+        // Simplified route analysis using flight tracking data
+        try {
+            String sql = """
+                    SELECT
+                        origin_airport,
+                        destination_airport,
+                        COUNT(*) as route_count
+                    FROM flights
+                    WHERE departure_time >= NOW() - INTERVAL '7 days'
+                        AND origin_airport IS NOT NULL
+                        AND destination_airport IS NOT NULL
+                    GROUP BY origin_airport, destination_airport
+                    ORDER BY route_count DESC
+                    LIMIT 10
+                    """;
+            return jdbcTemplate.queryForList(sql);
+        } catch (Exception e) {
+            log.warn("Could not fetch popular routes: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     private List<Map<String, Object>> getBorderCrossings() {
-        // Track entities crossing predefined boundaries
-        return List.of(); // Placeholder - would require boundary definitions
+        // Track entities crossing predefined geographical boundaries
+        try {
+            String sql = """
+                    SELECT
+                        'Aircraft' as entity_type,
+                        hexident as entity_id,
+                        COUNT(*) as crossing_count
+                    FROM flight_tracking ft
+                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                        AND (
+                            (LAG(latitude) OVER (PARTITION BY hexident ORDER BY timestamp) < 0 AND latitude >= 0) OR
+                            (LAG(latitude) OVER (PARTITION BY hexident ORDER BY timestamp) >= 0 AND latitude < 0)
+                        )
+                    GROUP BY hexident
+                    UNION ALL
+                    SELECT
+                        'Vessel' as entity_type,
+                        mmsi as entity_id,
+                        COUNT(*) as crossing_count
+                    FROM ship_tracking st
+                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                        AND (
+                            (LAG(latitude) OVER (PARTITION BY mmsi ORDER BY timestamp) < 0 AND latitude >= 0) OR
+                            (LAG(latitude) OVER (PARTITION BY mmsi ORDER BY timestamp) >= 0 AND latitude < 0)
+                        )
+                    GROUP BY mmsi
+                    ORDER BY crossing_count DESC
+                    LIMIT 5
+                    """;
+            return jdbcTemplate.queryForList(sql);
+        } catch (Exception e) {
+            log.warn("Could not fetch border crossings: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     // ============================================================================

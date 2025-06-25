@@ -1,5 +1,7 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
+import com.phamnam.tracking_vessel_flight.models.RawAircraftData;
+import com.phamnam.tracking_vessel_flight.models.RawVesselData;
 import com.phamnam.tracking_vessel_flight.repository.RawAircraftDataRepository;
 import com.phamnam.tracking_vessel_flight.repository.RawVesselDataRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -175,24 +178,28 @@ public class RawDataRetentionService {
         long totalDeleted = 0;
         int deletedInBatch;
 
-        do {
-            // TODO: Implement repository methods for batch deletion
-            // if (isEmergency) {
-            // deletedInBatch = rawAircraftDataRepository.deleteEmergencyDataBatch(cutoff,
-            // batchSize);
-            // } else {
-            // deletedInBatch = rawAircraftDataRepository.deleteStandardDataBatch(
-            // cutoff, maxQuality, batchSize);
-            // }
-            deletedInBatch = 0; // Temporary placeholder
+        // Use existing repository methods for deletion
+        List<RawAircraftData> dataToDelete;
 
-            totalDeleted += deletedInBatch;
+        if (isEmergency) {
+            // Find emergency aircraft data older than cutoff
+            dataToDelete = rawAircraftDataRepository.findByEmergencyTrueAndReceivedAtBetween(
+                    LocalDateTime.MIN, cutoff);
+        } else {
+            // Find standard aircraft data older than cutoff
+            dataToDelete = rawAircraftDataRepository.findByReceivedAtBefore(cutoff);
+        }
 
-            if (deletedInBatch > 0) {
-                log.debug("Deleted {} {} aircraft records in batch", deletedInBatch, category);
+        if (!dataToDelete.isEmpty()) {
+            // Delete in batches to avoid memory issues
+            for (int i = 0; i < dataToDelete.size(); i += batchSize) {
+                int endIndex = Math.min(i + batchSize, dataToDelete.size());
+                List<RawAircraftData> batch = dataToDelete.subList(i, endIndex);
+                rawAircraftDataRepository.deleteAll(batch);
+                totalDeleted += batch.size();
+                log.debug("Deleted {} {} aircraft records in batch", batch.size(), category);
             }
-
-        } while (deletedInBatch > 0);
+        }
 
         return totalDeleted;
     }
@@ -206,24 +213,29 @@ public class RawDataRetentionService {
         long totalDeleted = 0;
         int deletedInBatch;
 
-        do {
-            // TODO: Implement repository methods for batch deletion
-            // if (isEmergency) {
-            // deletedInBatch = rawVesselDataRepository.deleteEmergencyDataBatch(cutoff,
-            // batchSize);
-            // } else {
-            // deletedInBatch = rawVesselDataRepository.deleteStandardDataBatch(
-            // cutoff, maxQuality, batchSize);
-            // }
-            deletedInBatch = 0; // Temporary placeholder
+        // Use existing repository methods for deletion
+        List<RawVesselData> dataToDelete;
 
-            totalDeleted += deletedInBatch;
+        if (isEmergency) {
+            // Find emergency vessel data older than cutoff (using dangerous cargo as proxy
+            // for emergency)
+            dataToDelete = rawVesselDataRepository.findByDangerousCargoTrueAndReceivedAtBetween(
+                    LocalDateTime.MIN, cutoff);
+        } else {
+            // Find standard vessel data older than cutoff
+            dataToDelete = rawVesselDataRepository.findByReceivedAtBefore(cutoff);
+        }
 
-            if (deletedInBatch > 0) {
-                log.debug("Deleted {} {} vessel records in batch", deletedInBatch, category);
+        if (!dataToDelete.isEmpty()) {
+            // Delete in batches to avoid memory issues
+            for (int i = 0; i < dataToDelete.size(); i += batchSize) {
+                int endIndex = Math.min(i + batchSize, dataToDelete.size());
+                List<RawVesselData> batch = dataToDelete.subList(i, endIndex);
+                rawVesselDataRepository.deleteAll(batch);
+                totalDeleted += batch.size();
+                log.debug("Deleted {} {} vessel records in batch", batch.size(), category);
             }
-
-        } while (deletedInBatch > 0);
+        }
 
         return totalDeleted;
     }
@@ -239,10 +251,10 @@ public class RawDataRetentionService {
      * Delete high-quality aircraft data
      */
     private long deleteHighQualityAircraftData(LocalDateTime cutoff) {
-        // TODO: Implement repository method
-        // return rawAircraftDataRepository.deleteHighQualityDataBatch(cutoff, 0.8,
-        // batchSize);
-        return 0; // Temporary placeholder
+        // TODO: Implement repository method for high-quality data detection
+        // For now, return 0 as placeholder
+        log.debug("High-quality aircraft data deletion not yet implemented");
+        return 0;
     }
 
     /**
@@ -256,10 +268,10 @@ public class RawDataRetentionService {
      * Delete high-quality vessel data
      */
     private long deleteHighQualityVesselData(LocalDateTime cutoff) {
-        // TODO: Implement repository method
-        // return rawVesselDataRepository.deleteHighQualityDataBatch(cutoff, 0.8,
-        // batchSize);
-        return 0; // Temporary placeholder
+        // TODO: Implement repository method for high-quality data detection
+        // For now, return 0 as placeholder
+        log.debug("High-quality vessel data deletion not yet implemented");
+        return 0;
     }
 
     /**
@@ -270,15 +282,17 @@ public class RawDataRetentionService {
         LocalDateTime emergencyCutoff = LocalDateTime.now().minusDays(emergencyRetentionDays);
         LocalDateTime highQualityCutoff = LocalDateTime.now().minusDays(highQualityRetentionDays);
 
-        // Get counts for aircraft data
-        long aircraftStandard = rawAircraftDataRepository.countStandardDataForDeletion(standardCutoff, 0.8);
-        long aircraftEmergency = rawAircraftDataRepository.countEmergencyDataForDeletion(emergencyCutoff);
-        long aircraftHighQuality = rawAircraftDataRepository.countHighQualityDataForDeletion(highQualityCutoff, 0.8);
+        // Get counts for aircraft data (simplified implementation)
+        long aircraftStandard = rawAircraftDataRepository.findByReceivedAtBefore(standardCutoff).size();
+        long aircraftEmergency = rawAircraftDataRepository.findByEmergencyTrueAndReceivedAtBetween(
+                LocalDateTime.MIN, emergencyCutoff).size();
+        long aircraftHighQuality = 0; // TODO: Implement high quality data counting
 
-        // Get counts for vessel data
-        long vesselStandard = rawVesselDataRepository.countStandardDataForDeletion(standardCutoff, 0.8);
-        long vesselEmergency = rawVesselDataRepository.countEmergencyDataForDeletion(emergencyCutoff);
-        long vesselHighQuality = rawVesselDataRepository.countHighQualityDataForDeletion(highQualityCutoff, 0.8);
+        // Get counts for vessel data (simplified implementation)
+        long vesselStandard = rawVesselDataRepository.findByReceivedAtBefore(standardCutoff).size();
+        long vesselEmergency = rawVesselDataRepository.findByDangerousCargoTrueAndReceivedAtBetween(
+                LocalDateTime.MIN, emergencyCutoff).size();
+        long vesselHighQuality = 0; // TODO: Implement high quality data counting
 
         return Map.of(
                 "retentionEnabled", retentionEnabled,
@@ -340,8 +354,17 @@ public class RawDataRetentionService {
 
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
 
-        long aircraftDeleted = rawAircraftDataRepository.deleteByDataSourceAndReceivedAtBefore(dataSource, cutoff);
-        long vesselDeleted = rawVesselDataRepository.deleteByDataSourceAndReceivedAtBefore(dataSource, cutoff);
+        // Find and delete by data source (simplified implementation)
+        List<RawAircraftData> aircraftToDelete = rawAircraftDataRepository
+                .findByDataSourceAndReceivedAtBetween(dataSource, LocalDateTime.MIN, cutoff);
+        List<RawVesselData> vesselToDelete = rawVesselDataRepository
+                .findByDataSourceAndReceivedAtBetween(dataSource, LocalDateTime.MIN, cutoff);
+
+        rawAircraftDataRepository.deleteAll(aircraftToDelete);
+        rawVesselDataRepository.deleteAll(vesselToDelete);
+
+        long aircraftDeleted = aircraftToDelete.size();
+        long vesselDeleted = vesselToDelete.size();
 
         long totalDeleted = aircraftDeleted + vesselDeleted;
         totalDeletedRecords.addAndGet(totalDeleted);
