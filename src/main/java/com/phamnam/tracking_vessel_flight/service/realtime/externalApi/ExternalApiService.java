@@ -389,11 +389,12 @@ public class ExternalApiService {
             }
             dataSourceRepository.save(dataSource);
 
-            // Create status record
+            // Create status record with actual response time calculation
+            long actualResponseTime = calculateResponseTime(dataSource);
             DataSourceStatus statusRecord = DataSourceStatus.builder()
                     .dataSource(dataSource)
                     .checkTime(LocalDateTime.now())
-                    .responseTime(1000L) // TODO: Calculate actual response time
+                    .responseTime(actualResponseTime)
                     // .dataCount(0)
                     // .errorCount(status == SourceStatus.ERROR ? 1 : 0)
                     .build();
@@ -454,6 +455,27 @@ public class ExternalApiService {
                 return marineTrafficBaseUrl;
             default:
                 return null;
+        }
+    }
+
+    /**
+     * Calculate actual response time for data source
+     */
+    private long calculateResponseTime(DataSource dataSource) {
+        try {
+            String healthCheckUrl = getHealthCheckUrl(dataSource);
+            if (healthCheckUrl == null) {
+                return 5000L; // Default fallback
+            }
+
+            long startTime = System.currentTimeMillis();
+            restTemplate.getForEntity(healthCheckUrl, String.class);
+            long endTime = System.currentTimeMillis();
+
+            return endTime - startTime;
+        } catch (Exception e) {
+            log.debug("Failed to calculate response time for {}: {}", dataSource.getName(), e.getMessage());
+            return 5000L; // Default timeout value
         }
     }
 

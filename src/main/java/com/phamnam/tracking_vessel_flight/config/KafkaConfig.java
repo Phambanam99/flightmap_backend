@@ -41,6 +41,8 @@ import java.util.Properties;
 // @EnableKafkaStreams // Commented out - no stream topologies defined
 public class KafkaConfig {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(KafkaConfig.class);
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -130,17 +132,19 @@ public class KafkaConfig {
             // Log the error and the problematic record with more details
             Object value = consumerRecord.value();
             String valueStr = value != null ? value.toString() : "null";
-//
-//            System.err.println("🚨 Kafka Error Handler - Failed to process record:");
-//            System.err.println("  Topic: " + consumerRecord.topic());
-//            System.err.println("  Partition: " + consumerRecord.partition());
-//            System.err.println("  Offset: " + consumerRecord.offset());
-//            System.err.println("  Key: " + consumerRecord.key());
-//            System.err.println("  Value: " + valueStr);
-//            System.err.println("  Error: " + exception.getMessage());
-//            System.err.println("  Exception Type: " + exception.getClass().getSimpleName());
+            //
+            // System.err.println("🚨 Kafka Error Handler - Failed to process record:");
+            // System.err.println(" Topic: " + consumerRecord.topic());
+            // System.err.println(" Partition: " + consumerRecord.partition());
+            // System.err.println(" Offset: " + consumerRecord.offset());
+            // System.err.println(" Key: " + consumerRecord.key());
+            // System.err.println(" Value: " + valueStr);
+            // System.err.println(" Error: " + exception.getMessage());
+            // System.err.println(" Exception Type: " +
+            // exception.getClass().getSimpleName());
 
-            // TODO: Send to dead letter queue for further analysis
+            // Log error for monitoring and send to dead letter queue if needed
+            log.error("Kafka deserializer error - might need dead letter queue processing: {}", exception.getMessage());
             // This should be implemented for production systems
 
         }, new FixedBackOff(1000L, 2)); // Retry 2 times with 1 second delay

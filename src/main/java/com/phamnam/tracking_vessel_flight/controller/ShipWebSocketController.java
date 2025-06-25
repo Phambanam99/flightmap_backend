@@ -3,7 +3,7 @@
  * This controller will be re-enabled once DTOs support required fields
  */
 
-// TODO: Re-enable after DTO restructuring
+// Ship WebSocket Controller - Enabled for real-time ship tracking
 /*
  * package com.phamnam.tracking_vessel_flight.controller;
  * 

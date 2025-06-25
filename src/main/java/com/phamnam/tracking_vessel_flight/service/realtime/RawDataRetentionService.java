@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -251,10 +252,27 @@ public class RawDataRetentionService {
      * Delete high-quality aircraft data
      */
     private long deleteHighQualityAircraftData(LocalDateTime cutoff) {
-        // TODO: Implement repository method for high-quality data detection
-        // For now, return 0 as placeholder
-        log.debug("High-quality aircraft data deletion not yet implemented");
-        return 0;
+        // Implementation for high-quality data detection and deletion
+        try {
+            // Find aircraft data with high data quality (>= 0.8) older than cutoff
+            List<RawAircraftData> highQualityData = rawAircraftDataRepository
+                    .findByReceivedAtBefore(cutoff)
+                    .stream()
+                    .filter(data -> data.getDataQuality() != null && data.getDataQuality() >= 0.8)
+                    .collect(Collectors.toList());
+
+            if (!highQualityData.isEmpty()) {
+                rawAircraftDataRepository.deleteAll(highQualityData);
+                log.info("🗑️ Deleted {} high-quality aircraft records older than {}",
+                        highQualityData.size(), cutoff);
+                return highQualityData.size();
+            }
+
+            return 0;
+        } catch (Exception e) {
+            log.error("Error deleting high-quality aircraft data: {}", e.getMessage(), e);
+            return 0;
+        }
     }
 
     /**
@@ -268,10 +286,27 @@ public class RawDataRetentionService {
      * Delete high-quality vessel data
      */
     private long deleteHighQualityVesselData(LocalDateTime cutoff) {
-        // TODO: Implement repository method for high-quality data detection
-        // For now, return 0 as placeholder
-        log.debug("High-quality vessel data deletion not yet implemented");
-        return 0;
+        // Implementation for high-quality vessel data detection and deletion
+        try {
+            // Find vessel data with high data quality (>= 0.8) older than cutoff
+            List<RawVesselData> highQualityData = rawVesselDataRepository
+                    .findByReceivedAtBefore(cutoff)
+                    .stream()
+                    .filter(data -> data.getDataQuality() != null && data.getDataQuality() >= 0.8)
+                    .collect(Collectors.toList());
+
+            if (!highQualityData.isEmpty()) {
+                rawVesselDataRepository.deleteAll(highQualityData);
+                log.info("🗑️ Deleted {} high-quality vessel records older than {}",
+                        highQualityData.size(), cutoff);
+                return highQualityData.size();
+            }
+
+            return 0;
+        } catch (Exception e) {
+            log.error("Error deleting high-quality vessel data: {}", e.getMessage(), e);
+            return 0;
+        }
     }
 
     /**
@@ -282,17 +317,23 @@ public class RawDataRetentionService {
         LocalDateTime emergencyCutoff = LocalDateTime.now().minusDays(emergencyRetentionDays);
         LocalDateTime highQualityCutoff = LocalDateTime.now().minusDays(highQualityRetentionDays);
 
-        // Get counts for aircraft data (simplified implementation)
+        // Get counts for aircraft data (full implementation)
         long aircraftStandard = rawAircraftDataRepository.findByReceivedAtBefore(standardCutoff).size();
         long aircraftEmergency = rawAircraftDataRepository.findByEmergencyTrueAndReceivedAtBetween(
                 LocalDateTime.MIN, emergencyCutoff).size();
-        long aircraftHighQuality = 0; // TODO: Implement high quality data counting
+        long aircraftHighQuality = rawAircraftDataRepository.findByReceivedAtBefore(highQualityCutoff)
+                .stream()
+                .mapToLong(data -> (data.getDataQuality() != null && data.getDataQuality() >= 0.8) ? 1 : 0)
+                .sum();
 
-        // Get counts for vessel data (simplified implementation)
+        // Get counts for vessel data (full implementation)
         long vesselStandard = rawVesselDataRepository.findByReceivedAtBefore(standardCutoff).size();
         long vesselEmergency = rawVesselDataRepository.findByDangerousCargoTrueAndReceivedAtBetween(
                 LocalDateTime.MIN, emergencyCutoff).size();
-        long vesselHighQuality = 0; // TODO: Implement high quality data counting
+        long vesselHighQuality = rawVesselDataRepository.findByReceivedAtBefore(highQualityCutoff)
+                .stream()
+                .mapToLong(data -> (data.getDataQuality() != null && data.getDataQuality() >= 0.8) ? 1 : 0)
+                .sum();
 
         return Map.of(
                 "retentionEnabled", retentionEnabled,
