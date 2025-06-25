@@ -32,9 +32,9 @@ public class RawDataOptimizationController {
      */
     @GetMapping("/filtering/stats")
     @Operation(summary = "Get filtering statistics", description = "Get statistics about raw data filtering including sampling and smart filtering")
-    public ResponseEntity<MyApiResponse<Map<String, Object>>> getFilteringStats() {
+    public ResponseEntity<MyApiResponse<RawDataFilteringService.FilteringStats>> getFilteringStats() {
         try {
-            Map<String, Object> stats = filteringService.getFilteringStats();
+            RawDataFilteringService.FilteringStats stats = filteringService.getFilteringStats();
             return ResponseEntity.ok(MyApiResponse.success(stats, "Filtering statistics retrieved successfully"));
         } catch (Exception e) {
             log.error("Error retrieving filtering stats: {}", e.getMessage());
@@ -222,7 +222,7 @@ public class RawDataOptimizationController {
     public ResponseEntity<MyApiResponse<Map<String, Object>>> getOptimizationStatus() {
         try {
             Map<String, Object> status = Map.of(
-                    "filtering", filteringService.getFilteringStats(),
+                    "filtering", (Object) filteringService.getFilteringStats(),
                     "compression", compressionService.getCompressionStats(),
                     "retention", retentionService.getRetentionStats(),
                     "storage", retentionService.getStorageInfo());

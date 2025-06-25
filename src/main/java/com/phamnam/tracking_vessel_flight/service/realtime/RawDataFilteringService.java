@@ -92,6 +92,13 @@ public class RawDataFilteringService {
                 .build();
     }
 
+    /**
+     * Clear filtering cache (placeholder for future implementation)
+     */
+    public void clearCache() {
+        log.info("Filtering cache cleared (no cache implemented yet)");
+    }
+
     @Builder
     @Data
     public static class FilteringStats {
