@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -56,31 +57,32 @@ public class RawDataStorageService {
      */
     @Async("taskExecutor")
     @Transactional
-    public CompletableFuture<Void> storeRawAircraftData(String dataSource,
-            List<AircraftTrackingRequest> aircraftData,
-            String apiEndpoint,
-            long responseTimeMs) {
+    public void storeRawAircraftData(String dataSource,
+                                     List<AircraftTrackingRequest> aircraftData,
+                                     String apiEndpoint,
+                                     long responseTimeMs) {
         if (!storageEnabled || aircraftData == null || aircraftData.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
+            CompletableFuture.completedFuture(null);
+            return;
         }
 
         try {
             // Apply filtering and compression
             List<RawAircraftData> rawDataList = aircraftData.stream()
-                    .filter(aircraft -> filteringService.shouldStoreAircraftRawData(aircraft))
+                    .filter(filteringService::shouldStoreAircraftRawData)
                     .map(aircraft -> convertToRawAircraftData(aircraft, dataSource, apiEndpoint, responseTimeMs))
-                    .filter(data -> data != null)
+                    .filter(Objects::nonNull)
                     .toList();
 
             rawAircraftDataRepository.saveAll(rawDataList);
 
             log.debug("Stored {} raw aircraft records from source: {} (filtered from {} total)",
                     rawDataList.size(), dataSource, aircraftData.size());
-            return CompletableFuture.completedFuture(null);
+            CompletableFuture.completedFuture(null);
 
         } catch (Exception e) {
             log.error("Failed to store raw aircraft data from source {}: {}", dataSource, e.getMessage());
-            return CompletableFuture.failedFuture(e);
+            CompletableFuture.failedFuture(e);
         }
     }
 

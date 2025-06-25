@@ -35,7 +35,7 @@ public class AdsbExchangeApiService {
     private final DataSourceStatusRepository dataSourceStatusRepository;
 
     // ADS-B Exchange Configuration
-    @Value("${external.api.adsbexchange.enabled:false}")
+    @Value("${external.api.adsbexchange.enabled:true}")
     private boolean adsbExchangeEnabled;
 
     @Value("${external.api.adsbexchange.base-url}")
@@ -134,12 +134,20 @@ public class AdsbExchangeApiService {
     private List<AircraftTrackingRequest> parseAdsbExchangeResponse(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
+
+            // Handle mock API response format: {"data": {"ac": [...]}}
+            JsonNode dataWrapper = root.path("data");
+            if (!dataWrapper.isMissingNode()) {
+                root = dataWrapper; // Use data wrapper as new root
+            }
+
             JsonNode aircraft = root.get("aircraft"); // ADS-B Exchange typically uses "aircraft" array
 
             if (aircraft == null || !aircraft.isArray()) {
                 // Try alternative structure
                 aircraft = root.get("ac");
                 if (aircraft == null || !aircraft.isArray()) {
+                    log.debug("No aircraft array found in ADS-B Exchange response");
                     return List.of();
                 }
             }
