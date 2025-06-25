@@ -13,6 +13,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
@@ -193,11 +194,13 @@ public class MultiSourceExternalApiService {
                 try {
                     log.info("🔄 Sending {} aircraft records to processor...", aircraftData.size());
 
-                    // CRITICAL FIX: Await the async processing!
+                    // CRITICAL FIX: Await the async processing with timeout!
                     CompletableFuture<Void> aircraftProcessingFuture = dataProcessor.processAircraftData(aircraftData);
-                    aircraftProcessingFuture.get(); // Wait for completion
+                    aircraftProcessingFuture.get(60, TimeUnit.SECONDS); // Wait max 60 seconds
 
                     log.info("✅ Processed {} merged aircraft records from multiple sources", aircraftData.size());
+                } catch (TimeoutException e) {
+                    log.error("⏱️ Aircraft processing timed out after 60 seconds for {} records", aircraftData.size());
                 } catch (Exception e) {
                     log.error("❌ Failed to process aircraft data: {}", e.getMessage(), e);
                 }
@@ -215,11 +218,13 @@ public class MultiSourceExternalApiService {
                     log.info("🔄 Sending {} vessel records to processor...", vesselData.size());
                     log.info("🔍 About to call dataProcessor.processVesselData()...");
 
-                    // CRITICAL FIX: Await the async processing!
+                    // CRITICAL FIX: Await the async processing with timeout!
                     CompletableFuture<Void> vesselProcessingFuture = dataProcessor.processVesselData(vesselData);
-                    vesselProcessingFuture.get(); // Wait for completion
+                    vesselProcessingFuture.get(120, TimeUnit.SECONDS); // Wait max 2 minutes for large datasets
 
                     log.info("✅ Processed {} merged vessel records from multiple sources", vesselData.size());
+                } catch (TimeoutException e) {
+                    log.error("⏱️ Vessel processing timed out after 2 minutes for {} records", vesselData.size());
                 } catch (Exception e) {
                     log.error("❌ Failed to process vessel data: {}", e.getMessage(), e);
                     e.printStackTrace();

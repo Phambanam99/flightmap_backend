@@ -3,6 +3,7 @@ package com.phamnam.tracking_vessel_flight.config;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -17,6 +18,7 @@ public class AsyncConfig {
      * Task executor for @Async methods, especially for @Scheduled + @Async methods
      */
     @Bean(name = "taskExecutor")
+    @Primary
     public Executor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 

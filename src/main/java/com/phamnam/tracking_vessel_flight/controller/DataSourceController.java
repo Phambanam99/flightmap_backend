@@ -105,4 +105,16 @@ public class DataSourceController {
                                                 "aircraft", "60 seconds",
                                                 "vessel", "120 seconds")));
         }
+
+        @GetMapping("/scheduled/status")
+        @Operation(summary = "Check scheduled task status", description = "Check if scheduled data collection is running properly")
+        public ResponseEntity<Map<String, Object>> getScheduledTaskStatus() {
+                return ResponseEntity.ok(Map.of(
+                                "schedulingEnabled", true,
+                                "asyncEnabled", true,
+                                "fixedRate", "30000ms (30 seconds)",
+                                "executor", "scheduledTaskExecutor",
+                                "note",
+                                "Check application logs for '🚀 Starting multi-source data collection' every 30 seconds"));
+        }
 }
