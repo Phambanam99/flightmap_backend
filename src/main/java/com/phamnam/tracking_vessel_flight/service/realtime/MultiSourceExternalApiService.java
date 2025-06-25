@@ -150,8 +150,11 @@ public class MultiSourceExternalApiService {
 
     /**
      * Scheduled task to collect and process data from all sources
+     * Use fixedDelay to ensure previous execution completes before starting next
+     * one
      */
-    @Scheduled(fixedRate = 30000) // Every 30 seconds
+    @Scheduled(fixedDelay = 180000, initialDelay = 5000) // Every 3 minutes after previous completion, start after 5
+                                                         // seconds
     @Async("scheduledTaskExecutor")
     public void collectAndProcessMultiSourceData() {
         String threadName = Thread.currentThread().getName();
@@ -220,11 +223,11 @@ public class MultiSourceExternalApiService {
 
                     // CRITICAL FIX: Await the async processing with timeout!
                     CompletableFuture<Void> vesselProcessingFuture = dataProcessor.processVesselData(vesselData);
-                    vesselProcessingFuture.get(120, TimeUnit.SECONDS); // Wait max 2 minutes for large datasets
+                    vesselProcessingFuture.get(90, TimeUnit.SECONDS); // Wait max 90 seconds for large datasets
 
                     log.info("✅ Processed {} merged vessel records from multiple sources", vesselData.size());
                 } catch (TimeoutException e) {
-                    log.error("⏱️ Vessel processing timed out after 2 minutes for {} records", vesselData.size());
+                    log.error("⏱️ Vessel processing timed out after 90 seconds for {} records", vesselData.size());
                 } catch (Exception e) {
                     log.error("❌ Failed to process vessel data: {}", e.getMessage(), e);
                     e.printStackTrace();
