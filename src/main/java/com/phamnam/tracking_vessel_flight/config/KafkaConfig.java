@@ -71,6 +71,25 @@ public class KafkaConfig {
     @Value("${app.kafka.topics.raw-vessel-data}")
     private String rawVesselDataTopic;
 
+    // Raw Data Topics by Source - New Implementation
+    @Value("${app.kafka.topics.raw-flightradar24-data}")
+    private String rawFlightRadar24DataTopic;
+
+    @Value("${app.kafka.topics.raw-adsbexchange-data}")
+    private String rawAdsbExchangeDataTopic;
+
+    @Value("${app.kafka.topics.raw-marinetraffic-data}")
+    private String rawMarineTrafficDataTopic;
+
+    @Value("${app.kafka.topics.raw-vesselfinder-data}")
+    private String rawVesselFinderDataTopic;
+
+    @Value("${app.kafka.topics.raw-chinaports-data}")
+    private String rawChinaportsDataTopic;
+
+    @Value("${app.kafka.topics.raw-marinetrafficv2-data}")
+    private String rawMarineTrafficV2DataTopic;
+
     @Value("${app.kafka.topics.processed-aircraft-data}")
     private String processedAircraftDataTopic;
 
@@ -490,6 +509,37 @@ public class KafkaConfig {
         return createTopic(rawVesselDataTopic, "Raw vessel tracking data from external APIs");
     }
 
+    // Raw Data Topics by Source - New Implementation
+    @Bean
+    public NewTopic rawFlightRadar24DataTopic() {
+        return createTopic(rawFlightRadar24DataTopic, "Raw aircraft data from FlightRadar24 API");
+    }
+
+    @Bean
+    public NewTopic rawAdsbExchangeDataTopic() {
+        return createTopic(rawAdsbExchangeDataTopic, "Raw aircraft data from ADS-B Exchange API");
+    }
+
+    @Bean
+    public NewTopic rawMarineTrafficDataTopic() {
+        return createTopic(rawMarineTrafficDataTopic, "Raw vessel data from MarineTraffic API");
+    }
+
+    @Bean
+    public NewTopic rawVesselFinderDataTopic() {
+        return createTopic(rawVesselFinderDataTopic, "Raw vessel data from VesselFinder API");
+    }
+
+    @Bean
+    public NewTopic rawChinaportsDataTopic() {
+        return createTopic(rawChinaportsDataTopic, "Raw vessel data from Chinaports API");
+    }
+
+    @Bean
+    public NewTopic rawMarineTrafficV2DataTopic() {
+        return createTopic(rawMarineTrafficV2DataTopic, "Raw vessel data from MarineTraffic V2 API");
+    }
+
     @Bean
     public NewTopic processedAircraftDataTopic() {
         return createTopic(processedAircraftDataTopic, "Processed and validated aircraft tracking data");
@@ -580,6 +630,37 @@ public class KafkaConfig {
     @Bean("rawVesselDataTopicName")
     public String rawVesselDataTopicName() {
         return rawVesselDataTopic;
+    }
+
+    // Raw Data Topic Names by Source - New Implementation
+    @Bean("rawFlightRadar24DataTopicName")
+    public String rawFlightRadar24DataTopicName() {
+        return rawFlightRadar24DataTopic;
+    }
+
+    @Bean("rawAdsbExchangeDataTopicName")
+    public String rawAdsbExchangeDataTopicName() {
+        return rawAdsbExchangeDataTopic;
+    }
+
+    @Bean("rawMarineTrafficDataTopicName")
+    public String rawMarineTrafficDataTopicName() {
+        return rawMarineTrafficDataTopic;
+    }
+
+    @Bean("rawVesselFinderDataTopicName")
+    public String rawVesselFinderDataTopicName() {
+        return rawVesselFinderDataTopic;
+    }
+
+    @Bean("rawChinaportsDataTopicName")
+    public String rawChinaportsDataTopicName() {
+        return rawChinaportsDataTopic;
+    }
+
+    @Bean("rawMarineTrafficV2DataTopicName")
+    public String rawMarineTrafficV2DataTopicName() {
+        return rawMarineTrafficV2DataTopic;
     }
 
     @Bean("processedAircraftDataTopicName")

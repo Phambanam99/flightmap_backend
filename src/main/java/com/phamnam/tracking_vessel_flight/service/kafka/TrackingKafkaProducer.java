@@ -1,6 +1,8 @@
 package com.phamnam.tracking_vessel_flight.service.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.phamnam.tracking_vessel_flight.models.raw.RawAircraftData;
+import com.phamnam.tracking_vessel_flight.models.raw.RawVesselData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,6 +19,15 @@ public class TrackingKafkaProducer {
     private final ObjectMapper objectMapper;
     private final String rawAircraftDataTopic;
     private final String rawVesselDataTopic;
+
+    // Raw Data Topics by Source - New Implementation
+    private final String rawFlightRadar24DataTopic;
+    private final String rawAdsbExchangeDataTopic;
+    private final String rawMarineTrafficDataTopic;
+    private final String rawVesselFinderDataTopic;
+    private final String rawChinaportsDataTopic;
+    private final String rawMarineTrafficV2DataTopic;
+
     private final String processedAircraftDataTopic;
     private final String processedVesselDataTopic;
     private final String realtimePositionsTopic;
@@ -29,6 +40,12 @@ public class TrackingKafkaProducer {
             ObjectMapper objectMapper,
             @Qualifier("rawAircraftDataTopicName") String rawAircraftDataTopic,
             @Qualifier("rawVesselDataTopicName") String rawVesselDataTopic,
+            @Qualifier("rawFlightRadar24DataTopicName") String rawFlightRadar24DataTopic,
+            @Qualifier("rawAdsbExchangeDataTopicName") String rawAdsbExchangeDataTopic,
+            @Qualifier("rawMarineTrafficDataTopicName") String rawMarineTrafficDataTopic,
+            @Qualifier("rawVesselFinderDataTopicName") String rawVesselFinderDataTopic,
+            @Qualifier("rawChinaportsDataTopicName") String rawChinaportsDataTopic,
+            @Qualifier("rawMarineTrafficV2DataTopicName") String rawMarineTrafficV2DataTopic,
             @Qualifier("processedAircraftDataTopicName") String processedAircraftDataTopic,
             @Qualifier("processedVesselDataTopicName") String processedVesselDataTopic,
             @Qualifier("realtimePositionsTopicName") String realtimePositionsTopic,
@@ -39,6 +56,12 @@ public class TrackingKafkaProducer {
         this.objectMapper = objectMapper;
         this.rawAircraftDataTopic = rawAircraftDataTopic;
         this.rawVesselDataTopic = rawVesselDataTopic;
+        this.rawFlightRadar24DataTopic = rawFlightRadar24DataTopic;
+        this.rawAdsbExchangeDataTopic = rawAdsbExchangeDataTopic;
+        this.rawMarineTrafficDataTopic = rawMarineTrafficDataTopic;
+        this.rawVesselFinderDataTopic = rawVesselFinderDataTopic;
+        this.rawChinaportsDataTopic = rawChinaportsDataTopic;
+        this.rawMarineTrafficV2DataTopic = rawMarineTrafficV2DataTopic;
         this.processedAircraftDataTopic = processedAircraftDataTopic;
         this.processedVesselDataTopic = processedVesselDataTopic;
         this.realtimePositionsTopic = realtimePositionsTopic;
@@ -54,6 +77,61 @@ public class TrackingKafkaProducer {
 
     public CompletableFuture<SendResult<String, Object>> publishRawVesselData(String key, Object data) {
         return sendMessage(rawVesselDataTopic, key, data, "raw vessel data");
+    }
+
+    // Raw Data by Source Publishing - New Implementation
+
+    // Aircraft Raw Data Methods
+    public CompletableFuture<SendResult<String, Object>> publishRawFlightRadar24Data(String key, RawAircraftData data) {
+        return sendMessage(rawFlightRadar24DataTopic, key, data, "raw FlightRadar24 data");
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishRawAdsbExchangeData(String key, RawAircraftData data) {
+        return sendMessage(rawAdsbExchangeDataTopic, key, data, "raw ADS-B Exchange data");
+    }
+
+    // Vessel Raw Data Methods
+    public CompletableFuture<SendResult<String, Object>> publishRawMarineTrafficData(String key, RawVesselData data) {
+        return sendMessage(rawMarineTrafficDataTopic, key, data, "raw MarineTraffic data");
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishRawVesselFinderData(String key, RawVesselData data) {
+        return sendMessage(rawVesselFinderDataTopic, key, data, "raw VesselFinder data");
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishRawChinaportsData(String key, RawVesselData data) {
+        return sendMessage(rawChinaportsDataTopic, key, data, "raw Chinaports data");
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishRawMarineTrafficV2Data(String key, RawVesselData data) {
+        return sendMessage(rawMarineTrafficV2DataTopic, key, data, "raw MarineTraffic V2 data");
+    }
+
+    // Generic methods for raw data publishing by source
+    public CompletableFuture<SendResult<String, Object>> publishRawAircraftDataBySource(String source, String key,
+            RawAircraftData data) {
+        return switch (source.toLowerCase()) {
+            case "flightradar24" -> publishRawFlightRadar24Data(key, data);
+            case "adsbexchange" -> publishRawAdsbExchangeData(key, data);
+            default -> {
+                log.warn("Unknown aircraft source: {}, publishing to generic raw aircraft topic", source);
+                yield publishRawAircraftData(key, data);
+            }
+        };
+    }
+
+    public CompletableFuture<SendResult<String, Object>> publishRawVesselDataBySource(String source, String key,
+            RawVesselData data) {
+        return switch (source.toLowerCase()) {
+            case "marinetraffic" -> publishRawMarineTrafficData(key, data);
+            case "vesselfinder" -> publishRawVesselFinderData(key, data);
+            case "chinaports" -> publishRawChinaportsData(key, data);
+            case "marinetrafficv2" -> publishRawMarineTrafficV2Data(key, data);
+            default -> {
+                log.warn("Unknown vessel source: {}, publishing to generic raw vessel topic", source);
+                yield publishRawVesselData(key, data);
+            }
+        };
     }
 
     // Processed data publishing
