@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.phamnam.tracking_vessel_flight.service.kafka.DeadLetterQueueService;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -23,6 +24,9 @@ public class ScheduledCleanupService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private DeadLetterQueueService deadLetterQueueService;
 
     // Note: IntelligentStorageService will be integrated in future iterations
 
@@ -78,6 +82,16 @@ public class ScheduledCleanupService {
                     usedMemory / 1024 / 1024,
                     freeMemory / 1024 / 1024,
                     totalMemory / 1024 / 1024);
+
+            // Dead Letter Queue statistics
+            try {
+                java.util.Map<String, Object> dlqMetrics = deadLetterQueueService.getMetrics();
+                logger.info("Dead Letter Queue - Total Errors: {}, DLQ Messages: {}",
+                        dlqMetrics.get("totalErrorCount"),
+                        dlqMetrics.get("deadLetterMessageCount"));
+            } catch (Exception e) {
+                logger.warn("Failed to get dead letter queue metrics: {}", e.getMessage());
+            }
 
             logger.info("=== END STATISTICS ===");
 

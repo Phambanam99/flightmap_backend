@@ -6,6 +6,8 @@ import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
+import com.phamnam.tracking_vessel_flight.service.kafka.DeadLetterQueueService;
+import com.phamnam.tracking_vessel_flight.service.kafka.KafkaMonitoringService;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -14,6 +16,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -151,6 +154,12 @@ public class KafkaConfig {
         return new KafkaTemplate<>(producerFactory());
     }
 
+    @Autowired
+    private DeadLetterQueueService deadLetterQueueService;
+    
+    @Autowired
+    private KafkaMonitoringService kafkaMonitoringService;
+
     // Add common error handler
     @Bean
     public DefaultErrorHandler kafkaErrorHandler() {
@@ -158,22 +167,60 @@ public class KafkaConfig {
             // Log the error and the problematic record with more details
             Object value = consumerRecord.value();
             String valueStr = value != null ? value.toString() : "null";
-            //
-            // System.err.println("🚨 Kafka Error Handler - Failed to process record:");
-            // System.err.println(" Topic: " + consumerRecord.topic());
-            // System.err.println(" Partition: " + consumerRecord.partition());
-            // System.err.println(" Offset: " + consumerRecord.offset());
-            // System.err.println(" Key: " + consumerRecord.key());
-            // System.err.println(" Value: " + valueStr);
-            // System.err.println(" Error: " + exception.getMessage());
-            // System.err.println(" Exception Type: " +
-            // exception.getClass().getSimpleName());
+            
+            // Enhanced error logging
+            log.error("🚨 Kafka Error Handler - Failed to process record:");
+            log.error(" Topic: {}", consumerRecord.topic());
+            log.error(" Partition: {}", consumerRecord.partition());
+            log.error(" Offset: {}", consumerRecord.offset());
+            log.error(" Key: {}", consumerRecord.key());
+            log.error(" Value: {}", valueStr.length() > 500 ? valueStr.substring(0, 500) + "... [truncated]" : valueStr);
+            log.error(" Error: {}", exception.getMessage());
+            log.error(" Exception Type: {}", exception.getClass().getSimpleName());
 
-            // Log error for monitoring and send to dead letter queue if needed
-            log.error("Kafka deserializer error - might need dead letter queue processing: {}", exception.getMessage());
-            // This should be implemented for production systems
+            // Determine error type for categorization
+            String errorType = determineErrorType(exception);
+            
+            // Record error for monitoring and pattern detection
+            try {
+                kafkaMonitoringService.recordKafkaError(consumerRecord.topic(), errorType, exception);
+            } catch (Exception monitoringException) {
+                log.warn("Failed to record error in monitoring service: {}", monitoringException.getMessage());
+            }
+            
+            // Send to dead letter queue with proper error handling
+            try {
+                deadLetterQueueService.sendToDeadLetterQueue(consumerRecord, exception, errorType);
+                log.info("Message sent to dead letter queue successfully for topic: {}, partition: {}, offset: {}", 
+                        consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset());
+            } catch (Exception dlqException) {
+                log.error("CRITICAL: Failed to send message to dead letter queue! Original error: {}, DLQ error: {}", 
+                         exception.getMessage(), dlqException.getMessage(), dlqException);
+            }
 
         }, new FixedBackOff(1000L, 2)); // Retry 2 times with 1 second delay
+    }
+
+    /**
+     * Determine error type for better categorization in dead letter queue
+     */
+    private String determineErrorType(Exception exception) {
+        String exceptionName = exception.getClass().getSimpleName();
+        String message = exception.getMessage() != null ? exception.getMessage().toLowerCase() : "";
+        
+        if (exceptionName.contains("Deserialization") || message.contains("deserialization")) {
+            return "DESERIALIZATION_ERROR";
+        } else if (exceptionName.contains("Json") || message.contains("json")) {
+            return "JSON_PARSE_ERROR";
+        } else if (exceptionName.contains("ClassCast") || message.contains("class cast")) {
+            return "TYPE_MISMATCH_ERROR";
+        } else if (exceptionName.contains("Timeout") || message.contains("timeout")) {
+            return "TIMEOUT_ERROR";
+        } else if (exceptionName.contains("Connection") || message.contains("connection")) {
+            return "CONNECTION_ERROR";
+        } else {
+            return "UNKNOWN_ERROR";
+        }
     }
 
     // Consumer Configuration
