@@ -379,4 +379,32 @@ public class SimpleDataCollectionService {
                 "lastCollectionTime", LocalDateTime.now(),
                 "status", "ACTIVE");
     }
+
+    /**
+     * Get comprehensive data collection status
+     */
+    public java.util.Map<String, Object> getDataCollectionStatus() {
+        return java.util.Map.of(
+            "serviceName", "SimpleDataCollectionService",
+            "status", "RUNNING",
+            "collectionsEnabled", true,
+            "aircraftSources", java.util.Map.of(
+                "flightradar24", java.util.Map.of("enabled", true, "lastCollection", LocalDateTime.now()),
+                "adsbexchange", java.util.Map.of("enabled", true, "lastCollection", LocalDateTime.now())
+            ),
+            "vesselSources", java.util.Map.of(
+                "marinetraffic", java.util.Map.of("enabled", true, "lastCollection", LocalDateTime.now()),
+                "vesselfinder", java.util.Map.of("enabled", true, "lastCollection", LocalDateTime.now()),
+                "chinaports", java.util.Map.of("enabled", true, "lastCollection", LocalDateTime.now()),
+                "marinetrafficv2", java.util.Map.of("enabled", true, "lastCollection", LocalDateTime.now())
+            ),
+            "statistics", getCollectionStatistics(),
+            "rawDataTopics", java.util.List.of(
+                "raw-flightradar24-data", "raw-adsbexchange-data",
+                "raw-marinetraffic-data", "raw-vesselfinder-data", 
+                "raw-chinaports-data", "raw-marinetrafficv2-data"
+            ),
+            "totalSources", 6
+        );
+    }
 }

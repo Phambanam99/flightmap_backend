@@ -29,6 +29,7 @@ public class AircraftTrackingRequest {
     private Boolean onGround;
     private LocalDateTime timestamp;
     private Double dataQuality;
+    private String source;
 
     // Additional fields for enhanced tracking
     private String airline;
