@@ -92,21 +92,28 @@ public class MultiSourceExternalApiService {
     private List<AircraftTrackingRequest> safeGetAndStore(String source,
             CompletableFuture<List<AircraftTrackingRequest>> future) {
         try {
+            log.info("🔄 Processing aircraft data from source: {}", source);
             long startTime = System.currentTimeMillis();
             List<AircraftTrackingRequest> data = future.join();
             long duration = System.currentTimeMillis() - startTime;
 
+            log.info("📊 Source {} returned {} aircraft records in {}ms", source,
+                    data != null ? data.size() : 0, duration);
+
             if (data != null && !data.isEmpty()) {
-                log.info("Collected {} aircraft from {}", data.size(), source);
+                log.info("✅ Collected {} aircraft from {}", data.size(), source);
 
                 String apiEndpoint = getAircraftApiEndpoint(source);
                 rawDataStorageService.storeRawAircraftData(source, data, apiEndpoint, duration);
 
                 return data;
+            } else {
+                log.warn("⚠️ Source {} returned empty or null data", source);
             }
         } catch (Exception e) {
             Throwable root = (e.getCause() != null) ? e.getCause() : e;
-            log.error("Failed to get data from {}: {}", source, root.getMessage(), root);
+            log.error("❌ Failed to get data from {}: {} - {}", source, root.getClass().getSimpleName(),
+                    root.getMessage(), root);
         }
 
         return Collections.emptyList();

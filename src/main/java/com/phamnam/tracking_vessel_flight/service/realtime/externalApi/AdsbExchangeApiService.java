@@ -54,6 +54,7 @@ public class AdsbExchangeApiService {
     @Value("${external.api.bounds.max-latitude:23.5}")
     private double maxLatitude;
 
+    
     @Value("${external.api.bounds.min-longitude:102.0}")
     private double minLongitude;
 
@@ -120,17 +121,10 @@ public class AdsbExchangeApiService {
      * Build ADS-B Exchange API URL with geographic bounds
      */
     private String buildAdsbExchangeUrl() {
-        // Mock API format for simulator - encode JSON properly
-        try {
-            String boundsJson = String.format("{\"minLat\":%.6f,\"maxLat\":%.6f,\"minLon\":%.6f,\"maxLon\":%.6f}",
-                    minLatitude, maxLatitude, minLongitude, maxLongitude);
-            return String.format("%s?bounds=%s", adsbExchangeBaseUrl,
-                    java.net.URLEncoder.encode(boundsJson, StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            // Fallback to simple URL if encoding fails
-            log.warn("Failed to encode bounds JSON for ADS-B Exchange URL: {}", e.getMessage());
-            return adsbExchangeBaseUrl;
-        }
+        // For mock API, just return base URL without bounds
+        // Real ADS-B Exchange API would use bounds parameters
+        log.info("🌐 Building ADS-B Exchange URL (mock mode): {}", adsbExchangeBaseUrl);
+        return adsbExchangeBaseUrl;
     }
 
     /**
@@ -151,14 +145,18 @@ public class AdsbExchangeApiService {
                 root = dataWrapper; // Use data wrapper as new root
             }
 
-            JsonNode aircraft = root.get("aircraft"); // ADS-B Exchange typically uses "aircraft" array
+            // Try "ac" field first (mock API format), then "aircraft" (real API format)
+            JsonNode aircraft = root.get("ac");
+            log.info("🔍 Looking for 'ac' field in root: {}", aircraft != null ? "found" : "not found");
 
             if (aircraft == null || !aircraft.isArray()) {
-                // Try alternative structure
-                aircraft = root.get("ac");
+                aircraft = root.get("aircraft");
+                log.info("🔍 Looking for 'aircraft' field in root: {}", aircraft != null ? "found" : "not found");
                 if (aircraft == null || !aircraft.isArray()) {
-                    log.warn("❌ No aircraft array found in ADS-B Exchange response. Root has fields: {}",
-                            root.fieldNames().hasNext() ? "yes" : "none");
+                    // Debug: print all field names
+                    java.util.List<String> fieldNames = new java.util.ArrayList<>();
+                    root.fieldNames().forEachRemaining(fieldNames::add);
+                    log.warn("❌ No aircraft array found in ADS-B Exchange response. Available fields: {}", fieldNames);
                     return List.of();
                 }
             }

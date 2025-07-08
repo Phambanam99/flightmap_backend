@@ -294,7 +294,11 @@ public class FlightTrackingService implements IFlightTrackingService {
                     .source(trackingData.getSource())
                     .itemType(trackingData.getItemType())
                     .build();
-            aircraft = aircraftRepository.save(aircraft);
+            //check aircraft with hexident form db before save
+           if(aircraftRepository.findByHexident(trackingData.getHexident()).orElse(null) == null) {
+               aircraft  =  aircraftRepository.save(aircraft);
+           }
+
         }
 
         aircraftId = aircraft.getId();
