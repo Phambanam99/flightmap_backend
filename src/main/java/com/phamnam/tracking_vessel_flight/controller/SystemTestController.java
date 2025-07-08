@@ -462,7 +462,7 @@ public class SystemTestController {
             Aircraft foundAircraft = aircraftRepository.findById(savedAircraft.getId()).orElse(null);
 
             // Update
-            foundAircraft.setCallsign("TEST_CRUD");
+            foundAircraft.setRegister("TEST_CRUD");
             Aircraft updatedAircraft = aircraftRepository.save(foundAircraft);
 
             // Delete
@@ -474,7 +474,7 @@ public class SystemTestController {
                     "operations", Map.of(
                             "create", savedAircraft.getId() != null,
                             "read", foundAircraft != null,
-                            "update", "TEST_CRUD".equals(updatedAircraft.getCallsign()),
+                            "update", "TEST_CRUD".equals(updatedAircraft.getRegister()),
                             "delete", !exists));
         } catch (Exception e) {
             return Map.of("success", false, "error", e.getMessage());
@@ -598,15 +598,8 @@ public class SystemTestController {
     private Aircraft convertToAircraft(AircraftTrackingRequest request) {
         return Aircraft.builder()
                 .hexident(request.getHexident())
-                .callsign(request.getCallsign())
-                .latitude(request.getLatitude())
-                .longitude(request.getLongitude())
-                .altitude(request.getAltitude())
-                .groundSpeed(request.getGroundSpeed())
-                .track(request.getTrack())
-                .aircraftType(request.getAircraftType())
-                .registration(request.getRegistration())
-                .timestamp(LocalDateTime.now())
+                .register(request.getRegistration())
+                .type(request.getAircraftType())
                 .build();
     }
 
@@ -614,17 +607,11 @@ public class SystemTestController {
         return Ship.builder()
                 .mmsi(request.getMmsi())
                 .imo(request.getImo())
-                .vesselName(request.getVesselName())
+                .name(request.getVesselName())
                 .callsign(request.getCallsign())
-                .latitude(request.getLatitude())
-                .longitude(request.getLongitude())
-                .speed(request.getSpeed())
-                .course(request.getCourse())
-                .heading(request.getHeading())
-                .vesselType(request.getVesselType())
                 .flag(request.getFlag())
-                .destination(request.getDestination())
-                .timestamp(LocalDateTime.now())
+                .destinationPort(request.getDestination())
+                .shipType(request.getVesselType())
                 .build();
     }
 }
