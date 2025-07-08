@@ -8,6 +8,7 @@ import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.models.FlightTracking;
 import com.phamnam.tracking_vessel_flight.service.kafka.DeadLetterQueueService;
 import com.phamnam.tracking_vessel_flight.service.kafka.KafkaMonitoringService;
+import com.phamnam.tracking_vessel_flight.service.kafka.DatabaseConstraintErrorHandler;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -162,6 +163,9 @@ public class KafkaConfig {
     @Autowired
     @Lazy
     private KafkaMonitoringService kafkaMonitoringService;
+    
+    @Autowired
+    private DatabaseConstraintErrorHandler databaseConstraintErrorHandler;
 
     // Add common error handler
     @Bean
@@ -191,14 +195,25 @@ public class KafkaConfig {
                 log.warn("Failed to record error in monitoring service: {}", monitoringException.getMessage());
             }
             
-            // Send to dead letter queue with proper error handling
-            try {
-                deadLetterQueueService.sendToDeadLetterQueue(consumerRecord, exception, errorType);
-                log.info("Message sent to dead letter queue successfully for topic: {}, partition: {}, offset: {}", 
-                        consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset());
-            } catch (Exception dlqException) {
-                log.error("CRITICAL: Failed to send message to dead letter queue! Original error: {}, DLQ error: {}", 
-                         exception.getMessage(), dlqException.getMessage(), dlqException);
+            // Check if this is a database constraint violation
+            boolean isConstraintViolation = databaseConstraintErrorHandler.isConstraintViolation(exception);
+            
+            if (isConstraintViolation) {
+                // Handle constraint violation (entity already exists)
+                databaseConstraintErrorHandler.handleConstraintViolation(exception, 
+                        String.valueOf(consumerRecord.key()), consumerRecord.topic());
+                log.info("🔄 Constraint violation handled for topic: {}, key: {} - entity already exists", 
+                        consumerRecord.topic(), consumerRecord.key());
+            } else {
+                // Send to dead letter queue only for non-constraint violations
+                try {
+                    deadLetterQueueService.sendToDeadLetterQueue(consumerRecord, exception, errorType);
+                    log.info("Message sent to dead letter queue successfully for topic: {}, partition: {}, offset: {}", 
+                            consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset());
+                } catch (Exception dlqException) {
+                    log.error("CRITICAL: Failed to send message to dead letter queue! Original error: {}, DLQ error: {}", 
+                             exception.getMessage(), dlqException.getMessage(), dlqException);
+                }
             }
 
         }, new FixedBackOff(1000L, 2)); // Retry 2 times with 1 second delay
@@ -211,7 +226,12 @@ public class KafkaConfig {
         String exceptionName = exception.getClass().getSimpleName();
         String message = exception.getMessage() != null ? exception.getMessage().toLowerCase() : "";
         
-        if (exceptionName.contains("Deserialization") || message.contains("deserialization")) {
+        // Check for database constraint violations first
+        if (databaseConstraintErrorHandler.isConstraintViolation(exception)) {
+            return "DATABASE_CONSTRAINT_VIOLATION";
+        } else if (exceptionName.contains("DataIntegrity") || message.contains("constraint")) {
+            return "DATABASE_INTEGRITY_ERROR";
+        } else if (exceptionName.contains("Deserialization") || message.contains("deserialization")) {
             return "DESERIALIZATION_ERROR";
         } else if (exceptionName.contains("Json") || message.contains("json")) {
             return "JSON_PARSE_ERROR";

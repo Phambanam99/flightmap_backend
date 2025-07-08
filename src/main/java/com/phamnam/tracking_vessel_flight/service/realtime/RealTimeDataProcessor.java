@@ -151,21 +151,68 @@ public class RealTimeDataProcessor {
     }
 
     private Aircraft createOrUpdateAircraft(AircraftTrackingRequest request) {
-        Aircraft aircraft = aircraftRepository.findByHexident(request.getHexident())
-                .orElse(Aircraft.builder()
-                        .hexident(request.getHexident())
-                        .build());
+        // Use synchronized block to prevent race conditions for the same hexident
+        synchronized (("aircraft_" + request.getHexident()).intern()) {
+            try {
+                // Try to find existing aircraft first
+                Optional<Aircraft> existingAircraft = aircraftRepository.findByHexident(request.getHexident());
+                
+                Aircraft aircraft;
+                if (existingAircraft.isPresent()) {
+                    aircraft = existingAircraft.get();
+                    log.debug("Found existing aircraft with ID: {} for hexident: {}", aircraft.getId(), request.getHexident());
+                } else {
+                    // Create new aircraft
+                    aircraft = Aircraft.builder()
+                            .hexident(request.getHexident())
+                            .build();
+                    log.debug("Creating new aircraft for hexident: {}", request.getHexident());
+                }
 
-        // Update aircraft information if available
-        if (request.getRegistration() != null) {
-            aircraft.setRegister(request.getRegistration());
+                // Update aircraft information if available
+                if (request.getRegistration() != null) {
+                    aircraft.setRegister(request.getRegistration());
+                }
+
+                if (request.getAircraftType() != null) {
+                    aircraft.setType(request.getAircraftType());
+                }
+                
+                aircraft.setLastSeen(request.getTimestamp());
+
+                if (enablePersistence) {
+                    try {
+                        Aircraft savedAircraft = aircraftRepository.save(aircraft);
+                        
+                        // Verify the aircraft was saved with a valid ID
+                        if (savedAircraft.getId() == null) {
+                            log.error("Aircraft saved but ID is null for hexident: {}", request.getHexident());
+                            // Try to fetch it from database again
+                            return aircraftRepository.findByHexident(request.getHexident())
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "Aircraft not found after save for hexident: " + request.getHexident()));
+                        }
+                        
+                        log.debug("✅ SAVED aircraft with ID: {} for hexident: {}", savedAircraft.getId(), request.getHexident());
+                        return savedAircraft;
+                        
+                    } catch (Exception e) {
+                        log.warn("Failed to save aircraft for hexident: {}, attempting to fetch existing: {}", 
+                                request.getHexident(), e.getMessage());
+                        
+                        // If save failed due to constraint violation, try to fetch the existing aircraft
+                        return aircraftRepository.findByHexident(request.getHexident())
+                                .orElseThrow(() -> new RuntimeException(
+                                        "Cannot create or find aircraft for hexident: " + request.getHexident(), e));
+                    }
+                }
+                return aircraft;
+                
+            } catch (Exception e) {
+                log.error("Critical error creating/updating aircraft for hexident: {}: {}", request.getHexident(), e.getMessage(), e);
+                throw new RuntimeException("Failed to create or update aircraft for hexident: " + request.getHexident(), e);
+            }
         }
-
-        if (request.getAircraftType() != null) {
-            aircraft.setType(request.getAircraftType());
-        }
-
-        return aircraftRepository.save(aircraft);
     }
 
     private FlightTracking createFlightTracking(AircraftTrackingRequest request, Aircraft aircraft) {
