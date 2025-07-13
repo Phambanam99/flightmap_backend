@@ -31,7 +31,7 @@ public class WebSocketSubscriptionService {
                 sessionId, minLat, maxLat, minLon, maxLon);
 
         try {
-            String areaKey = String.format("area_%f_%f_%f_%f", minLat, maxLat, minLon, maxLon);
+            String areaKey = String.format("area_%.6f_%.6f_%.6f_%.6f", minLat, maxLat, minLon, maxLon);
             log.debug("Generated areaKey: {}", areaKey);
 
             // Lưu subscriptions vào Redis
@@ -69,7 +69,7 @@ public class WebSocketSubscriptionService {
      * Hủy đăng ký client khỏi khu vực
      */
     public void unsubscribeFromArea(String sessionId, double minLat, double maxLat, double minLon, double maxLon) {
-        String areaKey = String.format("area_%f_%f_%f_%f", minLat, maxLat, minLon, maxLon);
+        String areaKey = String.format("area_%.6f_%.6f_%.6f_%.6f", minLat, maxLat, minLon, maxLon);
 
         // Xóa subscription khỏi Redis
         redisTemplate.opsForSet().remove("area:" + areaKey + ":clients", sessionId);
@@ -171,7 +171,7 @@ public class WebSocketSubscriptionService {
                 request.getMinLongitude(), request.getMaxLongitude());
 
         try {
-            String areaKey = String.format("ship_area_%f_%f_%f_%f",
+            String areaKey = String.format("ship_area_%.6f_%.6f_%.6f_%.6f",
                     request.getMinLatitude(), request.getMaxLatitude(),
                     request.getMinLongitude(), request.getMaxLongitude());
 
@@ -200,7 +200,7 @@ public class WebSocketSubscriptionService {
      */
     public void unsubscribeFromShipArea(String sessionId,
             com.phamnam.tracking_vessel_flight.dto.request.AreaSubscriptionRequest request) {
-        String areaKey = String.format("ship_area_%f_%f_%f_%f",
+        String areaKey = String.format("ship_area_%.6f_%.6f_%.6f_%.6f",
                 request.getMinLatitude(), request.getMaxLatitude(),
                 request.getMinLongitude(), request.getMaxLongitude());
 
