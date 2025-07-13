@@ -1,13 +1,13 @@
 package com.phamnam.tracking_vessel_flight.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -15,39 +15,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class FlightRequest {
-    @NotBlank(message = "Hexident is required")
-    private String hexident;
+    @NotNull(message = "Aircraft ID is required")
+    private Long aircraftId;
 
-    @NotBlank(message = "Register is required")
-    private String register;
+    private String callsign;
 
-    @NotBlank(message = "Type is required")
-    private String type;
+    private LocalDateTime departureTime;
+    private LocalDateTime arrivalTime;
 
-    @NotBlank(message = "Manufacture is required")
-    private String manufacture;
+    private String status;
 
-    private String constructorNumber;
-
-    @NotBlank(message = "Operator is required")
-    private String operator;
-
-    private String operatorCode;
-
-    @Pattern(regexp = "^[0-9]+$", message = "Engines must be a number")
-    private String engines;
-
-    private String engineType;
-
-    private Boolean isMilitary;
-
-    private String country;
-
-    private String transponderType;
-
-    private Integer year;
-
-    private String source;
-
-    private Integer itemType;
+    private String originAirport;
+    private String destinationAirport;
 }

@@ -30,10 +30,15 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
-	compileOnly 'org.projectlombok:lombok'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    compileOnly 'org.projectlombok:lombok'
 	implementation "org.locationtech.jts:jts-core:1.20.0"
 	implementation 'org.hibernate.orm:hibernate-spatial:6.4.4.Final'
+	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.apache.kafka:kafka-streams'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	runtimeOnly 'org.postgresql:postgresql'
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -47,4 +52,9 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Specify the main class for Spring Boot
+springBoot {
+	mainClass = 'com.phamnam.tracking_vessel_flight.TrackingVesselFlightApplication'
 }

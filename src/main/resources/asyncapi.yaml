@@ -1,0 +1,402 @@
+asyncapi: 3.0.0
+info:
+  title: Flight & Vessel Tracking AsyncAPI
+  version: 2.0.0
+  description: |
+    Real-time API for flight and vessel tracking using WebSocket and Kafka messaging
+    
+    ## WebSocket Endpoints
+    - Real-time aircraft position updates
+    - Geographic area subscriptions
+    - Individual aircraft tracking
+    
+    ## Kafka Topics
+    - Flight tracking data streams
+    - Ship tracking data streams
+    - Batch processing capabilities
+  contact:
+    name: Flight & Vessel Tracking API Support
+    email: phambanam99@gmail.com
+    url: https://github.com/Phambanam99/flightmap_backend
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  websocket:
+    host: localhost:9090
+    protocol: ws
+    description: WebSocket server for real-time updates
+    bindings:
+      ws:
+        bindingVersion: 0.1.0
+  kafka:
+    host: localhost:29092
+    protocol: kafka
+    description: Kafka broker for message streaming
+    bindings:
+      kafka:
+        bindingVersion: 0.4.0
+
+channels:
+  # WebSocket Channels
+  /topic/aircraft-updates:
+    description: Channel for broadcasting aircraft position updates
+    publish:
+      summary: Aircraft position updates
+      description: Real-time aircraft position updates sent to subscribed clients
+      message:
+        $ref: '#/components/messages/AircraftUpdate'
+  
+  /topic/area-updates/{areaId}:
+    description: Channel for geographic area-specific updates
+    parameters:
+      areaId:
+        description: Unique identifier for the geographic area
+        schema:
+          type: string
+    publish:
+      summary: Area-specific updates
+      description: Updates for aircraft within a specific geographic area
+      message:
+        $ref: '#/components/messages/AreaUpdate'
+  
+  /app/subscribe-area:
+    description: Client subscription to geographic areas
+    subscribe:
+      summary: Subscribe to geographic area
+      description: Subscribe to receive updates for aircraft within a specific area
+      message:
+        $ref: '#/components/messages/AreaSubscription'
+  
+  /app/unsubscribe-area:
+    description: Client unsubscription from geographic areas
+    subscribe:
+      summary: Unsubscribe from geographic area
+      description: Unsubscribe from updates for a specific geographic area
+      message:
+        $ref: '#/components/messages/AreaSubscription'
+  
+  /app/subscribe-aircraft:
+    description: Client subscription to specific aircraft
+    subscribe:
+      summary: Subscribe to aircraft
+      description: Subscribe to receive updates for a specific aircraft
+      message:
+        $ref: '#/components/messages/AircraftSubscription'
+  
+  /app/unsubscribe-aircraft:
+    description: Client unsubscription from specific aircraft
+    subscribe:
+      summary: Unsubscribe from aircraft
+      description: Unsubscribe from updates for a specific aircraft
+      message:
+        $ref: '#/components/messages/AircraftSubscription'
+  
+  # Kafka Topics
+  flight-tracking:
+    description: Kafka topic for individual flight tracking records
+    servers:
+      - kafka
+    publish:
+      summary: Flight tracking data
+      description: Individual flight tracking records published to Kafka
+      message:
+        $ref: '#/components/messages/FlightTrackingData'
+  
+  flight-tracking-batch:
+    description: Kafka topic for batch flight tracking processing
+    servers:
+      - kafka
+    publish:
+      summary: Batch flight tracking data
+      description: Batch of flight tracking records for high-throughput processing
+      message:
+        $ref: '#/components/messages/FlightTrackingBatch'
+  
+  ship-tracking-batch:
+    description: Kafka topic for batch ship tracking processing
+    servers:
+      - kafka
+    publish:
+      summary: Batch ship tracking data
+      description: Batch of ship tracking records for high-throughput processing
+      message:
+        $ref: '#/components/messages/ShipTrackingBatch'
+
+operations:
+  subscribeToArea:
+    action: receive
+    channel:
+      $ref: '#/channels/~1app~1subscribe-area'
+    summary: Subscribe to geographic area updates
+    description: Client subscribes to receive aircraft updates within a specific geographic area
+  
+  subscribeToAircraft:
+    action: receive
+    channel:
+      $ref: '#/channels/~1app~1subscribe-aircraft'
+    summary: Subscribe to specific aircraft updates
+    description: Client subscribes to receive updates for a specific aircraft
+  
+  publishFlightData:
+    action: send
+    channel:
+      $ref: '#/channels/flight-tracking'
+    summary: Publish flight tracking data
+    description: Publish individual flight tracking records to Kafka
+
+components:
+  messages:
+    AircraftUpdate:
+      name: AircraftUpdate
+      title: Aircraft Position Update
+      summary: Real-time aircraft position and status update
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AircraftUpdatePayload'
+    
+    AreaUpdate:
+      name: AreaUpdate
+      title: Geographic Area Update
+      summary: Update containing multiple aircraft within a geographic area
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AreaUpdatePayload'
+    
+    AreaSubscription:
+      name: AreaSubscription
+      title: Area Subscription Request
+      summary: Request to subscribe/unsubscribe from a geographic area
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AreaSubscriptionPayload'
+    
+    AircraftSubscription:
+      name: AircraftSubscription
+      title: Aircraft Subscription Request
+      summary: Request to subscribe/unsubscribe from a specific aircraft
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AircraftSubscriptionPayload'
+    
+    FlightTrackingData:
+      name: FlightTrackingData
+      title: Flight Tracking Data
+      summary: Individual flight tracking record
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/FlightTrackingPayload'
+    
+    FlightTrackingBatch:
+      name: FlightTrackingBatch
+      title: Flight Tracking Batch
+      summary: Batch of flight tracking records
+      contentType: application/json
+      payload:
+        type: array
+        items:
+          $ref: '#/components/schemas/FlightTrackingPayload'
+    
+    ShipTrackingBatch:
+      name: ShipTrackingBatch
+      title: Ship Tracking Batch
+      summary: Batch of ship tracking records
+      contentType: application/json
+      payload:
+        type: array
+        items:
+          $ref: '#/components/schemas/ShipTrackingPayload'
+
+  schemas:
+    AircraftUpdatePayload:
+      type: object
+      properties:
+        trackingId:
+          type: integer
+          format: int64
+          description: Unique tracking record ID
+        hexIdent:
+          type: string
+          description: Aircraft hexadecimal identifier
+        callsign:
+          type: string
+          description: Aircraft callsign
+        latitude:
+          type: number
+          format: double
+          description: Aircraft latitude
+        longitude:
+          type: number
+          format: double
+          description: Aircraft longitude
+        altitude:
+          type: number
+          format: float
+          description: Aircraft altitude
+        speed:
+          type: number
+          format: float
+          description: Aircraft speed
+        heading:
+          type: number
+          format: float
+          description: Aircraft heading
+        timestamp:
+          type: string
+          format: date-time
+          description: Update timestamp
+      required:
+        - trackingId
+        - hexIdent
+        - latitude
+        - longitude
+        - timestamp
+    
+    AreaUpdatePayload:
+      type: object
+      properties:
+        areaId:
+          type: string
+          description: Geographic area identifier
+        aircraft:
+          type: array
+          items:
+            $ref: '#/components/schemas/AircraftUpdatePayload'
+        timestamp:
+          type: string
+          format: date-time
+          description: Update timestamp
+      required:
+        - areaId
+        - aircraft
+        - timestamp
+    
+    AreaSubscriptionPayload:
+      type: object
+      properties:
+        minLat:
+          type: number
+          format: double
+          description: Minimum latitude of the area
+        maxLat:
+          type: number
+          format: double
+          description: Maximum latitude of the area
+        minLon:
+          type: number
+          format: double
+          description: Minimum longitude of the area
+        maxLon:
+          type: number
+          format: double
+          description: Maximum longitude of the area
+      required:
+        - minLat
+        - maxLat
+        - minLon
+        - maxLon
+    
+    AircraftSubscriptionPayload:
+      type: object
+      properties:
+        hexIdent:
+          type: string
+          description: Aircraft hexadecimal identifier
+      required:
+        - hexIdent
+    
+    FlightTrackingPayload:
+      type: object
+      properties:
+        trackingId:
+          type: integer
+          format: int64
+        flightId:
+          type: integer
+          format: int64
+        callsign:
+          type: string
+        altitude:
+          type: number
+          format: float
+        altitudeType:
+          type: string
+        targetAlt:
+          type: number
+          format: float
+        speed:
+          type: number
+          format: float
+        speedType:
+          type: string
+        verticalSpeed:
+          type: number
+          format: float
+        squawk:
+          type: integer
+        distance:
+          type: number
+          format: float
+        bearing:
+          type: number
+          format: float
+        unixTime:
+          type: integer
+          format: int64
+        updateTime:
+          type: string
+          format: date-time
+        longitude:
+          type: number
+          format: double
+        latitude:
+          type: number
+          format: double
+        landingUnixTimes:
+          type: integer
+          format: int64
+        landingTimes:
+          type: string
+          format: date-time
+      required:
+        - longitude
+        - latitude
+        - updateTime
+    
+    ShipTrackingPayload:
+      type: object
+      properties:
+        trackingId:
+          type: integer
+          format: int64
+        vesselId:
+          type: integer
+          format: int64
+        heading:
+          type: number
+          format: float
+        speed:
+          type: number
+          format: float
+        course:
+          type: number
+          format: float
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        unixTime:
+          type: integer
+          format: int64
+        longitude:
+          type: number
+          format: double
+        latitude:
+          type: number
+          format: double
+      required:
+        - longitude
+        - latitude
+        - timestamp 
