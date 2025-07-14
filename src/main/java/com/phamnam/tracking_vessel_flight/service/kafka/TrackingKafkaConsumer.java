@@ -18,6 +18,7 @@ import com.phamnam.tracking_vessel_flight.service.realtime.WebSocketService;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
 import com.phamnam.tracking_vessel_flight.service.rest.ShipTrackingService;
 import com.phamnam.tracking_vessel_flight.service.kafka.TrackingKafkaProducer;
+import com.phamnam.tracking_vessel_flight.service.realtime.TrackingCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -44,6 +45,7 @@ public class TrackingKafkaConsumer {
     private final FlightTrackingService flightTrackingService;
     private final ShipTrackingService shipTrackingService;
     private final TrackingKafkaProducer kafkaProducer;
+    private final TrackingCacheService trackingCacheService;
 
     @Value("${raw.data.storage.enabled:true}")
     private boolean rawStorageEnabled;
@@ -286,6 +288,10 @@ public class TrackingKafkaConsumer {
 
                 shipTrackingService.save(shipRequest, null);
                 log.info("✅ Processed vessel data through ShipTrackingService for mmsi: {}", key);
+                
+                // ✅ Cache the vessel data in Redis for real-time queries
+                trackingCacheService.cacheShipTracking(shipRequest);
+                log.debug("📦 Cached vessel data in Redis for mmsi: {}", key);
             } catch (Exception serviceError) {
                 log.warn("Failed to process through ShipTrackingService, using fallback: {}",
                         serviceError.getMessage());

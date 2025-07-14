@@ -34,7 +34,7 @@ class MockApiService {
     }
     
     // Generate ships for Vietnam coastal area
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 300; i++) {
       const ship = this.movementSimulator.createNewVessel();
       const mmsi = this.generateMMSI();
       

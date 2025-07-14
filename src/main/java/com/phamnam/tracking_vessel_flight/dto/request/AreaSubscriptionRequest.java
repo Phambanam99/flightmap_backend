@@ -1,6 +1,8 @@
 
 package com.phamnam.tracking_vessel_flight.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,7 +10,11 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AreaSubscriptionRequest {
+    @JsonProperty("requestId")
+    private String requestId; // Add support for requestId from frontend
+
     private Double minLatitude; // Changed from minLat to match expected method names
     private Double maxLatitude; // Changed from maxLat to match expected method names
     private Double minLongitude; // Changed from minLon to match expected method names

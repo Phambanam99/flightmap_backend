@@ -6,7 +6,7 @@ const config = {
   
   // Backend API Configuration
   api: {
-    baseUrl: process.env.API_BASE_URL || 'http://localhost:8080',
+    baseUrl: process.env.API_BASE_URL || 'http://localhost:9090',
     endpoints: {
       publishFlight: '/api/tracking/publish/flight',
       publishVessel: '/api/tracking/publish/vessel',

@@ -54,24 +54,36 @@ public class RawDataTopicsConsumer {
 
     @KafkaListener(topics = "${app.kafka.topics.raw-flightradar24-data}", groupId = "raw-data-monitoring-group", containerFactory = "kafkaListenerContainerFactory")
     public void monitorFlightRadar24Data(
-            @Payload RawAircraftData rawData,
+            @Payload(required = false) RawAircraftData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null aircraft data from FlightRadar24 monitoring for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processAircraftDataMonitoring("flightradar24", key, rawData, topic, partition, offset, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-adsbexchange-data}", groupId = "raw-data-monitoring-group", containerFactory = "kafkaListenerContainerFactory")
     public void monitorAdsbExchangeData(
-            @Payload RawAircraftData rawData,
+            @Payload(required = false) RawAircraftData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null aircraft data from AdsbExchange monitoring for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processAircraftDataMonitoring("adsbexchange", key, rawData, topic, partition, offset, acknowledgment);
     }
@@ -82,48 +94,72 @@ public class RawDataTopicsConsumer {
 
     @KafkaListener(topics = "${app.kafka.topics.raw-marinetraffic-data}", groupId = "raw-data-monitoring-group", containerFactory = "kafkaListenerContainerFactory")
     public void monitorMarineTrafficData(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from MarineTraffic monitoring for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processVesselDataMonitoring("marinetraffic", key, rawData, topic, partition, offset, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-vesselfinder-data}", groupId = "raw-data-monitoring-group", containerFactory = "kafkaListenerContainerFactory")
     public void monitorVesselFinderData(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from VesselFinder monitoring for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processVesselDataMonitoring("vesselfinder", key, rawData, topic, partition, offset, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-chinaports-data}", groupId = "raw-data-monitoring-group", containerFactory = "kafkaListenerContainerFactory")
     public void monitorChinaportsData(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from ChinaPorts monitoring for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processVesselDataMonitoring("chinaports", key, rawData, topic, partition, offset, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-marinetrafficv2-data}", groupId = "raw-data-monitoring-group", containerFactory = "kafkaListenerContainerFactory")
     public void monitorMarineTrafficV2Data(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from MarineTrafficV2 monitoring for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processVesselDataMonitoring("marinetrafficv2", key, rawData, topic, partition, offset, acknowledgment);
     }
@@ -139,6 +175,13 @@ public class RawDataTopicsConsumer {
             String topic, int partition, long offset,
             Acknowledgment acknowledgment) {
         try {
+            // Additional null check for safety
+            if (rawData == null) {
+                log.warn("⚠️ Null aircraft data received in monitoring for source: {}, key: {}", source, key);
+                acknowledgment.acknowledge();
+                return;
+            }
+
             // Update metrics
             totalAircraftMessages.incrementAndGet();
             sourceMetrics.computeIfAbsent(source, k -> new AtomicLong(0)).incrementAndGet();
@@ -180,6 +223,13 @@ public class RawDataTopicsConsumer {
             String topic, int partition, long offset,
             Acknowledgment acknowledgment) {
         try {
+            // Additional null check for safety
+            if (rawData == null) {
+                log.warn("⚠️ Null vessel data received in monitoring for source: {}, key: {}", source, key);
+                acknowledgment.acknowledge();
+                return;
+            }
+
             // Update metrics
             totalVesselMessages.incrementAndGet();
             sourceMetrics.computeIfAbsent(source, k -> new AtomicLong(0)).incrementAndGet();

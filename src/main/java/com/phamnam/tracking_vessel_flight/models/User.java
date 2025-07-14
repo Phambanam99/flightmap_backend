@@ -29,14 +29,14 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        String role = getRole();
-        if (role == null) {
+        String userRole = this.role;
+        if (userRole == null) {
             // Return empty authorities or a default one if role is null
             return Collections.emptyList();
             // Alternative: return Collections.singleton(new
             // SimpleGrantedAuthority("ROLE_USER"));
         }
-        return Collections.singleton(new SimpleGrantedAuthority(role.toUpperCase()));
+        return Collections.singleton(new SimpleGrantedAuthority(userRole.toUpperCase()));
     }
 
     @Override
@@ -47,6 +47,11 @@ public class User implements UserDetails {
             return email;
         }
         return "";
+    }
+
+    @Override
+    public String getPassword() {
+        return this.password;
     }
 
     @Override

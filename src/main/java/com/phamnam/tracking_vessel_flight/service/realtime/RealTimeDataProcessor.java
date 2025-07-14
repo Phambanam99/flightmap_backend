@@ -32,6 +32,7 @@ public class RealTimeDataProcessor {
     private final ExternalApiService externalApiService;
     private final TrackingKafkaProducer kafkaProducer;
     private final AircraftRepository aircraftRepository;
+    private final FlightRepository flightRepository;
     private final ShipRepository shipRepository;
     private final FlightTrackingRepository flightTrackingRepository;
     private final ShipTrackingRepository shipTrackingRepository;
@@ -130,9 +131,24 @@ public class RealTimeDataProcessor {
             try {
                 // Create or update aircraft
                 Aircraft aircraft = createOrUpdateAircraft(request);
-                // Flight flight = createOrUpdateFlight(request);
+
+                // Create or update flight - UNCOMMENTED AND IMPLEMENTED
+                Flight flight = createOrUpdateFlight(request, aircraft);
+
                 // Create tracking record
-                FlightTracking tracking = createFlightTracking(request, aircraft);
+                FlightTracking tracking = createFlightTracking(request, aircraft, flight);
+
+                // Save tracking record to database
+                if (enablePersistence) {
+                    try {
+                        flightTrackingRepository.save(tracking);
+                        log.debug("✅ SAVED flight tracking for flight ID: {} and hexident: {}",
+                                flight.getId(), request.getHexident());
+                    } catch (Exception e) {
+                        log.warn("Failed to save flight tracking for flight ID: {}: {}",
+                                flight.getId(), e.getMessage());
+                    }
+                }
 
                 // Send to Kafka for real-time processing
                 if (enableKafka) {
@@ -156,11 +172,12 @@ public class RealTimeDataProcessor {
             try {
                 // Try to find existing aircraft first
                 Optional<Aircraft> existingAircraft = aircraftRepository.findByHexident(request.getHexident());
-                
+
                 Aircraft aircraft;
                 if (existingAircraft.isPresent()) {
                     aircraft = existingAircraft.get();
-                    log.debug("Found existing aircraft with ID: {} for hexident: {}", aircraft.getId(), request.getHexident());
+                    log.debug("Found existing aircraft with ID: {} for hexident: {}", aircraft.getId(),
+                            request.getHexident());
                 } else {
                     // Create new aircraft
                     aircraft = Aircraft.builder()
@@ -177,13 +194,13 @@ public class RealTimeDataProcessor {
                 if (request.getAircraftType() != null) {
                     aircraft.setType(request.getAircraftType());
                 }
-                
+
                 aircraft.setLastSeen(request.getTimestamp());
 
                 if (enablePersistence) {
                     try {
                         Aircraft savedAircraft = aircraftRepository.save(aircraft);
-                        
+
                         // Verify the aircraft was saved with a valid ID
                         if (savedAircraft.getId() == null) {
                             log.error("Aircraft saved but ID is null for hexident: {}", request.getHexident());
@@ -192,33 +209,34 @@ public class RealTimeDataProcessor {
                                     .orElseThrow(() -> new RuntimeException(
                                             "Aircraft not found after save for hexident: " + request.getHexident()));
                         }
-                        
-                        log.debug("✅ SAVED aircraft with ID: {} for hexident: {}", savedAircraft.getId(), request.getHexident());
+
+                        log.debug("✅ SAVED aircraft with ID: {} for hexident: {}", savedAircraft.getId(),
+                                request.getHexident());
                         return savedAircraft;
-                        
+
                     } catch (Exception e) {
-                        log.warn("Failed to save aircraft for hexident: {}, attempting to fetch existing: {}", 
+                        log.warn("Failed to save aircraft for hexident: {}, attempting to fetch existing: {}",
                                 request.getHexident(), e.getMessage());
-                        
-                        // If save failed due to constraint violation, try to fetch the existing aircraft
+
+                        // If save failed due to constraint violation, try to fetch the existing
+                        // aircraft
                         return aircraftRepository.findByHexident(request.getHexident())
                                 .orElseThrow(() -> new RuntimeException(
                                         "Cannot create or find aircraft for hexident: " + request.getHexident(), e));
                     }
                 }
                 return aircraft;
-                
+
             } catch (Exception e) {
-                log.error("Critical error creating/updating aircraft for hexident: {}: {}", request.getHexident(), e.getMessage(), e);
-                throw new RuntimeException("Failed to create or update aircraft for hexident: " + request.getHexident(), e);
+                log.error("Critical error creating/updating aircraft for hexident: {}: {}", request.getHexident(),
+                        e.getMessage(), e);
+                throw new RuntimeException("Failed to create or update aircraft for hexident: " + request.getHexident(),
+                        e);
             }
         }
     }
 
-    private FlightTracking createFlightTracking(AircraftTrackingRequest request, Aircraft aircraft) {
-        // Need to find or create a flight for this aircraft
-        Flight flight = getOrCreateFlightForAircraft(aircraft, request);
-
+    private FlightTracking createFlightTracking(AircraftTrackingRequest request, Aircraft aircraft, Flight flight) {
         return FlightTracking.builder()
                 .flight(flight)
                 .hexident(request.getHexident())
@@ -238,24 +256,87 @@ public class RealTimeDataProcessor {
                 .build();
     }
 
-    /**
-     * Get or create a flight for aircraft tracking
-     */
-    private Flight getOrCreateFlightForAircraft(Aircraft aircraft, AircraftTrackingRequest request) {
-        // Try to find an active flight for this aircraft
-        // For simplicity, we'll create a basic flight record
-        // In a real implementation, you might want more sophisticated flight management
+    private Flight createOrUpdateFlight(AircraftTrackingRequest request, Aircraft aircraft) {
+        synchronized (("flight_" + request.getHexident()).intern()) {
+            try {
+                String callsign = request.getCallsign();
 
-        String callsign = request.getCallsign() != null ? request.getCallsign()
-                : aircraft.getOperatorCode() + "-" + System.currentTimeMillis() % 10000;
+                // Try to find existing active flight for this aircraft with same callsign
+                Optional<Flight> existingFlight = Optional.empty();
+                if (callsign != null && !callsign.trim().isEmpty()) {
+                    try {
+                        existingFlight = flightRepository.findFirstByAircraftAndCallsignAndStatusOrderByCreatedAtDesc(
+                                aircraft, callsign, Flight.FlightStatus.IN_AIR);
+                    } catch (Exception e) {
+                        log.warn("Error finding existing flight for callsign: {}, will create new one: {}",
+                                callsign, e.getMessage());
+                        existingFlight = Optional.empty();
+                    }
+                }
 
-        return Flight.builder()
-                .aircraft(aircraft)
-                .callsign(callsign)
-                .departureTime(request.getTimestamp())
-                .originAirport("Unknown")
-                .destinationAirport("Unknown")
-                .build();
+                Flight flight;
+                if (existingFlight.isPresent()) {
+                    flight = existingFlight.get();
+                    log.debug("Found existing flight with ID: {} for callsign: {}", flight.getId(), callsign);
+                } else {
+                    // Create new flight
+                    String flightCallsign = callsign != null && !callsign.trim().isEmpty()
+                            ? callsign
+                            : "FLIGHT-" + aircraft.getHexident();
+
+                    flight = Flight.builder()
+                            .aircraft(aircraft)
+                            .callsign(flightCallsign)
+                            .registration(aircraft.getRegister())
+                            .aircraftType(aircraft.getType())
+                            .departureTime(request.getTimestamp())
+                            .status(Flight.FlightStatus.IN_AIR)
+                            .originAirport("Unknown")
+                            .destinationAirport("Unknown")
+                            .build();
+
+                    log.debug("Creating new flight for callsign: {} and aircraft: {}", flightCallsign,
+                            aircraft.getHexident());
+                }
+
+                // Update flight status and timestamp
+                flight.setUpdatedAt(LocalDateTime.now());
+
+                if (enablePersistence) {
+                    try {
+                        Flight savedFlight = flightRepository.save(flight);
+
+                        if (savedFlight.getId() == null) {
+                            log.error("Flight saved but ID is null for callsign: {}", callsign);
+                            return flightRepository.findFirstByAircraftAndCallsignAndStatusOrderByCreatedAtDesc(
+                                    aircraft, callsign, Flight.FlightStatus.IN_AIR)
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "Flight not found after save for callsign: " + callsign));
+                        }
+
+                        log.debug("✅ SAVED flight with ID: {} for callsign: {}", savedFlight.getId(), callsign);
+                        return savedFlight;
+
+                    } catch (Exception e) {
+                        log.warn("Failed to save flight for callsign: {}, attempting to fetch existing: {}",
+                                callsign, e.getMessage());
+
+                        // If save failed, try to fetch existing flight
+                        return flightRepository.findFirstByAircraftAndCallsignAndStatusOrderByCreatedAtDesc(
+                                aircraft, callsign, Flight.FlightStatus.IN_AIR)
+                                .orElseThrow(() -> new RuntimeException(
+                                        "Cannot create or find flight for callsign: " + callsign, e));
+                    }
+                }
+                return flight;
+
+            } catch (Exception e) {
+                log.error("Critical error creating/updating flight for callsign: {}: {}",
+                        request.getCallsign(), e.getMessage(), e);
+                throw new RuntimeException("Failed to create or update flight for callsign: " + request.getCallsign(),
+                        e);
+            }
+        }
     }
 
     // ============================================================================
@@ -371,11 +452,26 @@ public class RealTimeDataProcessor {
     }
 
     private Ship createOrUpdateShip(VesselTrackingRequest request) {
-        // Use synchronized block to prevent race conditions for the same MMSI
-        synchronized (("ship_" + request.getMmsi()).intern()) {
+        // Use synchronized block to prevent race conditions for the same MMSI or IMO
+        String lockKey = request.getImo() != null ? ("ship_imo_" + request.getImo()).intern()
+                : ("ship_mmsi_" + request.getMmsi()).intern();
+
+        synchronized (lockKey) {
             try {
-                // Try to find existing ship first
+                // Try to find existing ship first by MMSI
                 Optional<Ship> existingShip = shipRepository.findByMmsi(request.getMmsi());
+
+                // If not found by MMSI and IMO is provided, check by IMO
+                if (!existingShip.isPresent() && request.getImo() != null) {
+                    existingShip = shipRepository.findByImo(request.getImo());
+                    if (existingShip.isPresent()) {
+                        log.debug("Found existing ship by IMO: {} for MMSI: {}, updating MMSI",
+                                request.getImo(), request.getMmsi());
+                        // Update the MMSI of the existing ship
+                        Ship ship = existingShip.get();
+                        ship.setMmsi(request.getMmsi());
+                    }
+                }
 
                 Ship ship;
                 if (existingShip.isPresent()) {
@@ -397,7 +493,18 @@ public class RealTimeDataProcessor {
                     ship.setShipType(request.getVesselType());
                 }
                 if (request.getImo() != null) {
-                    ship.setImo(request.getImo());
+                    // Check if IMO is already set and different, or if another ship has this IMO
+                    if (ship.getImo() == null || !ship.getImo().equals(request.getImo())) {
+                        // Only set IMO if no other ship has it (except current ship)
+                        Optional<Ship> shipWithSameImo = shipRepository.findByImo(request.getImo());
+                        if (!shipWithSameImo.isPresent() || shipWithSameImo.get().getId().equals(ship.getId())) {
+                            ship.setImo(request.getImo());
+                        } else {
+                            log.warn(
+                                    "IMO {} already exists for different ship (ID: {}), not updating IMO for ship ID: {}",
+                                    request.getImo(), shipWithSameImo.get().getId(), ship.getId());
+                        }
+                    }
                 }
                 if (request.getCallsign() != null) {
                     ship.setCallsign(request.getCallsign());
@@ -420,11 +527,47 @@ public class RealTimeDataProcessor {
                         log.debug("✅ SAVED ship with ID: {} for MMSI: {}", savedShip.getId(), request.getMmsi());
                         return savedShip;
 
+                    } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                        log.warn("Constraint violation when saving ship for MMSI: {}, attempting to find existing: {}",
+                                request.getMmsi(), e.getMessage());
+
+                        // Handle specific constraint violations
+                        if (e.getMessage().contains("uk_5qjjlnahsbq9ghqty2hunc06") || e.getMessage().contains("imo")) {
+                            // IMO constraint violation - try to find by IMO
+                            if (request.getImo() != null) {
+                                Optional<Ship> existingByImo = shipRepository.findByImo(request.getImo());
+                                if (existingByImo.isPresent()) {
+                                    Ship shipByImo = existingByImo.get();
+                                    log.info(
+                                            "Found existing ship by IMO: {} with different MMSI: {}, updating to new MMSI: {}",
+                                            request.getImo(), shipByImo.getMmsi(), request.getMmsi());
+                                    shipByImo.setMmsi(request.getMmsi());
+                                    // Update other fields
+                                    if (request.getVesselName() != null) {
+                                        shipByImo.setName(request.getVesselName());
+                                    }
+                                    if (request.getVesselType() != null) {
+                                        shipByImo.setShipType(request.getVesselType());
+                                    }
+                                    if (request.getCallsign() != null) {
+                                        shipByImo.setCallsign(request.getCallsign());
+                                    }
+                                    shipByImo.setLastSeen(request.getTimestamp());
+                                    return shipRepository.save(shipByImo);
+                                }
+                            }
+                        }
+
+                        // If still can't resolve, try to fetch by MMSI
+                        return shipRepository.findByMmsi(request.getMmsi())
+                                .orElseThrow(() -> new RuntimeException(
+                                        "Cannot create or find ship for MMSI: " + request.getMmsi(), e));
+
                     } catch (Exception e) {
                         log.warn("Failed to save ship for MMSI: {}, attempting to fetch existing: {}",
                                 request.getMmsi(), e.getMessage());
 
-                        // If save failed due to constraint violation, try to fetch the existing ship
+                        // If save failed, try to fetch the existing ship
                         return shipRepository.findByMmsi(request.getMmsi())
                                 .orElseThrow(() -> new RuntimeException(
                                         "Cannot create or find ship for MMSI: " + request.getMmsi(), e));

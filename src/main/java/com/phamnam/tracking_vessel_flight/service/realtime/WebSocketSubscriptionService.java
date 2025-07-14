@@ -19,6 +19,7 @@ public class WebSocketSubscriptionService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
     private final AircraftNotificationService aircraftNotificationService; // Thêm dependency này
+    private final ShipNotificationService shipNotificationService; // Add ship notification service
 
     /**
      * Đăng ký client vào khu vực
@@ -47,14 +48,31 @@ public class WebSocketSubscriptionService {
             response.put("areaKey", areaKey);
             response.put("key", areaKey);
 
-            // Gửi message đến client
+            // Gửi message đến client - try both approaches
             log.info("Sending subscription confirmation to {}: {}", sessionId, response);
-            messagingTemplate.convertAndSendToUser(
-                    sessionId, // username (sessionId)
-                    "/queue/subscriptions", // destination
-                    response // payload
-            );
-            log.info("Confirmation sent to client");
+
+            // Approach 1: User destination (preferred)
+            try {
+                messagingTemplate.convertAndSendToUser(
+                        sessionId, // username (sessionId)
+                        "/queue/subscriptions", // destination
+                        response // payload
+                );
+                log.info("User destination message sent successfully to /user/queue/subscriptions");
+            } catch (Exception e) {
+                log.error("Failed to send via user destination: {}", e.getMessage(), e);
+            }
+
+            // Approach 2: Direct topic as fallback
+            try {
+                messagingTemplate.convertAndSend(
+                        "/topic/subscriptions/" + sessionId, // direct topic
+                        response // payload
+                );
+                log.info("Direct topic message sent successfully");
+            } catch (Exception e) {
+                log.error("Failed to send via direct topic: {}", e.getMessage(), e);
+            }
 
             // Gửi dữ liệu ban đầu
             aircraftNotificationService.processNewAreaRequest(minLat, maxLat, minLon, maxLon, areaKey);
@@ -189,6 +207,12 @@ public class WebSocketSubscriptionService {
             messagingTemplate.convertAndSendToUser(sessionId, "/queue/ship/subscriptions", response);
             log.info("Ship area subscription confirmed for session {}", sessionId);
 
+            // Send initial ship data for the area
+            shipNotificationService.processNewShipAreaRequest(
+                    request.getMinLatitude(), request.getMaxLatitude(),
+                    request.getMinLongitude(), request.getMaxLongitude(), areaKey, sessionId);
+            log.info("Initial ship data sent for area {}", areaKey);
+
         } catch (Exception e) {
             log.error("Error in subscribeToShipArea: {}", e.getMessage(), e);
             throw e;
@@ -282,53 +306,90 @@ public class WebSocketSubscriptionService {
         log.debug("Ship update sent to session: {}", sessionId);
     }
 
-    /**
-     * Send ship history data
-     */
-    public void sendShipHistory(String sessionId, String mmsi, Map<String, Object> historyData) {
-        Map<String, Object> message = new HashMap<>();
-        message.put("type", "ship_history");
-        message.put("mmsi", mmsi);
-        message.put("data", historyData);
-        message.put("timestamp", java.time.LocalDateTime.now());
-
-        messagingTemplate.convertAndSendToUser(sessionId, "/queue/ship/history", message);
-        log.debug("Ship history sent to session: {} for MMSI: {}", sessionId, mmsi);
-    }
+    // =============== MISSING SHIP HELPER METHODS ===============
 
     /**
-     * Get ship subscribers for MMSI
+     * Get ship subscribers for a specific MMSI
      */
     public java.util.List<String> getShipSubscribers(String mmsi) {
-        Set<Object> subscribers = redisTemplate.opsForSet().members("ship:" + mmsi + ":clients");
-        return subscribers != null
-                ? subscribers.stream().map(Object::toString).collect(java.util.stream.Collectors.toList())
-                : java.util.Collections.emptyList();
+        try {
+            Set<Object> subscribers = redisTemplate.opsForSet().members("ship:" + mmsi + ":clients");
+            return subscribers != null
+                    ? subscribers.stream().map(Object::toString).collect(java.util.stream.Collectors.toList())
+                    : java.util.Collections.emptyList();
+        } catch (Exception e) {
+            log.error("Error getting ship subscribers for MMSI {}: {}", mmsi, e.getMessage());
+            return java.util.Collections.emptyList();
+        }
     }
 
     /**
-     * Get ship area subscribers
+     * Get ship area subscribers for a specific position
      */
     public java.util.List<String> getShipAreaSubscribers(Double latitude, Double longitude) {
-        // Find area subscriptions that contain this lat/lon
-        Set<Object> activeAreas = redisTemplate.opsForSet().members("active:ship:area:subscriptions");
-        java.util.List<String> allSubscribers = new java.util.ArrayList<>();
+        try {
+            Set<Object> areaKeys = redisTemplate.opsForSet().members("active:ship:area:subscriptions");
+            java.util.List<String> allSubscribers = new java.util.ArrayList<>();
 
-        if (activeAreas != null) {
-            for (Object areaObj : activeAreas) {
-                String areaKey = (String) areaObj;
-                // Parse area bounds and check if position is within
-                if (isPositionInArea(latitude, longitude, areaKey)) {
-                    Set<Object> areaClients = redisTemplate.opsForSet().members("ship:area:" + areaKey + ":clients");
-                    if (areaClients != null) {
-                        allSubscribers.addAll(areaClients.stream().map(Object::toString)
-                                .collect(java.util.stream.Collectors.toList()));
+            if (areaKeys != null) {
+                for (Object areaKey : areaKeys) {
+                    String key = areaKey.toString();
+                    if (isPositionInArea(latitude, longitude, key)) {
+                        Set<Object> areaSubscribers = redisTemplate.opsForSet()
+                                .members("ship:area:" + key + ":clients");
+                        if (areaSubscribers != null) {
+                            allSubscribers.addAll(areaSubscribers.stream()
+                                    .map(Object::toString)
+                                    .collect(java.util.stream.Collectors.toList()));
+                        }
                     }
                 }
             }
-        }
 
-        return allSubscribers;
+            return allSubscribers;
+        } catch (Exception e) {
+            log.error("Error getting ship area subscribers for position ({}, {}): {}",
+                    latitude, longitude, e.getMessage());
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Send ship history to a session
+     */
+    public void sendShipHistory(String sessionId, String mmsi, Map<String, Object> historyData) {
+        try {
+            Map<String, Object> message = new HashMap<>();
+            message.put("type", "ship_history");
+            message.put("mmsi", mmsi);
+            message.put("data", historyData);
+            message.put("timestamp", java.time.LocalDateTime.now());
+
+            messagingTemplate.convertAndSendToUser(sessionId, "/queue/ship/history", message);
+            log.debug("Ship history sent to session: {}", sessionId);
+        } catch (Exception e) {
+            log.error("Error sending ship history to session {}: {}", sessionId, e.getMessage());
+        }
+    }
+
+    /**
+     * Test method to verify user destination handling
+     */
+    public void testUserDestination(String sessionId) {
+        log.info("Sending test message to user destination for session: {}", sessionId);
+
+        Map<String, Object> testMessage = new HashMap<>();
+        testMessage.put("type", "test");
+        testMessage.put("message", "Test user destination message");
+        testMessage.put("timestamp", java.time.LocalDateTime.now());
+
+        try {
+            messagingTemplate.convertAndSendToUser(sessionId, "/queue/test", testMessage);
+            log.info("Test message sent successfully to session: {}", sessionId);
+        } catch (Exception e) {
+            log.error("Error sending test message to session {}: {}", sessionId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     private boolean isPositionInArea(Double latitude, Double longitude, String areaKey) {
@@ -340,7 +401,6 @@ public class WebSocketSubscriptionService {
                 double maxLat = Double.parseDouble(parts[3]);
                 double minLon = Double.parseDouble(parts[4]);
                 double maxLon = Double.parseDouble(parts[5]);
-
                 return latitude >= minLat && latitude <= maxLat &&
                         longitude >= minLon && longitude <= maxLon;
             }

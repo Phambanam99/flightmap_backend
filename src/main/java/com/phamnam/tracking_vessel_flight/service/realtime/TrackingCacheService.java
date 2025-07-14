@@ -118,4 +118,69 @@ public class TrackingCacheService {
             }
         }
     }
+
+    // =============== SHIP TRACKING CACHE METHODS ===============
+
+    private static final String SHIP_TRACKING_PREFIX = "ship:";
+    private static final String ACTIVE_SHIPS_KEY = "ship:active";
+    private static final Duration SHIP_INACTIVITY_THRESHOLD = Duration.ofMinutes(10);
+
+    /**
+     * Caches ship tracking data in Redis using MMSI as key
+     */
+    public void cacheShipTracking(com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest tracking) {
+        String key = SHIP_TRACKING_PREFIX + tracking.getMmsi() + ":current";
+        redisTemplate.opsForValue().set(key, tracking);
+        redisTemplate.opsForSet().add(ACTIVE_SHIPS_KEY, tracking.getMmsi());
+        log.debug("Cached ship tracking for MMSI: {} and added to active ships", tracking.getMmsi());
+    }
+
+    /**
+     * Retrieves ship tracking data from Redis by MMSI
+     */
+    public com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest getShipTracking(String mmsi) {
+        String key = SHIP_TRACKING_PREFIX + mmsi + ":current";
+        com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest tracking = (com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest) redisTemplate
+                .opsForValue().get(key);
+        if (tracking == null) {
+            log.debug("No cached tracking found for ship MMSI: {}", mmsi);
+        }
+        return tracking;
+    }
+
+    /**
+     * Removes ship tracking data from Redis and active ships set
+     */
+    public void removeShipTracking(String mmsi) {
+        String key = SHIP_TRACKING_PREFIX + mmsi + ":current";
+        redisTemplate.delete(key);
+        redisTemplate.opsForSet().remove(ACTIVE_SHIPS_KEY, mmsi);
+        log.debug("Removed cached tracking for ship MMSI: {} and removed from active ships", mmsi);
+    }
+
+    /**
+     * Retrieves all active ships from the cache
+     */
+    public Set<Object> getActiveShips() {
+        log.debug("Retrieving all active ships from cache");
+        Set<Object> members = redisTemplate.opsForSet().members(ACTIVE_SHIPS_KEY);
+        if (members == null || members.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<Object> activeShips = new HashSet<>();
+        for (Object mmsiObj : members) {
+            String mmsi = mmsiObj.toString();
+            Object tracking = redisTemplate.opsForValue().get(SHIP_TRACKING_PREFIX + mmsi + ":current");
+            if (tracking != null) {
+                activeShips.add(tracking);
+            } else {
+                // If tracking data is missing but MMSI is in active set, clean it up
+                redisTemplate.opsForSet().remove(ACTIVE_SHIPS_KEY, mmsi);
+            }
+        }
+
+        log.debug("Found {} active ships in cache", activeShips.size());
+        return activeShips;
+    }
 }

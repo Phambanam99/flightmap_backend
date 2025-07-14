@@ -10,7 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -19,6 +23,7 @@ import org.springframework.stereotype.Controller;
 public class AircraftWebSocketController {
 
         private final WebSocketSubscriptionService subscriptionService;
+        private final SimpMessagingTemplate messagingTemplate;
 
         /**
          * Xử lý khi client đăng ký theo dõi khu vực
@@ -35,6 +40,7 @@ public class AircraftWebSocketController {
                 // Thêm log chi tiết
                 log.debug("STOMP headers: {}", headerAccessor.getMessageHeaders());
                 log.debug("Processing area subscription with sessionId: {}", sessionId);
+                log.debug("User principal: {}", headerAccessor.getUser());
 
                 try {
                         // Gọi service với đầy đủ log - convert Double to float
@@ -47,6 +53,47 @@ public class AircraftWebSocketController {
                         log.info("Area subscription processed successfully for {}", sessionId);
                 } catch (Exception e) {
                         log.error("Error processing area subscription: {}", e.getMessage(), e);
+                }
+        }
+
+        /**
+         * Test endpoint for broadcast functionality
+         */
+        @MessageMapping("/test-broadcast")
+        public void testBroadcast(@Payload Map<String, Object> message, SimpMessageHeaderAccessor headerAccessor) {
+                String sessionId = headerAccessor.getSessionId();
+                log.info("Test broadcast request from session: {}", sessionId);
+
+                try {
+                        // Broadcast to all subscribers of /topic/test
+                        Map<String, Object> response = new HashMap<>();
+                        response.put("type", "test-broadcast");
+                        response.put("message", "Test broadcast successful");
+                        response.put("sessionId", sessionId);
+                        response.put("timestamp", java.time.LocalDateTime.now());
+
+                        messagingTemplate.convertAndSend("/topic/test", response);
+                        log.info("Test broadcast sent successfully");
+                } catch (Exception e) {
+                        log.error("Error sending test broadcast: {}", e.getMessage(), e);
+                }
+        }
+
+        /**
+         * Test endpoint to verify WebSocket user destination handling
+         */
+        @MessageMapping("/test-user-destination")
+        public void testUserDestination(SimpMessageHeaderAccessor headerAccessor) {
+                String sessionId = headerAccessor.getSessionId();
+                log.info("Test user destination for session: {}", sessionId);
+                log.debug("User principal: {}", headerAccessor.getUser());
+
+                try {
+                        // Test sending a message to user destination
+                        subscriptionService.testUserDestination(sessionId);
+                        log.info("Test message sent successfully to session: {}", sessionId);
+                } catch (Exception e) {
+                        log.error("Error sending test message to session {}: {}", sessionId, e.getMessage(), e);
                 }
         }
 
