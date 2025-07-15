@@ -294,13 +294,30 @@ public class ShipTrackingService implements IShipTrackingService {
                 .timestamp(tracking.getTimestamp())
                 .createdAt(tracking.getCreatedAt());
 
+        // Flag to track if ship name was found
+        boolean shipNameFound = false;
+
+        // Get ship information directly by MMSI (more reliable than voyage relationship)
+        if (tracking.getMmsi() != null) {
+            try {
+                Optional<Ship> ship = shipRepository.findByMmsi(tracking.getMmsi());
+                if (ship.isPresent()) {
+                    builder.shipName(ship.get().getName())
+                            .imo(ship.get().getImo());
+                    shipNameFound = true;
+                }
+            } catch (Exception e) {
+                // If ship lookup fails, fall back to voyage relationship
+            }
+        }
+
         // Safely access voyage information
         if (tracking.getVoyage() != null) {
             builder.voyageId(tracking.getVoyage().getId())
                     .voyageNumber(tracking.getVoyage().getVoyageNumber());
 
-            // Safely access ship information through voyage
-            if (tracking.getVoyage().getShip() != null) {
+            // If we didn't get ship name from direct lookup, try voyage relationship
+            if (!shipNameFound && tracking.getVoyage().getShip() != null) {
                 builder.shipName(tracking.getVoyage().getShip().getName())
                         .imo(tracking.getVoyage().getShip().getImo());
             }

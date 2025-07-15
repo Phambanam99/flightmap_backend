@@ -8,6 +8,7 @@ import com.phamnam.tracking_vessel_flight.models.ShipTracking;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -193,8 +194,14 @@ public class WebSocketService {
     // ============================================================================
 
     @KafkaListener(topics = "websocket-updates", groupId = "websocket-group")
-    public void handleWebSocketUpdates(String message) {
+    public void handleWebSocketUpdates(@Payload(required = false) String message) {
         try {
+            if (message == null) {
+                log.warn("⚠️ Received null message from websocket-updates topic");
+                return;
+            }
+
+            @SuppressWarnings("unchecked")
             Map<String, Object> updateData = objectMapper.readValue(message, Map.class);
             String updateType = (String) updateData.get("type");
 

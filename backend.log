@@ -1,7 +1,7 @@
-> Task :compileJava UP-TO-DATE
+> Task :compileJava
 > Task :processResources UP-TO-DATE
-> Task :classes UP-TO-DATE
-> Task :resolveMainClassName UP-TO-DATE
+> Task :classes
+> Task :resolveMainClassName
 
 > Task :bootRun
 
@@ -13,134 +13,23 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.5)
 
-2025-06-16T16:52:37.946+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] c.p.t.TrackingVesselFlightApplication    : Starting TrackingVesselFlightApplication using Java 17.0.15 with PID 757545 (/home/admin_c75/Documents/workspaces/cuba/tracking-vessel-flight/build/classes/java/main started by admin_c75 in /home/admin_c75/Documents/workspaces/cuba/tracking-vessel-flight)
-2025-06-16T16:52:37.947+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] c.p.t.TrackingVesselFlightApplication    : No active profile set, falling back to 1 default profile: "default"
-2025-06-16T16:52:38.287+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2025-06-16T16:52:38.288+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2025-06-16T16:52:38.352+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 61 ms. Found 10 JPA repository interfaces.
-2025-06-16T16:52:38.360+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
-2025-06-16T16:52:38.361+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
-2025-06-16T16:52:38.367+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.AircraftMonitoringRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.368+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.AircraftRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.368+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.BlacklistedTokenRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.FlightRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.FlightTrackingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.ShipMonitoringRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.ShipRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.ShipTrackingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.UserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.phamnam.tracking_vessel_flight.repository.VoyageRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
-2025-06-16T16:52:38.369+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 4 ms. Found 0 Redis repository interfaces.
-2025-06-16T16:52:38.671+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 9090 (http)
-2025-06-16T16:52:38.679+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2025-06-16T16:52:38.679+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
-2025-06-16T16:52:38.703+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2025-06-16T16:52:38.704+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 739 ms
-2025-06-16T16:52:38.815+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
-2025-06-16T16:52:38.833+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
-2025-06-16T16:52:38.837+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.h.spatial.integration.SpatialService   : HHH80000001: hibernate-spatial integration enabled : true
-2025-06-16T16:52:38.847+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
-2025-06-16T16:52:38.891+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2025-06-16T16:52:38.934+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@18c820d2
-2025-06-16T16:52:38.935+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2025-06-16T16:52:38.949+07:00  WARN 757545 --- [tracking-aircraft-aircraft] [           main] org.hibernate.orm.deprecation            : HHH90000026: PostgisPG10Dialect has been deprecated; use org.hibernate.dialect.PostgreSQLDialect instead
-2025-06-16T16:52:38.958+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] org.hibernate.spatial                    : HHH80000003: hibernate-spatial adding type contributions from : org.hibernate.spatial.dialect.postgis.PostgisDialectContributor
-2025-06-16T16:52:39.015+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2025-06-16T16:52:39.023+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] org.hibernate.spatial                    : HHH80000003: hibernate-spatial adding type contributions from : org.hibernate.spatial.dialect.postgis.PostgisDialectContributor
-2025-06-16T16:52:39.173+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] org.hibernate.spatial                    : HHH80000004: hibernate-spatial adding function contributions from : org.hibernate.spatial.dialect.postgis.PostgisDialectContributor
-2025-06-16T16:52:39.463+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2025-06-16T16:52:39.686+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2025-06-16T16:52:39.887+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
-2025-06-16T16:52:40.505+07:00  WARN 757545 --- [tracking-aircraft-aircraft] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2025-06-16T16:52:40.586+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] c.p.t.config.WebSocketConfig             : Registering STOMP endpoints
-2025-06-16T16:52:40.588+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] c.p.t.config.WebSocketConfig             : STOMP endpoints registered successfully
-2025-06-16T16:52:40.609+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@495fa126, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@392da875, org.springframework.security.web.context.SecurityContextHolderFilter@4b8cf10f, org.springframework.security.web.header.HeaderWriterFilter@2c6ee031, org.springframework.web.filter.CorsFilter@68603829, org.springframework.security.web.authentication.logout.LogoutFilter@2fd1f0e4, com.phamnam.tracking_vessel_flight.config.JwtAuthenticationFilter@22ab3e3b, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@15c900be, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@72bec302, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@6e2ab1f4, org.springframework.security.web.session.SessionManagementFilter@53a52b3f, org.springframework.security.web.access.ExceptionTranslationFilter@427a4d68, org.springframework.security.web.access.intercept.AuthorizationFilter@7a11426a]
-2025-06-16T16:52:40.800+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.a.k.clients.admin.AdminClientConfig    : AdminClientConfig values: 
-	auto.include.jmx.reporter = true
-	bootstrap.servers = [localhost:29092]
-	client.dns.lookup = use_all_dns_ips
-	client.id = 
-	connections.max.idle.ms = 300000
-	default.api.timeout.ms = 60000
-	metadata.max.age.ms = 300000
-	metric.reporters = []
-	metrics.num.samples = 2
-	metrics.recording.level = INFO
-	metrics.sample.window.ms = 30000
-	receive.buffer.bytes = 65536
-	reconnect.backoff.max.ms = 1000
-	reconnect.backoff.ms = 50
-	request.timeout.ms = 30000
-	retries = 2147483647
-	retry.backoff.ms = 100
-	sasl.client.callback.handler.class = null
-	sasl.jaas.config = null
-	sasl.kerberos.kinit.cmd = /usr/bin/kinit
-	sasl.kerberos.min.time.before.relogin = 60000
-	sasl.kerberos.service.name = null
-	sasl.kerberos.ticket.renew.jitter = 0.05
-	sasl.kerberos.ticket.renew.window.factor = 0.8
-	sasl.login.callback.handler.class = null
-	sasl.login.class = null
-	sasl.login.connect.timeout.ms = null
-	sasl.login.read.timeout.ms = null
-	sasl.login.refresh.buffer.seconds = 300
-	sasl.login.refresh.min.period.seconds = 60
-	sasl.login.refresh.window.factor = 0.8
-	sasl.login.refresh.window.jitter = 0.05
-	sasl.login.retry.backoff.max.ms = 10000
-	sasl.login.retry.backoff.ms = 100
-	sasl.mechanism = GSSAPI
-	sasl.oauthbearer.clock.skew.seconds = 30
-	sasl.oauthbearer.expected.audience = null
-	sasl.oauthbearer.expected.issuer = null
-	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
-	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
-	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
-	sasl.oauthbearer.jwks.endpoint.url = null
-	sasl.oauthbearer.scope.claim.name = scope
-	sasl.oauthbearer.sub.claim.name = sub
-	sasl.oauthbearer.token.endpoint.url = null
-	security.protocol = PLAINTEXT
-	security.providers = null
-	send.buffer.bytes = 131072
-	socket.connection.setup.timeout.max.ms = 30000
-	socket.connection.setup.timeout.ms = 10000
-	ssl.cipher.suites = null
-	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
-	ssl.endpoint.identification.algorithm = https
-	ssl.engine.factory.class = null
-	ssl.key.password = null
-	ssl.keymanager.algorithm = SunX509
-	ssl.keystore.certificate.chain = null
-	ssl.keystore.key = null
-	ssl.keystore.location = null
-	ssl.keystore.password = null
-	ssl.keystore.type = JKS
-	ssl.protocol = TLSv1.3
-	ssl.provider = null
-	ssl.secure.random.implementation = null
-	ssl.trustmanager.algorithm = PKIX
-	ssl.truststore.certificates = null
-	ssl.truststore.location = null
-	ssl.truststore.password = null
-	ssl.truststore.type = JKS
-
-2025-06-16T16:52:40.843+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
-2025-06-16T16:52:40.843+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
-2025-06-16T16:52:40.843+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1750067560842
-2025-06-16T16:52:41.035+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [| adminclient-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.admin.client for adminclient-1 unregistered
-2025-06-16T16:52:41.037+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [| adminclient-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
-2025-06-16T16:52:41.037+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [| adminclient-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
-2025-06-16T16:52:41.037+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [| adminclient-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
-2025-06-16T16:52:41.044+07:00  WARN 757545 --- [tracking-aircraft-aircraft] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
-2025-06-16T16:52:41.051+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
-2025-06-16T16:52:41.052+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2025-06-16T16:52:41.053+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2025-06-16T16:52:41.063+07:00  INFO 757545 --- [tracking-aircraft-aircraft] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
-
-Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2025-06-16T16:52:41.070+07:00 ERROR 757545 --- [tracking-aircraft-aircraft] [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
+2025-07-14T16:38:53.970+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService 'clientInboundChannelExecutor'
+2025-07-14T16:38:53.983+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService 'clientOutboundChannelExecutor'
+2025-07-14T16:38:53.984+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService 'brokerChannelExecutor'
+2025-07-14T16:38:55.037+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService
+2025-07-14T16:38:55.037+07:00  INFO 491092 --- [tracking-aircraft-aircraft] [           main] c.p.t.config.AsyncConfig                 : ✅ Async Task Executor initialized with core=4, max=12, queue=100
+2025-07-14T16:38:55.038+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService 'taskExecutor'
+2025-07-14T16:38:55.038+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService
+2025-07-14T16:38:55.038+07:00  INFO 491092 --- [tracking-aircraft-aircraft] [           main] c.p.t.config.AsyncConfig                 : ✅ Scheduled Task Executor initialized with core=2, max=6, queue=50
+2025-07-14T16:38:55.039+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Initializing ExecutorService 'scheduledTaskExecutor'
+2025-07-14T16:38:55.338+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.c.ThreadPoolTaskScheduler          : Initializing ExecutorService 'messageBrokerTaskScheduler'
+2025-07-14T16:38:55.903+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.c.ThreadPoolTaskScheduler          : Shutting down ExecutorService 'messageBrokerTaskScheduler'
+2025-07-14T16:38:55.904+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Shutting down ExecutorService 'scheduledTaskExecutor'
+2025-07-14T16:38:55.904+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Shutting down ExecutorService 'taskExecutor'
+2025-07-14T16:38:55.907+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Shutting down ExecutorService 'brokerChannelExecutor'
+2025-07-14T16:38:55.907+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Shutting down ExecutorService 'clientOutboundChannelExecutor'
+2025-07-14T16:38:55.907+07:00 DEBUG 491092 --- [tracking-aircraft-aircraft] [           main] o.s.s.concurrent.ThreadPoolTaskExecutor  : Shutting down ExecutorService 'clientInboundChannelExecutor'
+2025-07-14T16:38:55.931+07:00 ERROR 491092 --- [tracking-aircraft-aircraft] [           main] o.s.b.d.LoggingFailureAnalysisReporter   : 
 
 ***************************
 APPLICATION FAILED TO START
@@ -154,28 +43,3 @@ Action:
 
 Identify and stop the process that's listening on port 9090 or configure this application to listen on another port.
 
-
-> Task :bootRun FAILED
-
-[Incubating] Problems report is available at: file:///home/admin_c75/Documents/workspaces/cuba/tracking-vessel-flight/build/reports/problems/problems-report.html
-
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Execution failed for task ':bootRun'.
-> Process 'command '/usr/lib/jvm/java-17-openjdk-amd64/bin/java'' finished with non-zero exit value 1
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
-
-You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
-
-For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
-
-BUILD FAILED in 4s
-4 actionable tasks: 1 executed, 3 up-to-date

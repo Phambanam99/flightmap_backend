@@ -7,6 +7,7 @@ package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
@@ -22,10 +23,14 @@ public class ShipNotificationService {
     private static final Logger logger = LoggerFactory.getLogger(ShipNotificationService.class);
 
     @Autowired
+    @Lazy
     private WebSocketSubscriptionService subscriptionService;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private RealTimeDataQueryService realTimeDataQueryService;
 
     /**
      * Broadcast ship update to all subscribers
@@ -177,6 +182,49 @@ public class ShipNotificationService {
 
         } catch (Exception e) {
             logger.error("Error sending ship history to session {}: {}", sessionId, e.getMessage());
+        }
+    }
+
+    /**
+     * Process new ship area request - similar to aircraft area request
+     */
+    public void processNewShipAreaRequest(Double minLat, Double maxLat, Double minLon, Double maxLon,
+            String areaKey, String sessionId) {
+        try {
+            logger.info("Processing new ship area request for session {} in area {}", sessionId, areaKey);
+
+            // Get ships in the requested area from the database/service
+            List<ShipTrackingRequest> shipsInArea = getShipsInArea(minLat, maxLat, minLon, maxLon);
+
+            if (!shipsInArea.isEmpty()) {
+                // Send initial ship data to the client
+                subscriptionService.sendShipAreaUpdate(sessionId, shipsInArea);
+                logger.info("Sent {} ships to session {} for area {}", shipsInArea.size(), sessionId, areaKey);
+            } else {
+                logger.info("No ships found in area {} for session {}", areaKey, sessionId);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error processing ship area request for session {}: {}", sessionId, e.getMessage());
+        }
+    }
+
+    /**
+     * Get ships in the specified area - helper method
+     */
+    private List<ShipTrackingRequest> getShipsInArea(Double minLat, Double maxLat, Double minLon, Double maxLon) {
+        try {
+            logger.debug("Getting ships in area: lat({} to {}), lon({} to {})", minLat, maxLat, minLon, maxLon);
+
+            // Get ships from the real-time data query service
+            List<ShipTrackingRequest> ships = realTimeDataQueryService.getShipsInArea(minLat, maxLat, minLon, maxLon);
+
+            logger.debug("Found {} ships in area", ships.size());
+            return ships;
+
+        } catch (Exception e) {
+            logger.error("Error getting ships in area: {}", e.getMessage());
+            return java.util.Collections.emptyList();
         }
     }
 }

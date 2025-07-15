@@ -1,6 +1,5 @@
 package com.phamnam.tracking_vessel_flight.config;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
@@ -13,6 +12,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -30,16 +30,20 @@ import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.phamnam.tracking_vessel_flight.util.LocalDateTimeArrayDeserializer;
+import java.time.LocalDateTime;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 @Configuration
 @EnableKafka
@@ -159,11 +163,11 @@ public class KafkaConfig {
     @Autowired
     @Lazy
     private DeadLetterQueueService deadLetterQueueService;
-    
+
     @Autowired
     @Lazy
     private KafkaMonitoringService kafkaMonitoringService;
-    
+
     @Autowired
     private DatabaseConstraintErrorHandler databaseConstraintErrorHandler;
 
@@ -173,46 +177,83 @@ public class KafkaConfig {
         return new DefaultErrorHandler((consumerRecord, exception) -> {
             // Log the error and the problematic record with more details
             Object value = consumerRecord.value();
+
+            // Special handling for ListenerExecutionFailedException with null values -
+            // Check FIRST
+            if ("ListenerExecutionFailedException".equals(exception.getClass().getSimpleName()) && value == null) {
+                log.info(
+                        "🔄 Tombstone record detected for topic: {}, key: {}. Skipping error logging and DLQ processing.",
+                        consumerRecord.topic(), consumerRecord.key());
+                return; // Skip all further processing for ListenerExecutionFailedException with null
+                        // values
+            }
+
             String valueStr = value != null ? value.toString() : "null";
-            
+
             // Enhanced error logging
             log.error("🚨 Kafka Error Handler - Failed to process record:");
             log.error(" Topic: {}", consumerRecord.topic());
             log.error(" Partition: {}", consumerRecord.partition());
             log.error(" Offset: {}", consumerRecord.offset());
             log.error(" Key: {}", consumerRecord.key());
-            log.error(" Value: {}", valueStr.length() > 500 ? valueStr.substring(0, 500) + "... [truncated]" : valueStr);
+            log.error(" Value: {}",
+                    valueStr.length() > 500 ? valueStr.substring(0, 500) + "... [truncated]" : valueStr);
             log.error(" Error: {}", exception.getMessage());
             log.error(" Exception Type: {}", exception.getClass().getSimpleName());
 
+            // Handle null values specifically - this indicates tombstone records or
+            // serialization issues
+            if (value == null) {
+                log.warn(
+                        "⚠️ Null value detected in Kafka message from topic: {}, partition: {}, offset: {}. This may be a tombstone record or misconfigured producer.",
+                        consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset());
+                // Don't send null values to DLQ, just acknowledge and skip
+                return; // Skip further processing for null values
+            }
+
+            // Check for specific null-related exceptions or
+            // ListenerExecutionFailedException
+            if (exception.getMessage() != null &&
+                    (exception.getMessage().toLowerCase().contains("null") ||
+                            exception.getMessage().toLowerCase().contains("deserialization failed") ||
+                            exception.getClass().getSimpleName().contains("ListenerExecutionFailedException"))) {
+                log.warn("⚠️ Likely null/deserialization/listener issue for topic: {}, key: {}, exception: {}",
+                        consumerRecord.topic(), consumerRecord.key(), exception.getMessage());
+                // Skip DLQ for these cases and just acknowledge
+                return;
+            }
+
             // Determine error type for categorization
             String errorType = determineErrorType(exception);
-            
+
             // Record error for monitoring and pattern detection
             try {
                 kafkaMonitoringService.recordKafkaError(consumerRecord.topic(), errorType, exception);
             } catch (Exception monitoringException) {
                 log.warn("Failed to record error in monitoring service: {}", monitoringException.getMessage());
             }
-            
+
             // Check if this is a database constraint violation
             boolean isConstraintViolation = databaseConstraintErrorHandler.isConstraintViolation(exception);
-            
+
             if (isConstraintViolation) {
-                // Handle constraint violation (entity already exists)
-                databaseConstraintErrorHandler.handleConstraintViolation(exception, 
+                // Handle constraint violation (entity already exists) - use DEBUG level to
+                // reduce noise
+                databaseConstraintErrorHandler.handleConstraintViolation(exception,
                         String.valueOf(consumerRecord.key()), consumerRecord.topic());
-                log.info("🔄 Constraint violation handled for topic: {}, key: {} - entity already exists", 
-                        consumerRecord.topic(), consumerRecord.key());
+                log.debug("🔄 Constraint violation handled for topic: {}, key: {} - entity already exists (IMO: {})",
+                        consumerRecord.topic(), consumerRecord.key(), extractImoFromException(exception));
+                return; // Skip DLQ and further processing for constraint violations
             } else {
                 // Send to dead letter queue only for non-constraint violations
                 try {
                     deadLetterQueueService.sendToDeadLetterQueue(consumerRecord, exception, errorType);
-                    log.info("Message sent to dead letter queue successfully for topic: {}, partition: {}, offset: {}", 
+                    log.info("Message sent to dead letter queue successfully for topic: {}, partition: {}, offset: {}",
                             consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset());
                 } catch (Exception dlqException) {
-                    log.error("CRITICAL: Failed to send message to dead letter queue! Original error: {}, DLQ error: {}", 
-                             exception.getMessage(), dlqException.getMessage(), dlqException);
+                    log.error(
+                            "CRITICAL: Failed to send message to dead letter queue! Original error: {}, DLQ error: {}",
+                            exception.getMessage(), dlqException.getMessage(), dlqException);
                 }
             }
 
@@ -225,7 +266,7 @@ public class KafkaConfig {
     private String determineErrorType(Exception exception) {
         String exceptionName = exception.getClass().getSimpleName();
         String message = exception.getMessage() != null ? exception.getMessage().toLowerCase() : "";
-        
+
         // Check for database constraint violations first
         if (databaseConstraintErrorHandler.isConstraintViolation(exception)) {
             return "DATABASE_CONSTRAINT_VIOLATION";
@@ -252,32 +293,45 @@ public class KafkaConfig {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
+        // Configure basic consumer properties
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
-        return new DefaultKafkaConsumerFactory<>(props);
+        // Create JsonDeserializer with our custom ObjectMapper
+        JsonDeserializer<Object> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.addTrustedPackages("*");
+        jsonDeserializer.setUseTypeHeaders(false);
+
+        // Wrap with error handling
+        ErrorHandlingDeserializer<Object> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(jsonDeserializer);
+
+        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), errorHandlingDeserializer);
     }
 
     @Bean
     public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, Object>> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+
+        // Create consumer factory with custom ObjectMapper
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
+
+        // Create custom deserializer with custom ObjectMapper
+        JsonDeserializer<Object> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.setUseTypeHeaders(false);
+        jsonDeserializer.addTrustedPackages("*");
+
+        DefaultKafkaConsumerFactory<String, Object> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                props, new StringDeserializer(), new ErrorHandlingDeserializer<>(jsonDeserializer));
+        factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(4); // Number of consumer threads
         factory.getContainerProperties().setPollTimeout(3000);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
@@ -293,30 +347,19 @@ public class KafkaConfig {
         // Create consumer factory for FlightTrackingRequestDTO
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
-                "com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
+        // Create custom deserializer with custom ObjectMapper
+        JsonDeserializer<FlightTrackingRequestDTO> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.setUseTypeHeaders(false);
+        jsonDeserializer.addTrustedPackages("*");
+
         DefaultKafkaConsumerFactory<String, FlightTrackingRequestDTO> consumerFactory = new DefaultKafkaConsumerFactory<>(
-                props);
+                props, new StringDeserializer(), new ErrorHandlingDeserializer<>(jsonDeserializer));
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
@@ -362,38 +405,31 @@ public class KafkaConfig {
         return factory;
     }
 
-    // Ship tracking DTO container factory
+    // Ship tracking specific container factory
     @Bean
-    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, ShipTrackingRequestDTO>> shipKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, ShipTrackingRequestDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, ShipTrackingRequest>> shipKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ShipTrackingRequest> factory = new ConcurrentKafkaListenerContainerFactory<>();
 
-        // Create consumer factory for ShipTrackingRequestDTO
+        // Create consumer factory for ShipTrackingRequest with custom ObjectMapper
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
-                "com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
-        DefaultKafkaConsumerFactory<String, ShipTrackingRequestDTO> consumerFactory = new DefaultKafkaConsumerFactory<>(
-                props);
+        // Create JsonDeserializer with our custom ObjectMapper for ShipTrackingRequest
+        JsonDeserializer<ShipTrackingRequest> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.addTrustedPackages("*");
+        jsonDeserializer.setUseTypeHeaders(false);
+
+        // Wrap with error handling
+        ErrorHandlingDeserializer<ShipTrackingRequest> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                jsonDeserializer);
+
+        DefaultKafkaConsumerFactory<String, ShipTrackingRequest> consumerFactory = new DefaultKafkaConsumerFactory<>(
+                props, new StringDeserializer(), errorHandlingDeserializer);
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
@@ -411,29 +447,19 @@ public class KafkaConfig {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
-                "com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
+        // Create custom deserializer with custom ObjectMapper
+        JsonDeserializer<AircraftTrackingRequest> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.setUseTypeHeaders(false);
+        jsonDeserializer.addTrustedPackages("*");
+
         DefaultKafkaConsumerFactory<String, AircraftTrackingRequest> consumerFactory = new DefaultKafkaConsumerFactory<>(
-                props);
+                props, new StringDeserializer(), new ErrorHandlingDeserializer<>(jsonDeserializer));
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
@@ -451,29 +477,19 @@ public class KafkaConfig {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
-                "com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
+        // Create custom deserializer with custom ObjectMapper
+        JsonDeserializer<ShipTrackingRequestDTO> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.setUseTypeHeaders(false);
+        jsonDeserializer.addTrustedPackages("*");
+
         DefaultKafkaConsumerFactory<String, ShipTrackingRequestDTO> consumerFactory = new DefaultKafkaConsumerFactory<>(
-                props);
+                props, new StringDeserializer(), new ErrorHandlingDeserializer<>(jsonDeserializer));
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
@@ -491,29 +507,19 @@ public class KafkaConfig {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
-                "com.phamnam.tracking_vessel_flight.models.FlightTracking");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
+        // Create custom deserializer with custom ObjectMapper
+        JsonDeserializer<FlightTracking> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.setUseTypeHeaders(false);
+        jsonDeserializer.addTrustedPackages("*");
+
         DefaultKafkaConsumerFactory<String, FlightTracking> consumerFactory = new DefaultKafkaConsumerFactory<>(
-                props);
+                props, new StringDeserializer(), new ErrorHandlingDeserializer<>(jsonDeserializer));
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(2);
         factory.getContainerProperties().setPollTimeout(3000);
@@ -530,28 +536,19 @@ public class KafkaConfig {
         // Create consumer factory for batch ship tracking
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-
-        // Use ErrorHandlingDeserializer
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
-
-        // Configure delegate deserializers
-        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
-        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
-
-        // JsonDeserializer configuration
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        props.put("spring.json.use.type.headers", false);
-        props.put("spring.json.add.type.headers", false);
-
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Batch size
         props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 1000);
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
 
+        // Create custom deserializer with custom ObjectMapper
+        JsonDeserializer<List<ShipTrackingRequest>> jsonDeserializer = new JsonDeserializer<>(kafkaObjectMapper());
+        jsonDeserializer.setUseTypeHeaders(false);
+        jsonDeserializer.addTrustedPackages("*");
+
         DefaultKafkaConsumerFactory<String, List<ShipTrackingRequest>> consumerFactory = new DefaultKafkaConsumerFactory<>(
-                props);
+                props, new StringDeserializer(), new ErrorHandlingDeserializer<>(jsonDeserializer));
         factory.setConsumerFactory(consumerFactory);
         factory.setConcurrency(1); // Single thread for batch processing
         factory.getContainerProperties().setPollTimeout(5000);
@@ -792,5 +789,41 @@ public class KafkaConfig {
     @Bean("legacyShipTopicName")
     public String legacyShipTopicName() {
         return legacyShipTopic;
+    }
+
+    /**
+     * Global ObjectMapper for Kafka JSON deserialization with LocalDateTime array
+     * support
+     */
+    @Bean
+    public ObjectMapper kafkaObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+
+        // Create custom module for LocalDateTime array deserialization
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(LocalDateTime.class, new LocalDateTimeArrayDeserializer());
+        mapper.registerModule(module);
+
+        return mapper;
+    }
+
+    /**
+     * Extract IMO number from database constraint exception message
+     */
+    private String extractImoFromException(Exception exception) {
+        if (exception.getMessage() != null && exception.getMessage().contains("Key (imo)=(")) {
+            try {
+                String message = exception.getMessage();
+                int start = message.indexOf("Key (imo)=(") + "Key (imo)=(".length();
+                int end = message.indexOf(")", start);
+                if (start > 0 && end > start) {
+                    return message.substring(start, end);
+                }
+            } catch (Exception e) {
+                // Ignore extraction errors
+            }
+        }
+        return "unknown";
     }
 }

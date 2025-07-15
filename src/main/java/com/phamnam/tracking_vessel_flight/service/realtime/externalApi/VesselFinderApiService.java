@@ -1,14 +1,15 @@
 package com.phamnam.tracking_vessel_flight.service.realtime.externalApi;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.external.VesselFinderResponse;
 import com.phamnam.tracking_vessel_flight.models.DataSource;
 import com.phamnam.tracking_vessel_flight.models.DataSourceStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.DataSourceType;
 import com.phamnam.tracking_vessel_flight.models.enums.SourceStatus;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceRepository;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceStatusRepository;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.mapper.ExternalApiMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,7 @@ public class VesselFinderApiService {
     private final ObjectMapper objectMapper;
     private final DataSourceRepository dataSourceRepository;
     private final DataSourceStatusRepository dataSourceStatusRepository;
+    private final ExternalApiMapper externalApiMapper;
 
     // VesselFinder Configuration
     @Value("${external.api.vesselfinder.enabled:false}")
@@ -132,91 +134,27 @@ public class VesselFinderApiService {
     /**
      * Parse VesselFinder API response
      */
+    /**
+     * Parse VesselFinder API response using ObjectMapper for direct DTO mapping
+     */
     private List<VesselTrackingRequest> parseVesselFinderResponse(String responseBody) {
         try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode vessels = root.get("vessels"); // VesselFinder response structure
+            // Use ObjectMapper to directly map JSON to DTO
+            VesselFinderResponse response = objectMapper.readValue(responseBody, VesselFinderResponse.class);
 
-            if (vessels == null || !vessels.isArray()) {
-                // Try alternative structures
-                vessels = root.get("data");
-                if (vessels == null || !vessels.isArray()) {
-                    vessels = root.get("results");
-                    if (vessels == null || !vessels.isArray()) {
-                        return List.of();
-                    }
-                }
+            if (response.getVessels() == null || response.getVessels().isEmpty()) {
+                return List.of();
             }
 
-            java.util.List<VesselTrackingRequest> vesselList = new java.util.ArrayList<>();
+            // Convert each vessel using the mapper
+            return response.getVessels().stream()
+                    .map(externalApiMapper::fromVesselFinder)
+                    .filter(vessel -> vessel != null) // Filter out null results
+                    .toList();
 
-            vessels.elements().forEachRemaining(vessel -> {
-                VesselTrackingRequest vesselRequest = parseVesselFromVesselFinder(vessel);
-                if (vesselRequest != null) {
-                    vesselList.add(vesselRequest);
-                }
-            });
-
-            return vesselList;
         } catch (Exception e) {
-            log.error("Failed to parse VesselFinder response", e);
+            log.error("Failed to parse VesselFinder response using ObjectMapper", e);
             return List.of();
-        }
-    }
-
-    /**
-     * Parse individual vessel data from VesselFinder format
-     */
-    private VesselTrackingRequest parseVesselFromVesselFinder(JsonNode data) {
-        try {
-            return VesselTrackingRequest.builder()
-                    .mmsi(data.get("mmsi") != null ? data.get("mmsi").asText()
-                            : data.get("MMSI") != null ? data.get("MMSI").asText() : null)
-                    .latitude(data.get("latitude") != null ? data.get("latitude").asDouble()
-                            : data.get("lat") != null ? data.get("lat").asDouble() : null)
-                    .longitude(data.get("longitude") != null ? data.get("longitude").asDouble()
-                            : data.get("lon") != null ? data.get("lon").asDouble() : null)
-                    .speed(data.get("speed") != null ? data.get("speed").asDouble()
-                            : data.get("sog") != null ? data.get("sog").asDouble() : null)
-                    .course(data.get("course") != null ? data.get("course").asInt()
-                            : data.get("cog") != null ? data.get("cog").asInt() : null)
-                    .heading(data.get("heading") != null ? data.get("heading").asInt()
-                            : data.get("hdg") != null ? data.get("hdg").asInt() : null)
-                    .navigationStatus(data.get("navStatus") != null ? data.get("navStatus").asText()
-                            : data.get("status") != null ? data.get("status").asText() : null)
-                    .vesselName(data.get("vesselName") != null ? data.get("vesselName").asText()
-                            : data.get("name") != null ? data.get("name").asText() : null)
-                    .vesselType(data.get("vesselType") != null ? data.get("vesselType").asText()
-                            : data.get("type") != null ? data.get("type").asText() : null)
-                    .imo(data.get("imo") != null ? data.get("imo").asText()
-                            : data.get("IMO") != null ? data.get("IMO").asText() : null)
-                    .callsign(data.get("callsign") != null ? data.get("callsign").asText()
-                            : data.get("call") != null ? data.get("call").asText() : null)
-                    .flag(data.get("flag") != null ? data.get("flag").asText()
-                            : data.get("country") != null ? data.get("country").asText() : null)
-                    .length(data.get("length") != null ? data.get("length").asInt()
-                            : data.get("loa") != null ? data.get("loa").asInt() : null)
-                    .width(data.get("width") != null ? data.get("width").asInt()
-                            : data.get("beam") != null ? data.get("beam").asInt() : null)
-                    .draught(data.get("draught") != null ? data.get("draught").asDouble()
-                            : data.get("draft") != null ? data.get("draft").asDouble() : null)
-                    .destination(data.get("destination") != null ? data.get("destination").asText()
-                            : data.get("dest") != null ? data.get("dest").asText() : null)
-                    .eta(data.get("eta") != null ? data.get("eta").asText()
-                            : data.get("ETA") != null ? data.get("ETA").asText() : null)
-                    // VesselFinder specific fields
-                    .cargoType(data.get("cargoType") != null ? data.get("cargoType").asText() : null)
-                    .grossTonnage(data.get("grossTonnage") != null ? data.get("grossTonnage").asInt() : null)
-                    .buildYear(data.get("buildYear") != null ? data.get("buildYear").asText() : null)
-                    .lastPort(data.get("lastPort") != null ? data.get("lastPort").asText() : null)
-                    .nextPort(data.get("nextPort") != null ? data.get("nextPort").asText() : null)
-                    .route(data.get("route") != null ? data.get("route").asText() : null)
-                    .timestamp(LocalDateTime.now())
-                    .dataQuality(0.87) // VesselFinder generally has good quality data
-                    .build();
-        } catch (Exception e) {
-            log.warn("Failed to parse vessel data from VesselFinder: {}", e.getMessage());
-            return null;
         }
     }
 

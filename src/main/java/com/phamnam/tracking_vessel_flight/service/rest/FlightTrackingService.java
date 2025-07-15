@@ -29,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -294,10 +293,10 @@ public class FlightTrackingService implements IFlightTrackingService {
                     .source(trackingData.getSource())
                     .itemType(trackingData.getItemType())
                     .build();
-            //check aircraft with hexident form db before save
-           if(aircraftRepository.findByHexident(trackingData.getHexident()).orElse(null) == null) {
-               aircraft  =  aircraftRepository.save(aircraft);
-           }
+            // check aircraft with hexident form db before save
+            if (aircraftRepository.findByHexident(trackingData.getHexident()).orElse(null) == null) {
+                aircraft = aircraftRepository.save(aircraft);
+            }
 
         }
 
@@ -549,7 +548,7 @@ public class FlightTrackingService implements IFlightTrackingService {
      */
     private FlightTrackingResponse convertToResponse(FlightTracking tracking) {
         FlightTrackingResponse.FlightTrackingResponseBuilder builder = FlightTrackingResponse.builder()
-                .id(tracking.getTrackingId())
+                .id(tracking.getFlight() != null ? tracking.getFlight().getId() : tracking.getTrackingId())
                 .altitude(tracking.getAltitude())
                 .altitudeType(tracking.getAltitudeType())
                 .targetAlt(tracking.getTargetAlt())
@@ -568,10 +567,14 @@ public class FlightTrackingService implements IFlightTrackingService {
                 .createdAt(tracking.getCreatedAt())
                 .updatedAt(tracking.getUpdatedAt());
 
-        // Handle location/coordinates safely
+        // Handle location/coordinates safely - check both location Point and denormalized fields
         if (tracking.getLocation() != null) {
             builder.latitude(tracking.getLocation().getY())
                     .longitude(tracking.getLocation().getX());
+        } else if (tracking.getLatitude() != null && tracking.getLongitude() != null) {
+            // Fallback to denormalized fields if location Point is null
+            builder.latitude(tracking.getLatitude())
+                    .longitude(tracking.getLongitude());
         }
 
         // Safely access flight information

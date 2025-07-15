@@ -17,8 +17,6 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -65,10 +63,6 @@ public class ConsumerBasedDataFusionService {
     // Time-based triggers for fusion
     private final ScheduledExecutorService fusionScheduler = Executors.newScheduledThreadPool(2);
 
-    // Source tracking for fusion windows
-    private final Map<String, LocalDateTime> lastAircraftFusion = new ConcurrentHashMap<>();
-    private final Map<String, LocalDateTime> lastVesselFusion = new ConcurrentHashMap<>();
-
     /**
      * Initialize scheduled fusion triggers
      */
@@ -94,20 +88,32 @@ public class ConsumerBasedDataFusionService {
 
     @KafkaListener(topics = "${app.kafka.topics.raw-flightradar24-data}", groupId = "aircraft-fusion-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeFlightRadar24Data(
-            @Payload RawAircraftData rawData,
+            @Payload(required = false) RawAircraftData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null aircraft data from FlightRadar24 for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processRawAircraftData("flightradar24", key, rawData, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-adsbexchange-data}", groupId = "aircraft-fusion-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeAdsbExchangeData(
-            @Payload RawAircraftData rawData,
+            @Payload(required = false) RawAircraftData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null aircraft data from AdsbExchange for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processRawAircraftData("adsbexchange", key, rawData, acknowledgment);
     }
@@ -118,40 +124,64 @@ public class ConsumerBasedDataFusionService {
 
     @KafkaListener(topics = "${app.kafka.topics.raw-marinetraffic-data}", groupId = "vessel-fusion-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeMarineTrafficData(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from MarineTraffic for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processRawVesselData("marinetraffic", key, rawData, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-vesselfinder-data}", groupId = "vessel-fusion-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeVesselFinderData(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from VesselFinder for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processRawVesselData("vesselfinder", key, rawData, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-chinaports-data}", groupId = "vessel-fusion-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeChinaportsData(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from ChinaPorts for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processRawVesselData("chinaports", key, rawData, acknowledgment);
     }
 
     @KafkaListener(topics = "${app.kafka.topics.raw-marinetrafficv2-data}", groupId = "vessel-fusion-consumer-group", containerFactory = "kafkaListenerContainerFactory")
     public void consumeMarineTrafficV2Data(
-            @Payload RawVesselData rawData,
+            @Payload(required = false) RawVesselData rawData,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             Acknowledgment acknowledgment) {
+
+        if (rawData == null) {
+            log.warn("⚠️ Received null vessel data from MarineTrafficV2 for key: {}", key);
+            acknowledgment.acknowledge();
+            return;
+        }
 
         processRawVesselData("marinetrafficv2", key, rawData, acknowledgment);
     }
@@ -167,6 +197,13 @@ public class ConsumerBasedDataFusionService {
             Acknowledgment acknowledgment) {
         try {
             log.debug("📡 Received aircraft data from {} for key: {}", source, key);
+
+            // Additional null check for safety
+            if (rawData == null) {
+                log.warn("⚠️ Null aircraft data received from {} for key: {}", source, key);
+                acknowledgment.acknowledge();
+                return;
+            }
 
             // Validate raw data
             if (!isValidAircraftData(rawData)) {
@@ -194,6 +231,7 @@ public class ConsumerBasedDataFusionService {
         } catch (Exception e) {
             log.error("❌ Error processing aircraft data from {} for key {}: {}",
                     source, key, e.getMessage(), e);
+            acknowledgment.acknowledge(); // Acknowledge to prevent infinite retry
         }
     }
 
@@ -204,6 +242,13 @@ public class ConsumerBasedDataFusionService {
             Acknowledgment acknowledgment) {
         try {
             log.debug("🚢 Received vessel data from {} for key: {}", source, key);
+
+            // Additional null check for safety
+            if (rawData == null) {
+                log.warn("⚠️ Null vessel data received from {} for key: {}", source, key);
+                acknowledgment.acknowledge();
+                return;
+            }
 
             // Validate raw data
             if (!isValidVesselData(rawData)) {
@@ -231,6 +276,7 @@ public class ConsumerBasedDataFusionService {
         } catch (Exception e) {
             log.error("❌ Error processing vessel data from {} for key {}: {}",
                     source, key, e.getMessage(), e);
+            acknowledgment.acknowledge(); // Acknowledge to prevent infinite retry
         }
     }
 

@@ -1,26 +1,30 @@
 package com.phamnam.tracking_vessel_flight.service.realtime;
 
 import com.phamnam.tracking_vessel_flight.dto.FlightTrackingRequestDTO;
-import com.phamnam.tracking_vessel_flight.dto.request.FlightTrackingRequest;
-import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.ShipTrackingRequestDTO;
+import com.phamnam.tracking_vessel_flight.dto.request.ShipTrackingRequest;
+import com.phamnam.tracking_vessel_flight.models.Ship;
+import com.phamnam.tracking_vessel_flight.repository.ShipRepository;
+import com.phamnam.tracking_vessel_flight.service.kafka.DatabaseConstraintErrorHandler;
+import com.phamnam.tracking_vessel_flight.service.realtime.AircraftNotificationService;
 import com.phamnam.tracking_vessel_flight.service.rest.FlightTrackingService;
 import com.phamnam.tracking_vessel_flight.service.rest.ShipTrackingService;
-import com.phamnam.tracking_vessel_flight.repository.ShipRepository;
-import com.phamnam.tracking_vessel_flight.models.Ship;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.Map;
-import java.util.HashMap;
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +37,7 @@ public class KafkaConsumerService {
     private final AircraftNotificationService aircraftNotificationService;
     private final ShipTrackingService shipTrackingService;
     private final ShipRepository shipRepository;
+    private final DatabaseConstraintErrorHandler databaseConstraintErrorHandler;
 
     // Theo dõi số cập nhật mới từ lần gửi batch update cuối
     private final AtomicInteger updateCounter = new AtomicInteger(0);
@@ -92,20 +97,57 @@ public class KafkaConsumerService {
         }
     }
 
-    @KafkaListener(topics = "ship-tracking", groupId = "ship-tracking-consumer-group")
-    public void consumeShipTracking(ShipTrackingRequest tracking) {
+    @KafkaListener(topics = "ship-tracking", groupId = "ship-tracking-consumer-group", containerFactory = "shipKafkaListenerContainerFactory")
+    public void consumeShipTracking(
+            @Payload(required = false) ShipTrackingRequest tracking,
+            @Header(KafkaHeaders.RECEIVED_KEY) String key,
+            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+            @Header(KafkaHeaders.OFFSET) long offset,
+            Acknowledgment acknowledgment) {
         try {
-            log.info("Received ship tracking data: {}", tracking);
+            // Check for null values - this should be handled gracefully
+            if (tracking == null) {
+                log.debug(
+                        "📋 Received null ship tracking data for key: {} - this may be a tombstone record or empty message. Acknowledging and skipping.",
+                        key);
+                acknowledgment.acknowledge();
+                return;
+            }
+
+            // Additional validation
+            if (tracking.getVoyageId() == null || tracking.getLatitude() == null || tracking.getLongitude() == null) {
+                log.warn(
+                        "⚠️ Received incomplete ship tracking data: key={}, voyageId={}, lat={}, lon={}. Skipping processing.",
+                        key, tracking.getVoyageId(), tracking.getLatitude(), tracking.getLongitude());
+                acknowledgment.acknowledge();
+                return;
+            }
+
+            log.debug("📡 Received ship tracking data: key={}, voyageId={}, position=[{}, {}]",
+                    key, tracking.getVoyageId(), tracking.getLatitude(), tracking.getLongitude());
+
             // Process single ship tracking request
             processShipTrackingData(tracking);
+
+            // Acknowledge successful processing
+            acknowledgment.acknowledge();
         } catch (Exception e) {
-            log.error("Error processing ship tracking message", e);
+            log.error("❌ Error processing ship tracking message: key={}, error={}", key, e.getMessage(), e);
+            // Let the error handler deal with retries and DLQ
+            throw e;
         }
     }
 
     @KafkaListener(topics = "ship-tracking-dto", groupId = "ship-tracking-dto-consumer-group", containerFactory = "shipKafkaListenerContainerFactory")
-    public void consumeShipTrackingDTO(ShipTrackingRequestDTO tracking) {
+    public void consumeShipTrackingDTO(@Payload(required = false) ShipTrackingRequestDTO tracking) {
         try {
+            // Check for null values
+            if (tracking == null) {
+                log.warn("⚠️ Received null ship tracking DTO data. Skipping processing.");
+                return;
+            }
+
             log.info("Received ship tracking DTO data: {}", tracking);
             // Process ship tracking DTO from external APIs
             processShipTrackingDTOData(tracking);
@@ -136,16 +178,30 @@ public class KafkaConsumerService {
 
     private void processShipTrackingData(ShipTrackingRequest tracking) {
         try {
-            // Cập nhật cache
-            // trackingCacheService.cacheShipTracking(tracking);
+            // Cache ship tracking data in Redis for real-time access
+            trackingCacheService.cacheShipTracking(tracking);
 
             // Approach 1: Try to find ship by MMSI and process tracking data
             // This will automatically create voyage if needed
             Long shipId = findOrCreateShipByMmsi(tracking.getMmsi());
             if (shipId != null) {
-                shipTrackingService.processNewTrackingData(shipId, tracking, null);
-                log.debug("Successfully processed ship tracking for MMSI: {} (Ship ID: {})", tracking.getMmsi(),
-                        shipId);
+                try {
+                    shipTrackingService.processNewTrackingData(shipId, tracking, null);
+                    log.debug("Successfully processed ship tracking for MMSI: {} (Ship ID: {})", tracking.getMmsi(),
+                            shipId);
+                } catch (Exception serviceException) {
+                    // Check if this is a database constraint violation
+                    if (databaseConstraintErrorHandler.isConstraintViolation(serviceException)) {
+                        // Handle constraint violation gracefully
+                        databaseConstraintErrorHandler.handleConstraintViolation(serviceException,
+                                tracking.getMmsi(), "ship-tracking");
+                        log.info("🔄 Duplicate ship tracking for MMSI {} ignored - entity already exists",
+                                tracking.getMmsi());
+                    } else {
+                        // Re-throw non-constraint exceptions for normal error handling
+                        throw serviceException;
+                    }
+                }
             } else {
                 // Approach 2: If ship doesn't exist, create a minimal one and process
                 log.warn("Could not find/create ship for MMSI: {}, creating minimal record", tracking.getMmsi());
@@ -208,9 +264,28 @@ public class KafkaConsumerService {
                     .dataSource("Kafka Consumer")
                     .build();
 
-            Ship savedShip = shipRepository.save(newShip);
-            log.info("Created new ship with MMSI: {} (ID: {})", mmsi, savedShip.getId());
-            return savedShip.getId();
+            try {
+                Ship savedShip = shipRepository.save(newShip);
+                log.info("Created new ship with MMSI: {} (ID: {})", mmsi, savedShip.getId());
+                return savedShip.getId();
+            } catch (Exception saveException) {
+                // Check if this is a constraint violation (ship already exists)
+                if (databaseConstraintErrorHandler.isConstraintViolation(saveException)) {
+                    log.info("🔄 Ship with MMSI {} already exists (race condition), attempting to find it", mmsi);
+                    // Try to find the ship again (race condition case)
+                    ship = shipRepository.findAll().stream()
+                            .filter(s -> mmsi.equals(s.getMmsi()))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (ship != null) {
+                        log.info("Found existing ship after constraint violation for MMSI: {} (ID: {})", mmsi,
+                                ship.getId());
+                        return ship.getId();
+                    }
+                }
+                throw saveException; // Re-throw if not a constraint violation or can't find the ship
+            }
 
         } catch (Exception e) {
             log.error("Error finding/creating ship for MMSI: {}", mmsi, e);

@@ -174,4 +174,34 @@ public class DeadLetterQueueService {
         totalErrorCount.set(0);
         logger.info("Dead letter queue metrics reset");
     }
+
+    /**
+     * Record a skipped message for tracking purposes without sending it to the DLQ
+     * This is useful for tracking null messages that were intentionally skipped
+     * 
+     * @param key      The key of the skipped message
+     * @param topic    The original topic
+     * @param reason   The reason for skipping
+     * @param metadata Additional metadata about the skipped message
+     */
+    public void recordSkippedMessage(String key, String topic, String reason, Map<String, Object> metadata) {
+        try {
+            // Create tracking record without sending to Kafka
+            Map<String, Object> skippedMessageRecord = new HashMap<>();
+            skippedMessageRecord.put("originalTopic", topic);
+            skippedMessageRecord.put("originalKey", key);
+            skippedMessageRecord.put("skipReason", reason);
+            skippedMessageRecord.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            skippedMessageRecord.put("metadata", metadata);
+
+            // Log the skipped message for monitoring
+            logger.info("Message skipped - Topic: {}, Key: {}, Reason: {}", topic, key, reason);
+
+            // Track in metrics
+            totalErrorCount.incrementAndGet();
+
+        } catch (Exception e) {
+            logger.error("Failed to record skipped message: {}", e.getMessage(), e);
+        }
+    }
 }
