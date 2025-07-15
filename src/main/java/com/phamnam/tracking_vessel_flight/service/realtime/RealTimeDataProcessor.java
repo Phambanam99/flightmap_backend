@@ -57,8 +57,8 @@ public class RealTimeDataProcessor {
 
     // DISABLED: Now handled by MultiSourceExternalApiService with 6 sources + data
     // fusion
-    // @Scheduled(fixedRate = 30000) // Every 30 seconds
-    // @Async
+    @Scheduled(fixedRate = 30000) // Every 30 seconds
+    @Async
     public void collectAndProcessRealTimeData() {
         log.debug("Starting real-time data collection...");
 

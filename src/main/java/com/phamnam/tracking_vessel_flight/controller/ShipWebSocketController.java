@@ -76,16 +76,16 @@ public class ShipWebSocketController {
             SimpMessageHeaderAccessor headerAccessor) {
         String sessionId = headerAccessor.getSessionId();
         logger.info("Ship area subscription request from session {}: lat({} to {}), lon({} to {})",
-                sessionId, request.getMinLatitude(), request.getMaxLatitude(),
-                request.getMinLongitude(), request.getMaxLongitude());
+                sessionId, request.getMinLat(), request.getMaxLat(),
+                request.getMinLon(), request.getMaxLon());
 
         try {
             subscriptionService.subscribeToShipArea(sessionId, request);
 
             // Get ships in area and send initial data
             List<ShipTrackingRequest> shipsInArea = getShipsInArea(
-                    request.getMinLatitude(), request.getMaxLatitude(),
-                    request.getMinLongitude(), request.getMaxLongitude());
+                    request.getMinLat(), request.getMaxLat(),
+                    request.getMinLon(), request.getMaxLon());
 
             subscriptionService.sendShipAreaUpdate(sessionId, shipsInArea);
             logger.info("Ship area subscription processed successfully for session {}", sessionId);

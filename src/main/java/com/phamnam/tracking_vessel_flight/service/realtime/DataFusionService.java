@@ -105,6 +105,13 @@ public class DataFusionService {
 
             for (VesselTrackingRequest data : dataList) {
                 String mmsi = data.getMmsi();
+
+                // Skip vessels with null or empty MMSI
+                if (mmsi == null || mmsi.trim().isEmpty()) {
+                    log.warn("⚠️ Skipping vessel with null/empty MMSI from source: {}", source);
+                    continue;
+                }
+
                 groupedData.computeIfAbsent(mmsi, k -> new ArrayList<>())
                         .add(new VesselDataPoint(data, source, LocalDateTime.now()));
             }
@@ -223,6 +230,12 @@ public class DataFusionService {
      * Fusion algorithm for vessel data
      */
     private VesselTrackingRequest fusionVesselData(String mmsi, List<VesselDataPoint> dataPoints) {
+        // Safety check for null MMSI
+        if (mmsi == null || mmsi.trim().isEmpty()) {
+            log.warn("⚠️ Cannot fusion vessel data with null/empty MMSI");
+            return null;
+        }
+
         if (dataPoints.isEmpty()) {
             log.debug("❌ No data points for vessel {}", mmsi);
             return null;

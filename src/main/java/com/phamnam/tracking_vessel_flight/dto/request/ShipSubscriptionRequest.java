@@ -1,13 +1,13 @@
 package com.phamnam.tracking_vessel_flight.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 import jakarta.validation.constraints.NotEmpty;
 
 @Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class ShipSubscriptionRequest {

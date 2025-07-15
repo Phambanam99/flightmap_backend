@@ -20,38 +20,49 @@ public class WebSocketSessionChannelInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (accessor != null) {
-            String sessionId = accessor.getSessionId();
             StompCommand command = accessor.getCommand();
+            String sessionId = accessor.getSessionId();
             
+            // Enhanced logging for debugging
             log.debug("Processing STOMP message - Command: {}, SessionId: {}", command, sessionId);
-
-            // Set user for all commands that have a sessionId
-            if (sessionId != null && accessor.getUser() == null) {
-                Principal principal = new Principal() {
-                    @Override
-                    public String getName() {
-                        return sessionId;
-                    }
-
-                    @Override
-                    public String toString() {
-                        return getName();
-                    }
-                };
+            
+            // Ensure sessionId is available for all operations
+            if (sessionId != null) {
+                // Store sessionId in message headers for easy access
+                accessor.addNativeHeader("X-Session-Id", sessionId);
                 
-                accessor.setUser(principal);
-                log.debug("Set principal for session: {}", sessionId);
+                // Set user for all commands that have a sessionId
+                if (accessor.getUser() == null) {
+                    Principal principal = new Principal() {
+                        @Override
+                        public String getName() {
+                            return sessionId;
+                        }
+
+                        @Override
+                        public String toString() {
+                            return getName();
+                        }
+                    };
+                    
+                    accessor.setUser(principal);
+                    log.debug("Set principal for session: {}", sessionId);
+                }
+            } else {
+                log.warn("No sessionId found in STOMP message for command: {}", command);
             }
 
-            // Additional handling for specific commands
+            // Enhanced command-specific handling
             if (StompCommand.CONNECT.equals(command)) {
-                log.info("Client connecting with session: {}", sessionId);
+                log.info("🔗 Client connecting with session: {}", sessionId);
             } else if (StompCommand.DISCONNECT.equals(command)) {
-                log.info("Client disconnecting with session: {}", sessionId);
+                log.info("🔌 Client disconnecting with session: {}", sessionId);
             } else if (StompCommand.SUBSCRIBE.equals(command)) {
-                log.debug("Client subscribing with session: {}", sessionId);
+                String destination = accessor.getDestination();
+                log.info("📋 Client subscribing - Session: {}, Destination: {}", sessionId, destination);
             } else if (StompCommand.SEND.equals(command)) {
-                log.debug("Client sending message with session: {}", sessionId);
+                String destination = accessor.getDestination();
+                log.info("📤 Client sending message - Session: {}, Destination: {}", sessionId, destination);
             }
         }
 
@@ -63,9 +74,27 @@ public class WebSocketSessionChannelInterceptor implements ChannelInterceptor {
         if (!sent) {
             StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
             if (accessor != null) {
-                log.warn("Failed to send message - Command: {}, SessionId: {}", 
+                log.warn("❌ Failed to send message - Command: {}, SessionId: {}", 
                     accessor.getCommand(), accessor.getSessionId());
             }
         }
+    }
+
+    @Override
+    public Message<?> postReceive(Message<?> message, MessageChannel channel) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        if (accessor != null && StompCommand.CONNECTED.equals(accessor.getCommand())) {
+            String sessionId = accessor.getSessionId();
+            log.info("✅ STOMP CONNECTED confirmed - Session: {}", sessionId);
+            
+            // Add session ID to frame headers for frontend access
+            if (sessionId != null) {
+                // Frontend expects frame.headers?.session || frame.headers?.sessionId
+                accessor.addNativeHeader("session", sessionId);
+                accessor.addNativeHeader("sessionId", sessionId);
+                log.debug("Added session headers to CONNECTED frame: {}", sessionId);
+            }
+        }
+        return message;
     }
 }

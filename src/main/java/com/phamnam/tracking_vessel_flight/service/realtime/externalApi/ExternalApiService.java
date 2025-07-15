@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.external.MarineTrafficResponse;
 import com.phamnam.tracking_vessel_flight.models.DataSource;
 import com.phamnam.tracking_vessel_flight.models.DataSourceStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.DataSourceType;
 import com.phamnam.tracking_vessel_flight.models.enums.SourceStatus;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceRepository;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceStatusRepository;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.mapper.ExternalApiMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,7 @@ public class ExternalApiService {
     private final ObjectMapper objectMapper;
     private final DataSourceRepository dataSourceRepository;
     private final DataSourceStatusRepository dataSourceStatusRepository;
+    private final ExternalApiMapper externalApiMapper;
 
     // FlightRadar24 Configuration
     @Value("${external.api.flightradar24.enabled:true}")
@@ -105,7 +108,7 @@ public class ExternalApiService {
 
             ResponseEntity<String> response = restTemplate.exchange(
                     url, HttpMethod.GET, entity, String.class);
-
+            log.info("FlightRadar24 response status: {}", response.getStatusCode());
             if (response.getStatusCode() == HttpStatus.OK) {
                 // System.out.println(response.getBody());
                 List<AircraftTrackingRequest> aircraftData = parseFlightRadar24Response(response.getBody());
@@ -152,6 +155,9 @@ public class ExternalApiService {
 
     private List<AircraftTrackingRequest> parseFlightRadar24Response(String responseBody) {
         try {
+            log.info("🔍 Parsing FlightRadar24 response using ObjectMapper, length: {}",
+                    responseBody != null ? responseBody.length() : 0);
+
             JsonNode root = objectMapper.readTree(responseBody);
 
             // Handle mock API response format: {"data": {"full_count": 50000, "version": 4,
@@ -162,52 +168,50 @@ public class ExternalApiService {
                 return List.of();
             }
 
-            java.util.List<AircraftTrackingRequest> aircraftList = new java.util.ArrayList<>();
+            List<AircraftTrackingRequest> aircraftList = new java.util.ArrayList<>();
 
+            // FlightRadar24 has a unique format where each aircraft is represented as
+            // key-value pairs where key is hex ID and value is an array of aircraft data
             dataWrapper.fields().forEachRemaining(entry -> {
-                String key = entry.getKey();
-                if (!key.equals("full_count") && !key.equals("version") && !key.equals("stats")) {
-                    AircraftTrackingRequest aircraft = parseAircraftFromFlightRadar24(key, entry.getValue());
-                    if (aircraft != null) {
-                        aircraftList.add(aircraft);
+                String hexIdent = entry.getKey();
+
+                // Skip metadata fields
+                if (!hexIdent.equals("full_count") && !hexIdent.equals("version") && !hexIdent.equals("stats")) {
+                    JsonNode aircraftArray = entry.getValue();
+
+                    if (aircraftArray.isArray()) {
+                        // Convert JsonNode array to Object array for FlightRadar24AircraftData
+                        Object[] dataArray = new Object[aircraftArray.size()];
+                        for (int i = 0; i < aircraftArray.size(); i++) {
+                            JsonNode element = aircraftArray.get(i);
+                            if (element.isNumber()) {
+                                dataArray[i] = element.numberValue();
+                            } else if (element.isTextual()) {
+                                dataArray[i] = element.asText();
+                            } else if (element.isBoolean()) {
+                                dataArray[i] = element.asBoolean();
+                            } else {
+                                dataArray[i] = element.toString();
+                            }
+                        }
+
+                        // Create FlightRadar24AircraftData and convert using mapper
+                        com.phamnam.tracking_vessel_flight.dto.response.external.FlightRadar24AircraftData aircraftData = new com.phamnam.tracking_vessel_flight.dto.response.external.FlightRadar24AircraftData(
+                                dataArray);
+
+                        AircraftTrackingRequest aircraft = externalApiMapper.fromFlightRadar24(hexIdent, aircraftData);
+                        if (aircraft != null) {
+                            aircraftList.add(aircraft);
+                        }
                     }
                 }
             });
 
-            log.debug("Parsed {} aircraft from FlightRadar24 response", aircraftList.size());
+            log.info("✅ Successfully parsed {} aircraft from FlightRadar24 using ObjectMapper", aircraftList.size());
             return aircraftList;
         } catch (Exception e) {
-            log.error("Failed to parse FlightRadar24 response", e);
+            log.error("❌ Failed to parse FlightRadar24 response using ObjectMapper", e);
             return List.of();
-        }
-    }
-
-    private AircraftTrackingRequest parseAircraftFromFlightRadar24(String key, JsonNode data) {
-        try {
-            // FlightRadar24 array format: [hexident, lat, lon, heading, alt, speed, squawk,
-            // ...]
-            String squawk = getArrayElementTextSafely(data, 6);
-
-            return AircraftTrackingRequest.builder()
-                    .hexident(key)
-                    .latitude(getArrayElementDoubleSafely(data, 1))
-                    .longitude(getArrayElementDoubleSafely(data, 2))
-                    .track(getArrayElementIntegerSafely(data, 3))
-                    .altitude(getArrayElementIntegerSafely(data, 4))
-                    .groundSpeed(getArrayElementIntegerSafely(data, 5))
-                    .squawk(squawk)
-                    .aircraftType(getArrayElementTextSafely(data, 8))
-                    .registration(getArrayElementTextSafely(data, 9))
-                    .timestamp(LocalDateTime.now())
-                    .onGround(getArrayElementBooleanSafely(data, 14))
-                    .verticalRate(getArrayElementIntegerSafely(data, 15))
-                    .callsign(getArrayElementTextSafely(data, 16))
-                    .emergency("7500".equals(squawk) || "7600".equals(squawk) || "7700".equals(squawk))
-                    .dataQuality(0.8) // FlightRadar24 usually has good data quality
-                    .build();
-        } catch (Exception e) {
-            log.error("Error parsing aircraft data for {}: {}", key, e.getMessage());
-            return null;
         }
     }
 
@@ -284,63 +288,69 @@ public class ExternalApiService {
         }
     }
 
+    /**
+     * Parse MarineTraffic API response using ObjectMapper for direct DTO mapping
+     * Handles both array format: [{...}] and object format: {"vessels": [{...}]}
+     */
     private List<VesselTrackingRequest> parseMarineTrafficResponse(String responseBody) {
         try {
-            // System.out.println(responseBody);
-            JsonNode root = objectMapper.readTree(responseBody);
+            log.info("🔍 Parsing MarineTraffic response using ObjectMapper, length: {}",
+                    responseBody != null ? responseBody.length() : 0);
 
-            // Handle mock API response format: {"data": {"data": [vessels], "meta": {...}}}
-            JsonNode dataWrapper = root.path("data");
-            JsonNode vessels = dataWrapper.path("data");
+            // Check if response is a direct array or wrapped object
+            if (responseBody.trim().startsWith("[")) {
+                // Direct array format: [{...}, {...}]
+                log.info("📋 Detected MarineTraffic direct array format");
 
-            if (vessels == null || vessels.isMissingNode() || !vessels.isArray()) {
-                log.debug("No vessels data found in response or invalid format");
-                return List.of();
+                // Parse as array of MarineTrafficVesselData
+                com.phamnam.tracking_vessel_flight.dto.response.external.MarineTrafficVesselData[] vesselArray = objectMapper
+                        .readValue(responseBody,
+                                com.phamnam.tracking_vessel_flight.dto.response.external.MarineTrafficVesselData[].class);
+
+                if (vesselArray == null || vesselArray.length == 0) {
+                    log.warn("❌ No vessels found in MarineTraffic array response");
+                    return List.of();
+                }
+
+                log.info("📊 Found {} vessels in array response", vesselArray.length);
+
+                // Convert each vessel using the mapper
+                List<VesselTrackingRequest> result = java.util.Arrays.stream(vesselArray)
+                        .map(externalApiMapper::fromMarineTraffic)
+                        .filter(vessel -> vessel != null) // Filter out null results
+                        .toList();
+
+                log.info("✅ Successfully converted {} vessels using ObjectMapper", result.size());
+                return result;
+
+            } else {
+                // Object wrapper format: {"vessels": [...]} or {"data": [...]}
+                log.info("📦 Detected MarineTraffic object wrapper format");
+
+                MarineTrafficResponse response = objectMapper.readValue(responseBody, MarineTrafficResponse.class);
+
+                List<com.phamnam.tracking_vessel_flight.dto.response.external.MarineTrafficVesselData> vessels = response
+                        .getActualVessels();
+                if (vessels == null || vessels.isEmpty()) {
+                    log.warn("❌ No vessels found in MarineTraffic object response");
+                    return List.of();
+                }
+
+                log.info("📊 Found {} vessels in object response", vessels.size());
+
+                // Convert each vessel using the mapper
+                List<VesselTrackingRequest> result = vessels.stream()
+                        .map(externalApiMapper::fromMarineTraffic)
+                        .filter(vessel -> vessel != null) // Filter out null results
+                        .toList();
+
+                log.info("✅ Successfully converted {} vessels using ObjectMapper", result.size());
+                return result;
             }
 
-            java.util.List<VesselTrackingRequest> vesselList = new java.util.ArrayList<>();
-
-            vessels.elements().forEachRemaining(vessel -> {
-                VesselTrackingRequest vesselRequest = parseVesselFromMarineTraffic(vessel);
-                vesselRequest.setSource(DataSourceType.MARINE_TRAFFIC.getDisplayName());
-                vesselList.add(vesselRequest);
-            });
-
-            log.debug("Parsed {} vessels from MarineTraffic response", vesselList.size());
-            return vesselList;
         } catch (Exception e) {
-            log.error("Failed to parse MarineTraffic response", e);
+            log.error("❌ Failed to parse MarineTraffic response using ObjectMapper", e);
             return List.of();
-        }
-    }
-
-    private VesselTrackingRequest parseVesselFromMarineTraffic(JsonNode data) {
-        // System.out.println(data);
-        try {
-            return VesselTrackingRequest.builder()
-                    .mmsi(getTextSafely(data, "MMSI"))
-                    .latitude(getDoubleSafely(data, "LAT"))
-                    .longitude(getDoubleSafely(data, "LON"))
-                    .speed(getDoubleSafely(data, "SPEED"))
-                    .course(getIntegerSafely(data, "COURSE"))
-                    .heading(getIntegerSafely(data, "HEADING"))
-                    .navigationStatus(getTextSafely(data, "STATUS")) // Use STATUS instead of NAVSTAT
-                    .vesselName(getTextSafely(data, "SHIPNAME"))
-                    .vesselType(getTextSafely(data, "SHIPTYPE"))
-                    .imo(getTextSafely(data, "IMO"))
-                    .callsign(getTextSafely(data, "CALLSIGN"))
-                    .flag(getTextSafely(data, "FLAG"))
-                    .length(getIntegerSafely(data, "LENGTH"))
-                    .width(getIntegerSafely(data, "WIDTH"))
-                    .draught(getDoubleSafely(data, "DRAUGHT"))
-                    .destination(getTextSafely(data, "DESTINATION"))
-                    .eta(getTextSafely(data, "ETA"))
-                    .timestamp(LocalDateTime.now())
-                    .dataQuality(0.90) // MarineTraffic generally has good quality data
-                    .build();
-        } catch (Exception e) {
-            log.warn("Failed to parse vessel data: {}", e.getMessage());
-            return null;
         }
     }
 
@@ -543,56 +553,4 @@ public class ExternalApiService {
         }
     }
 
-    // ============================================================================
-    // NULL-SAFE JSON PARSING UTILITIES
-    // ============================================================================
-
-    // For object-based JSON (vessels)
-    private String getTextSafely(JsonNode node, String fieldName) {
-        JsonNode field = node.get(fieldName);
-        return (field != null && !field.isNull()) ? field.asText() : null;
-    }
-
-    private Double getDoubleSafely(JsonNode node, String fieldName) {
-        JsonNode field = node.get(fieldName);
-        return (field != null && !field.isNull()) ? field.asDouble() : null;
-    }
-
-    private Integer getIntegerSafely(JsonNode node, String fieldName) {
-        JsonNode field = node.get(fieldName);
-        return (field != null && !field.isNull()) ? field.asInt() : null;
-    }
-
-    // For array-based JSON (aircraft)
-    private String getArrayElementTextSafely(JsonNode array, int index) {
-        if (array.isArray() && array.size() > index) {
-            JsonNode element = array.get(index);
-            return (element != null && !element.isNull()) ? element.asText() : null;
-        }
-        return null;
-    }
-
-    private Double getArrayElementDoubleSafely(JsonNode array, int index) {
-        if (array.isArray() && array.size() > index) {
-            JsonNode element = array.get(index);
-            return (element != null && !element.isNull()) ? element.asDouble() : null;
-        }
-        return null;
-    }
-
-    private Integer getArrayElementIntegerSafely(JsonNode array, int index) {
-        if (array.isArray() && array.size() > index) {
-            JsonNode element = array.get(index);
-            return (element != null && !element.isNull()) ? element.asInt() : null;
-        }
-        return null;
-    }
-
-    private Boolean getArrayElementBooleanSafely(JsonNode array, int index) {
-        if (array.isArray() && array.size() > index) {
-            JsonNode element = array.get(index);
-            return element != null && !element.isNull() && element.asBoolean();
-        }
-        return false;
-    }
 }

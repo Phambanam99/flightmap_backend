@@ -1,14 +1,15 @@
 package com.phamnam.tracking_vessel_flight.service.realtime.externalApi;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.external.MarineTrafficV2Response;
 import com.phamnam.tracking_vessel_flight.models.DataSource;
 import com.phamnam.tracking_vessel_flight.models.DataSourceStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.DataSourceType;
 import com.phamnam.tracking_vessel_flight.models.enums.SourceStatus;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceRepository;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceStatusRepository;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.mapper.ExternalApiMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,7 @@ public class MarineTrafficV2ApiService {
     private final ObjectMapper objectMapper;
     private final DataSourceRepository dataSourceRepository;
     private final DataSourceStatusRepository dataSourceStatusRepository;
+    private final ExternalApiMapper externalApiMapper;
 
     // MarineTraffic V2 Configuration
     @Value("${external.api.marinetrafficv2.enabled:false}")
@@ -134,111 +136,27 @@ public class MarineTrafficV2ApiService {
     /**
      * Parse MarineTraffic V2 API response
      */
+    /**
+     * Parse MarineTraffic V2 API response using ObjectMapper for direct DTO mapping
+     */
     private List<VesselTrackingRequest> parseMarineTrafficV2Response(String responseBody) {
         try {
-            JsonNode root = objectMapper.readTree(responseBody);
+            // Use ObjectMapper to directly map JSON to DTO
+            MarineTrafficV2Response response = objectMapper.readValue(responseBody, MarineTrafficV2Response.class);
 
-            // Handle wrapper structure: response.success -> response.data ->
-            // response.data.data.positions
-            JsonNode vessels = null;
-
-            // Try direct structure first: root.data.positions
-            JsonNode dataNode = root.get("data");
-            if (dataNode != null) {
-                if (dataNode.isArray()) {
-                    // Direct array structure
-                    vessels = dataNode;
-                } else {
-                    // Nested structure: data.data.positions or data.positions
-                    JsonNode innerData = dataNode.get("data");
-                    if (innerData != null) {
-                        vessels = innerData.get("positions");
-                    } else {
-                        vessels = dataNode.get("positions");
-                    }
-                }
-            }
-
-            // Fallback: try direct vessels array
-            if (vessels == null || !vessels.isArray()) {
-                vessels = root.get("vessels");
-            }
-
-            // Final fallback: try positions at root level
-            if (vessels == null || !vessels.isArray()) {
-                vessels = root.get("positions");
-            }
-
-            if (vessels == null || !vessels.isArray()) {
-                log.warn("MarineTraffic V2 response does not contain valid vessel array. Root fields available: {}",
-                        root.fieldNames().hasNext() ? "multiple fields found" : "empty response");
+            if (response.getVessels() == null || response.getVessels().isEmpty()) {
                 return List.of();
             }
 
-            java.util.List<VesselTrackingRequest> vesselList = new java.util.ArrayList<>();
+            // Convert each vessel using the mapper
+            return response.getVessels().stream()
+                    .map(externalApiMapper::fromMarineTrafficV2)
+                    .filter(vessel -> vessel != null) // Filter out null results
+                    .toList();
 
-            vessels.elements().forEachRemaining(vessel -> {
-                VesselTrackingRequest vesselRequest = parseVesselFromMarineTrafficV2(vessel);
-                if (vesselRequest != null) {
-                    vesselList.add(vesselRequest);
-                }
-            });
-
-            log.debug("Successfully parsed {} vessels from MarineTraffic V2 response", vesselList.size());
-            return vesselList;
         } catch (Exception e) {
-            log.error("Failed to parse MarineTraffic V2 response", e);
+            log.error("Failed to parse MarineTraffic V2 response using ObjectMapper", e);
             return List.of();
-        }
-    }
-
-    /**
-     * Parse individual vessel data from MarineTraffic V2 format
-     */
-    private VesselTrackingRequest parseVesselFromMarineTrafficV2(JsonNode data) {
-
-        try {
-            return VesselTrackingRequest.builder()
-                    .mmsi(data.get("MMSI") != null ? data.get("MMSI").asText()
-                            : data.get("mmsi") != null ? data.get("mmsi").asText() : null)
-                    .latitude(data.get("LAT") != null ? data.get("LAT").asDouble()
-                            : data.get("latitude") != null ? data.get("latitude").asDouble() : null)
-                    .longitude(data.get("LON") != null ? data.get("LON").asDouble()
-                            : data.get("longitude") != null ? data.get("longitude").asDouble() : null)
-                    .speed(data.get("SPEED") != null ? data.get("SPEED").asDouble()
-                            : data.get("speed") != null ? data.get("speed").asDouble() : null)
-                    .course(data.get("COURSE") != null ? data.get("COURSE").asInt()
-                            : data.get("course") != null ? data.get("course").asInt() : null)
-                    .heading(data.get("HEADING") != null ? data.get("HEADING").asInt()
-                            : data.get("heading") != null ? data.get("heading").asInt() : null)
-                    .navigationStatus(data.get("NAVSTAT") != null ? data.get("NAVSTAT").asText()
-                            : data.get("navigationStatus") != null ? data.get("navigationStatus").asText() : null)
-                    .vesselName(data.get("SHIPNAME") != null ? data.get("SHIPNAME").asText()
-                            : data.get("vesselName") != null ? data.get("vesselName").asText() : null)
-                    .vesselType(data.get("SHIPTYPE") != null ? data.get("SHIPTYPE").asText()
-                            : data.get("vesselType") != null ? data.get("vesselType").asText() : null)
-                    .imo(data.get("IMO") != null ? data.get("IMO").asText()
-                            : data.get("imo") != null ? data.get("imo").asText() : null)
-                    .callsign(data.get("CALLSIGN") != null ? data.get("CALLSIGN").asText()
-                            : data.get("callsign") != null ? data.get("callsign").asText() : null)
-                    .flag(data.get("FLAG") != null ? data.get("FLAG").asText()
-                            : data.get("flag") != null ? data.get("flag").asText() : null)
-                    .length(data.get("LENGTH") != null ? data.get("LENGTH").asInt()
-                            : data.get("length") != null ? data.get("length").asInt() : null)
-                    .width(data.get("WIDTH") != null ? data.get("WIDTH").asInt()
-                            : data.get("width") != null ? data.get("width").asInt() : null)
-                    .draught(data.get("DRAUGHT") != null ? data.get("DRAUGHT").asDouble()
-                            : data.get("draught") != null ? data.get("draught").asDouble() : null)
-                    .destination(data.get("DESTINATION") != null ? data.get("DESTINATION").asText()
-                            : data.get("destination") != null ? data.get("destination").asText() : null)
-                    .eta(data.get("ETA") != null ? data.get("ETA").asText()
-                            : data.get("eta") != null ? data.get("eta").asText() : null)
-                    .timestamp(LocalDateTime.now())
-                    .dataQuality(0.92) // V2 API might have better quality
-                    .build();
-        } catch (Exception e) {
-            log.warn("Failed to parse vessel data from MarineTraffic V2: {}", e.getMessage());
-            return null;
         }
     }
 

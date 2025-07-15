@@ -1,14 +1,15 @@
 package com.phamnam.tracking_vessel_flight.service.realtime.externalApi;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.phamnam.tracking_vessel_flight.dto.request.VesselTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.external.ChinaportsResponse;
 import com.phamnam.tracking_vessel_flight.models.DataSource;
 import com.phamnam.tracking_vessel_flight.models.DataSourceStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.DataSourceType;
 import com.phamnam.tracking_vessel_flight.models.enums.SourceStatus;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceRepository;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceStatusRepository;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.mapper.ExternalApiMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,7 @@ public class ChinaportsApiService {
     private final ObjectMapper objectMapper;
     private final DataSourceRepository dataSourceRepository;
     private final DataSourceStatusRepository dataSourceStatusRepository;
+    private final ExternalApiMapper externalApiMapper;
 
     // Chinaports Configuration
     @Value("${external.api.chinaports.enabled:false}")
@@ -130,64 +132,26 @@ public class ChinaportsApiService {
     }
 
     /**
-     * Parse Chinaports API response
+     * Parse Chinaports API response using ObjectMapper for direct DTO mapping
      */
     private List<VesselTrackingRequest> parseChinaportsResponse(String responseBody) {
         try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode vessels = root.get("vessels"); // Assuming the response has a "vessels" array
+            // Use ObjectMapper to directly map JSON to DTO
+            ChinaportsResponse response = objectMapper.readValue(responseBody, ChinaportsResponse.class);
 
-            if (vessels == null || !vessels.isArray()) {
+            if (response.getVessels() == null || response.getVessels().isEmpty()) {
                 return List.of();
             }
 
-            java.util.List<VesselTrackingRequest> vesselList = new java.util.ArrayList<>();
+            // Convert each vessel using the mapper
+            return response.getVessels().stream()
+                    .map(externalApiMapper::fromChinaports)
+                    .filter(vessel -> vessel != null) // Filter out null results
+                    .toList();
 
-            vessels.elements().forEachRemaining(vessel -> {
-                VesselTrackingRequest vesselRequest = parseVesselFromChinaports(vessel);
-                if (vesselRequest != null) {
-                    vesselList.add(vesselRequest);
-                }
-            });
-
-            return vesselList;
         } catch (Exception e) {
-            log.error("Failed to parse Chinaports response", e);
+            log.error("Failed to parse Chinaports response using ObjectMapper", e);
             return List.of();
-        }
-    }
-
-    /**
-     * Parse individual vessel data from Chinaports format
-     */
-    private VesselTrackingRequest parseVesselFromChinaports(JsonNode data) {
-        try {
-            return VesselTrackingRequest.builder()
-                    .mmsi(data.get("mmsi") != null ? data.get("mmsi").asText() : null)
-                    .latitude(data.get("lat") != null ? data.get("lat").asDouble() : null)
-                    .longitude(data.get("lon") != null ? data.get("lon").asDouble() : null)
-                    .speed(data.get("speed") != null ? data.get("speed").asDouble() : null)
-                    .course(data.get("course") != null ? data.get("course").asInt() : null)
-                    .heading(data.get("heading") != null ? data.get("heading").asInt() : null)
-                    .navigationStatus(data.get("navStatus") != null ? data.get("navStatus").asText() : null)
-                    .vesselName(data.get("vesselName") != null ? data.get("vesselName").asText() : null)
-                    .vesselType(data.get("vesselType") != null ? data.get("vesselType").asText() : null)
-                    .imo(data.get("imo") != null ? data.get("imo").asText() : null)
-                    .callsign(data.get("callsign") != null ? data.get("callsign").asText() : null)
-                    .flag(data.get("flag") != null ? data.get("flag").asText() : "CN") // Default to China
-                    .length(data.get("length") != null ? data.get("length").asInt() : null)
-                    .width(data.get("width") != null ? data.get("width").asInt() : null)
-                    .draught(data.get("draught") != null ? data.get("draught").asDouble() : null)
-                    .destination(data.get("destination") != null ? data.get("destination").asText() : null)
-                    .eta(data.get("eta") != null ? data.get("eta").asText() : null)
-                    .lastPort(data.get("lastPort") != null ? data.get("lastPort").asText() : null)
-                    .nextPort(data.get("nextPort") != null ? data.get("nextPort").asText() : null)
-                    .timestamp(LocalDateTime.now())
-                    .dataQuality(0.85) // Chinaports generally has good quality data for Chinese waters
-                    .build();
-        } catch (Exception e) {
-            log.warn("Failed to parse vessel data from Chinaports: {}", e.getMessage());
-            return null;
         }
     }
 

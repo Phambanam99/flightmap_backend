@@ -1,14 +1,15 @@
 package com.phamnam.tracking_vessel_flight.service.realtime.externalApi;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.phamnam.tracking_vessel_flight.dto.request.AircraftTrackingRequest;
+import com.phamnam.tracking_vessel_flight.dto.response.external.AdsbExchangeResponse;
 import com.phamnam.tracking_vessel_flight.models.DataSource;
 import com.phamnam.tracking_vessel_flight.models.DataSourceStatus;
 import com.phamnam.tracking_vessel_flight.models.enums.DataSourceType;
 import com.phamnam.tracking_vessel_flight.models.enums.SourceStatus;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceRepository;
 import com.phamnam.tracking_vessel_flight.repository.DataSourceStatusRepository;
+import com.phamnam.tracking_vessel_flight.service.realtime.externalApi.mapper.ExternalApiMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +20,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.HttpClientErrorException;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +33,7 @@ public class AdsbExchangeApiService {
     private final ObjectMapper objectMapper;
     private final DataSourceRepository dataSourceRepository;
     private final DataSourceStatusRepository dataSourceStatusRepository;
+    private final ExternalApiMapper externalApiMapper;
 
     // ADS-B Exchange Configuration
     @Value("${external.api.adsbexchange.enabled:true}")
@@ -54,7 +55,6 @@ public class AdsbExchangeApiService {
     @Value("${external.api.bounds.max-latitude:23.5}")
     private double maxLatitude;
 
-    
     @Value("${external.api.bounds.min-longitude:102.0}")
     private double minLongitude;
 
@@ -130,96 +130,39 @@ public class AdsbExchangeApiService {
     /**
      * Parse ADS-B Exchange API response
      */
+    /**
+     * Parse ADS-B Exchange API response using ObjectMapper for direct DTO mapping
+     */
     private List<AircraftTrackingRequest> parseAdsbExchangeResponse(String responseBody) {
         try {
-            log.info("🔍 Parsing ADS-B Exchange response, length: {}",
+            log.info("🔍 Parsing ADS-B Exchange response using ObjectMapper, length: {}",
                     responseBody != null ? responseBody.length() : 0);
 
-            JsonNode root = objectMapper.readTree(responseBody);
-            log.info("📝 Root JSON parsed successfully");
+            // Use ObjectMapper to directly map JSON to DTO
+            AdsbExchangeResponse response = objectMapper.readValue(responseBody, AdsbExchangeResponse.class);
+            log.info("📝 ADS-B Exchange response parsed successfully");
 
-            // Handle mock API response format: {"data": {"ac": [...]}}
-            JsonNode dataWrapper = root.path("data");
-            if (!dataWrapper.isMissingNode()) {
-                log.info("🎯 Found data wrapper, extracting...");
-                root = dataWrapper; // Use data wrapper as new root
+            List<com.phamnam.tracking_vessel_flight.dto.response.external.AdsbExchangeAircraftData> aircraft = response
+                    .getActualAircraft();
+            if (aircraft == null || aircraft.isEmpty()) {
+                log.warn("❌ No aircraft found in ADS-B Exchange response");
+                return List.of();
             }
 
-            // Try "ac" field first (mock API format), then "aircraft" (real API format)
-            JsonNode aircraft = root.get("ac");
-            log.info("🔍 Looking for 'ac' field in root: {}", aircraft != null ? "found" : "not found");
+            log.info("📊 Found {} aircraft in response", aircraft.size());
 
-            if (aircraft == null || !aircraft.isArray()) {
-                aircraft = root.get("aircraft");
-                log.info("🔍 Looking for 'aircraft' field in root: {}", aircraft != null ? "found" : "not found");
-                if (aircraft == null || !aircraft.isArray()) {
-                    // Debug: print all field names
-                    java.util.List<String> fieldNames = new java.util.ArrayList<>();
-                    root.fieldNames().forEachRemaining(fieldNames::add);
-                    log.warn("❌ No aircraft array found in ADS-B Exchange response. Available fields: {}", fieldNames);
-                    return List.of();
-                }
-            }
+            // Convert each aircraft using the mapper
+            List<AircraftTrackingRequest> result = aircraft.stream()
+                    .map(externalApiMapper::fromAdsbExchange)
+                    .filter(ac -> ac != null) // Filter out null results
+                    .toList();
 
-            log.info("📊 Found aircraft array with {} elements", aircraft.size());
+            log.info("✅ Successfully converted {} aircraft using ObjectMapper", result.size());
+            return result;
 
-            java.util.List<AircraftTrackingRequest> aircraftList = new java.util.ArrayList<>();
-
-            aircraft.elements().forEachRemaining(ac -> {
-                AircraftTrackingRequest aircraftRequest = parseAircraftFromAdsbExchange(ac);
-                if (aircraftRequest != null) {
-                    aircraftList.add(aircraftRequest);
-                }
-            });
-
-            log.info("✅ Successfully parsed {} aircraft from ADS-B Exchange", aircraftList.size());
-            return aircraftList;
         } catch (Exception e) {
-            log.error("❌ Failed to parse ADS-B Exchange response", e);
+            log.error("❌ Failed to parse ADS-B Exchange response using ObjectMapper", e);
             return List.of();
-        }
-    }
-
-    /**
-     * Parse individual aircraft data from ADS-B Exchange format
-     */
-    private AircraftTrackingRequest parseAircraftFromAdsbExchange(JsonNode data) {
-        try {
-            return AircraftTrackingRequest.builder()
-                    .hexident(data.get("hex") != null ? data.get("hex").asText()
-                            : data.get("icao") != null ? data.get("icao").asText() : null)
-                    .latitude(data.get("lat") != null ? data.get("lat").asDouble() : null)
-                    .longitude(data.get("lon") != null ? data.get("lon").asDouble() : null)
-                    .altitude(data.get("alt_baro") != null ? data.get("alt_baro").asInt()
-                            : data.get("altitude") != null ? data.get("altitude").asInt() : null)
-                    .groundSpeed(data.get("gs") != null ? data.get("gs").asInt()
-                            : data.get("speed") != null ? data.get("speed").asInt() : null)
-                    .track(data.get("track") != null ? data.get("track").asInt()
-                            : data.get("heading") != null ? data.get("heading").asInt() : null)
-                    .verticalRate(data.get("vert_rate") != null ? data.get("vert_rate").asInt()
-                            : data.get("vr") != null ? data.get("vr").asInt() : null)
-                    .squawk(data.get("squawk") != null ? data.get("squawk").asText() : null)
-                    .aircraftType(data.get("t") != null ? data.get("t").asText()
-                            : data.get("type") != null ? data.get("type").asText() : null)
-                    .registration(data.get("r") != null ? data.get("r").asText()
-                            : data.get("reg") != null ? data.get("reg").asText() : null)
-                    .callsign(data.get("flight") != null ? data.get("flight").asText().trim()
-                            : data.get("callsign") != null ? data.get("callsign").asText().trim() : null)
-                    .onGround(data.get("alt_baro") != null && data.get("alt_baro").asInt() == 0)
-                    .emergency(data.get("squawk") != null &&
-                            ("7500".equals(data.get("squawk").asText()) ||
-                                    "7600".equals(data.get("squawk").asText()) ||
-                                    "7700".equals(data.get("squawk").asText())))
-                    .timestamp(LocalDateTime.now())
-                    .dataQuality(0.88) // ADS-B Exchange generally has good quality data
-                    // Additional ADS-B Exchange specific fields
-                    .trueAirspeed(data.get("tas") != null ? data.get("tas").asDouble() : null)
-                    .magneticHeading(data.get("mag_heading") != null ? data.get("mag_heading").asDouble() : null)
-                    .transponderCode(data.get("squawk") != null ? data.get("squawk").asText() : null)
-                    .build();
-        } catch (Exception e) {
-            log.warn("Failed to parse aircraft data from ADS-B Exchange: {}", e.getMessage());
-            return null;
         }
     }
 
